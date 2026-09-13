@@ -1,3 +1,4 @@
+import { magneticDisplayParameters } from "@icm/derived";
 import type { Rotation, SchematicDocument } from "@icm/model";
 import {
   componentPropertyDetailsValue,
@@ -14,7 +15,9 @@ import {
 } from "./component-property-fields";
 import {
   componentInputPolarity,
+  componentInputsSwapped,
   componentInternalMark,
+  componentOutputsSwapped,
   NO_INTERNAL_MARK,
 } from "./component-visual-variants";
 
@@ -31,6 +34,7 @@ export interface ComponentPropertyPlacementCode {
 export interface ComponentPropertyDisplayCode {
   visualAnnotation?: boolean;
   value?: boolean;
+  parameters?: Record<string, boolean>;
 }
 
 export interface ComponentPropertyCodeValue extends ComponentPropertyDetailsValue {
@@ -42,6 +46,8 @@ export interface ComponentPropertyCodeValue extends ComponentPropertyDetailsValu
     foreground: ComponentPropertyColor;
     internalMark?: string;
     inputPolarity?: boolean;
+    inputsSwapped?: boolean;
+    outputsSwapped?: boolean;
   };
 }
 
@@ -49,6 +55,7 @@ export interface ComponentPropertyCodeContext {
   instance: Instance;
   referenceVisible: boolean | null;
   valueVisible: boolean | null;
+  parameterVisibility?: Record<string, boolean>;
   /** Null when this component does not own an editable electrical marker name. */
   netName?: string | null;
   details?: ComponentPropertyDetailsContext;
@@ -152,6 +159,8 @@ function parseDisplay(
   const supported = new Set<string>();
   if (context.referenceVisible !== null) supported.add("visualAnnotation");
   if (context.valueVisible !== null) supported.add("value");
+  const parameters = magneticDisplayParameters(context.instance.symbolId);
+  if (parameters.length) supported.add("parameters");
   if (supported.size === 0) {
     if (value !== undefined) {
       throw new Error("display is not available for this component");
@@ -163,10 +172,30 @@ function parseDisplay(
   if (unknown) throw new Error(unknown);
   const display: ComponentPropertyDisplayCode = {};
   for (const key of supported) {
+    if (key === "parameters") {
+      if (!isRecord(value.parameters))
+        throw new Error("display.parameters must be an object");
+      const unknownParameter = unexpectedKey(
+        value.parameters,
+        new Set(parameters.map((parameter) => parameter.name)),
+        "display.parameters",
+      );
+      if (unknownParameter) throw new Error(unknownParameter);
+      display.parameters = {};
+      for (const parameter of parameters) {
+        const visible = value.parameters[parameter.name];
+        if (typeof visible !== "boolean")
+          throw new Error(
+            `display.parameters.${parameter.name} must be true or false`,
+          );
+        display.parameters[parameter.name] = visible;
+      }
+      continue;
+    }
     if (typeof value[key] !== "boolean") {
       throw new Error(`display.${key} must be true or false`);
     }
-    display[key as keyof ComponentPropertyDisplayCode] = value[key] as boolean;
+    display[key as "visualAnnotation" | "value"] = value[key] as boolean;
   }
   return display;
 }
@@ -177,9 +206,15 @@ function parseAppearance(
 ): ComponentPropertyCodeValue["appearance"] {
   const internalMark = componentInternalMark(context.instance);
   const inputPolarity = componentInputPolarity(context.instance.symbolId);
+  const booleanStates = {
+    inputPolarity,
+    inputsSwapped: componentInputsSwapped(context.instance.symbolId),
+    outputsSwapped: componentOutputsSwapped(context.instance.symbolId),
+  };
   const supported = new Set<string>(["foreground"]);
   if (internalMark !== undefined) supported.add("internalMark");
-  if (inputPolarity !== undefined) supported.add("inputPolarity");
+  for (const [key, state] of Object.entries(booleanStates))
+    if (state !== undefined) supported.add(key);
   const unknown = unexpectedKey(value, supported, "appearance");
   if (unknown) throw new Error(unknown);
   if (!("foreground" in value))
@@ -200,12 +235,14 @@ function parseAppearance(
       );
     appearance.internalMark = value.internalMark.trim();
   }
-  if (inputPolarity !== undefined) {
-    if (!("inputPolarity" in value))
-      throw new Error("appearance.inputPolarity is required");
-    if (typeof value.inputPolarity !== "boolean")
-      throw new Error("appearance.inputPolarity must be true or false");
-    appearance.inputPolarity = value.inputPolarity;
+  for (const key of Object.keys(
+    booleanStates,
+  ) as (keyof typeof booleanStates)[]) {
+    if (booleanStates[key] === undefined) continue;
+    if (!(key in value)) throw new Error(`appearance.${key} is required`);
+    if (typeof value[key] !== "boolean")
+      throw new Error(`appearance.${key} must be true or false`);
+    appearance[key] = value[key];
   }
   return appearance;
 }
@@ -216,11 +253,21 @@ export function componentPropertyCodeValue(
   const { instance } = context;
   const internalMark = componentInternalMark(instance);
   const inputPolarity = componentInputPolarity(instance.symbolId);
+  const inputsSwapped = componentInputsSwapped(instance.symbolId);
+  const outputsSwapped = componentOutputsSwapped(instance.symbolId);
   const display: ComponentPropertyDisplayCode = {};
   if (context.referenceVisible !== null) {
     display.visualAnnotation = context.referenceVisible;
   }
   if (context.valueVisible !== null) display.value = context.valueVisible;
+  const parameters = magneticDisplayParameters(instance.symbolId);
+  if (parameters.length)
+    display.parameters = Object.fromEntries(
+      parameters.map((parameter) => [
+        parameter.name,
+        context.parameterVisibility?.[parameter.name] ?? false,
+      ]),
+    );
   return {
     ...(context.netName !== undefined && context.netName !== null
       ? { netName: context.netName }
@@ -238,6 +285,8 @@ export function componentPropertyCodeValue(
       foreground: formattedColor(instance.styleOverride?.foreground),
       ...(internalMark !== undefined ? { internalMark } : {}),
       ...(inputPolarity !== undefined ? { inputPolarity } : {}),
+      ...(inputsSwapped !== undefined ? { inputsSwapped } : {}),
+      ...(outputsSwapped !== undefined ? { outputsSwapped } : {}),
     },
   };
 }
@@ -266,6 +315,12 @@ export function serializeComponentPropertyCode(
           : {}),
         ...(appearance.inputPolarity !== undefined
           ? { inputPolarity: appearance.inputPolarity }
+          : {}),
+        ...(appearance.inputsSwapped !== undefined
+          ? { inputsSwapped: appearance.inputsSwapped }
+          : {}),
+        ...(appearance.outputsSwapped !== undefined
+          ? { outputsSwapped: appearance.outputsSwapped }
           : {}),
       },
       ...(display ? { display } : {}),
@@ -380,6 +435,12 @@ export function defaultComponentPropertyCode(
       : {}),
     ...(value.appearance.inputPolarity !== undefined
       ? { inputPolarity: true }
+      : {}),
+    ...(value.appearance.inputsSwapped !== undefined
+      ? { inputsSwapped: false }
+      : {}),
+    ...(value.appearance.outputsSwapped !== undefined
+      ? { outputsSwapped: false }
       : {}),
   };
   if (value.parameters && context.details) {

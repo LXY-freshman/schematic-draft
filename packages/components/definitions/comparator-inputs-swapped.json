@@ -6,9 +6,9 @@
     "name": "Comparator (swapped inputs)",
     "viewBox": {
       "x": -44,
-      "y": -28,
+      "y": -34,
       "width": 88,
-      "height": 56
+      "height": 68
     },
     "pins": [
       {
@@ -41,7 +41,7 @@
         "name": "OUT",
         "role": "output",
         "at": {
-          "x": 40,
+          "x": 30,
           "y": 0
         },
         "direction": "east",
@@ -59,7 +59,7 @@
           "y": -10
         },
         "to": {
-          "x": -26.7979,
+          "x": -30,
           "y": -10
         },
         "style": {
@@ -75,7 +75,7 @@
           "y": 10
         },
         "to": {
-          "x": -26.7979,
+          "x": -30,
           "y": 10
         },
         "style": {
@@ -87,11 +87,11 @@
       {
         "kind": "line",
         "from": {
-          "x": 23.2021,
+          "x": 21.961524,
           "y": 0
         },
         "to": {
-          "x": 40,
+          "x": 30,
           "y": 0
         },
         "style": {
@@ -102,7 +102,13 @@
       },
       {
         "kind": "path",
-        "data": "M -26.7979 -24.9983 L -26.7979 25 L 23.2021 0 Z",
+        "data": "M -30 -30 L -30 30 L 21.961524 0 Z",
+        "bounds": {
+          "x": -30,
+          "y": -30,
+          "width": 51.961524,
+          "height": 60
+        },
         "style": {
           "strokeRole": "emphasis",
           "lineCap": "butt",
@@ -113,61 +119,69 @@
       {
         "kind": "line",
         "from": {
-          "x": -18.047038,
-          "y": -8.749129
+          "x": -23.75,
+          "y": -11
         },
         "to": {
-          "x": -18.047038,
-          "y": -16.249129
+          "x": -23.75,
+          "y": -17
         },
+        "part": "input-polarity",
         "style": {
           "strokeRole": "normal",
-          "lineCap": "butt",
-          "lineJoin": "miter"
+          "lineCap": "round",
+          "lineJoin": "round"
         }
       },
       {
         "kind": "line",
         "from": {
-          "x": -21.796167,
-          "y": -12.5
+          "x": -26.75,
+          "y": -14
         },
         "to": {
-          "x": -14.296167,
-          "y": -12.5
+          "x": -20.75,
+          "y": -14
         },
+        "part": "input-polarity",
         "style": {
           "strokeRole": "normal",
-          "lineCap": "butt",
-          "lineJoin": "miter"
+          "lineCap": "round",
+          "lineJoin": "round"
         }
       },
       {
         "kind": "line",
         "from": {
-          "x": -21.796167,
-          "y": 12.5
+          "x": -26.75,
+          "y": 14
         },
         "to": {
-          "x": -14.296167,
-          "y": 12.5
+          "x": -20.75,
+          "y": 14
         },
+        "part": "upright-input-polarity-negative",
         "style": {
           "strokeRole": "normal",
-          "lineCap": "butt",
-          "lineJoin": "miter"
-        },
-        "part": "upright-input-polarity-negative"
+          "lineCap": "round",
+          "lineJoin": "round"
+        }
       },
       {
         "kind": "path",
-        "data": "M -15 7 L -7 7 L -7 -7 L 1 -7",
+        "data": "M -18.038476 7 L -10.038476 7 L -10.038476 -7 L -2.0384759999999993 -7",
         "style": {
           "strokeRole": "normal",
           "lineCap": "butt",
           "lineJoin": "miter"
         },
-        "part": "hysteresis-step"
+        "part": "hysteresis-step",
+        "bounds": {
+          "x": -18.038476,
+          "y": -7,
+          "width": 16,
+          "height": 14
+        }
       }
     ],
     "variants": []

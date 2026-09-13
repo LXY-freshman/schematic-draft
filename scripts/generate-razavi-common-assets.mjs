@@ -9,6 +9,13 @@ import { fileURLToPath } from "node:url";
 import { format } from "prettier";
 
 import { loadRazaviReferenceAuthority } from "./lib/razavi-reference-authority.mjs";
+import {
+  ANALOG_TRIANGLE,
+  ANALOG_TRIANGLE_BOUNDS,
+  ANALOG_TRIANGLE_PATH,
+  ANALOG_TRIANGLE_OUTPUT_X,
+  ANALOG_TRIANGLE_VIEWBOX,
+} from "./lib/analog-triangle.mjs";
 import { normalizeSwitchLeads } from "./lib/normalize-switch-leads.mjs";
 
 /**
@@ -24,21 +31,19 @@ import { normalizeSwitchLeads } from "./lib/normalize-switch-leads.mjs";
  */
 const ONE_CELL_LEAD_SYMBOLS = new Set(["closed-switch", "ideal-switch"]);
 const ANALOG_BLOCK_LEAD_LENGTH = 10;
-const ANALOG_TRIANGLE_VIEWBOX = { x: -44, y: -28, width: 88, height: 56 };
-const ANALOG_TRIANGLE_PATH = "M -26.7979 -24.9983 L -26.7979 25 L 23.2021 0 Z";
-const ANALOG_TRIANGLE_LEFT_X = -26.7979;
-const ANALOG_TRIANGLE_APEX_X = 23.2021;
+const ANALOG_TRIANGLE_LEFT_X = ANALOG_TRIANGLE.leftX;
+const ANALOG_TRIANGLE_APEX_X = ANALOG_TRIANGLE.apexX;
 
 /**
- * Every triangular Analog Block shares the Op Amp body and leaves one clear
- * connection-grid step outside it. This keeps Library tiles and placed
+ * Every triangular Analog Block shares the Op Amp body and output column.
+ * This keeps Library tiles and placed
  * symbols visually interchangeable instead of preserving incidental source-
  * figure differences.
  */
 function normalizeVoltageAmplifierLeads(symbol) {
   const targetX = new Map([
     ["IN", -40],
-    ["OUT", 40],
+    ["OUT", ANALOG_TRIANGLE_OUTPUT_X],
   ]);
   symbol.pins = symbol.pins.map((pin) => ({
     ...pin,
@@ -65,12 +70,13 @@ function normalizeVoltageAmplifierLeads(symbol) {
     {
       ...body,
       data: ANALOG_TRIANGLE_PATH,
+      bounds: ANALOG_TRIANGLE_BOUNDS,
       style: { ...body.style, miterLimit: 4 },
     },
     {
       ...outputLead,
       from: { x: ANALOG_TRIANGLE_APEX_X, y: 0 },
-      to: { x: 40, y: 0 },
+      to: { x: ANALOG_TRIANGLE_OUTPUT_X, y: 0 },
     },
   ];
   symbol.viewBox = ANALOG_TRIANGLE_VIEWBOX;
@@ -224,7 +230,12 @@ for (const [symbolId, name, category, pinOrder, automaticMappings] of entries) {
         "fixtures/visual-reference/razavi-reference-v1/manifest.json",
       referencePath: `fixtures/visual-reference/razavi-reference-v1/${symbolId}-vector-source.json`,
       converterPath: "scripts/generate-razavi-common-assets.mjs",
-      converterVersion: symbolId === "voltage-amplifier" ? 2 : 1,
+      converterVersion: symbolId === "voltage-amplifier" ? 6 : 1,
+      ...(symbolId === "voltage-amplifier"
+        ? {
+            bodyNormalization: "equilateral-triangle",
+          }
+        : {}),
     },
   };
   if (entry) Object.assign(entry, nextEntry);

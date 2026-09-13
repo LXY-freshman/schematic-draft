@@ -1,3 +1,4 @@
+import { renderFractionText } from "./fraction-text.js";
 import { arrowArtwork, arrowPathData } from "@icm/derived";
 import {
   RectSchema,
@@ -151,6 +152,16 @@ function renderStackedFractionAnnotation(
   const denominatorY =
     options.position.y +
     fontSize * partScale * fractionGeometry.denominatorBaselineDropEm;
+  const partLength = (content: RichTextDocument): string => {
+    const width = measureRichTextDocument(content, {
+      ...richTextMetrics(profile),
+      fontSize: partFont,
+      fractionText: true,
+    }).width;
+    return width > 0
+      ? ` textLength="${width}" lengthAdjust="spacingAndGlyphs"`
+      : "";
+  };
   const partStyle = `font-style:normal;font-weight:${profile.typography.mathWeight}`;
   // `fill` paints glyphs; `color` supplies currentColor for nested RichText
   // decorations such as CSS overbars inside a fraction part.
@@ -158,7 +169,7 @@ function renderStackedFractionAnnotation(
     ? ` fill="${options.color}" color="${options.color}"`
     : "";
   const attributes = options.attributes ? ` ${options.attributes}` : "";
-  return `<g${attributes}><text data-role="fraction-numerator" x="${centerX}" y="${numeratorY}" text-anchor="middle" font-size="${partFont}"${textColor} style="${partStyle}">${renderRichTextDocument(fraction.numerator, profile, { defaultBold: true, fontSize: partFont })}</text><line data-role="fraction-bar" x1="${centerX - halfWidth}" y1="${barY}" x2="${centerX + halfWidth}" y2="${barY}" stroke="${options.color ?? profile.foreground}" stroke-width="${profile.strokes.annotation}"/><text data-role="fraction-denominator" x="${centerX}" y="${denominatorY}" text-anchor="middle" font-size="${partFont}"${textColor} style="${partStyle}">${renderRichTextDocument(fraction.denominator, profile, { defaultBold: true, fontSize: partFont })}</text></g>`;
+  return `<g${attributes}><text data-role="fraction-numerator" x="${centerX}" y="${numeratorY}" text-anchor="middle" font-size="${partFont}"${partLength(fraction.numerator)}${textColor} style="${partStyle}">${renderRichTextDocument(fraction.numerator, profile, { defaultBold: true, fontSize: partFont })}</text><line data-role="fraction-bar" x1="${centerX - halfWidth}" y1="${barY}" x2="${centerX + halfWidth}" y2="${barY}" stroke="${options.color ?? profile.foreground}" stroke-width="${profile.strokes.annotation}"/><text data-role="fraction-denominator" x="${centerX}" y="${denominatorY}" text-anchor="middle" font-size="${partFont}"${partLength(fraction.denominator)}${textColor} style="${partStyle}">${renderRichTextDocument(fraction.denominator, profile, { defaultBold: true, fontSize: partFont })}</text></g>`;
 }
 
 function isPositionableFractionCompanion(run: RichTextRun): boolean {
@@ -206,6 +217,7 @@ function renderPositionedFractionAnnotation(
   const metrics = {
     ...richTextMetrics(options.profile),
     fontSize: options.fontSize,
+    fractionText: true,
   };
   const widthOf = (document: RichTextDocument): number =>
     document.runs.length === 0
@@ -227,7 +239,7 @@ function renderPositionedFractionAnnotation(
   const renderCompanion = (document: RichTextDocument, x: number): string =>
     document.runs.length === 0
       ? ""
-      : `<text x="${x}" y="${options.position.y}" text-anchor="start" font-size="${options.fontSize}" xml:space="preserve"${textColor}>${renderRichTextDocument(document, options.profile, { lineOriginX: x, fontSize: options.fontSize })}</text>`;
+      : `<text x="${x}" y="${options.position.y}" text-anchor="start" font-size="${options.fontSize}" textLength="${widthOf(document)}" lengthAdjust="spacingAndGlyphs" xml:space="preserve"${textColor}>${renderRichTextDocument(document, options.profile, { lineOriginX: x, fontSize: options.fontSize })}</text>`;
   const fractionX = startX + prefixWidth;
   const fractionMarkup = renderStackedFractionAnnotation(fraction, {
     position: { x: fractionX, y: options.position.y },
@@ -1392,7 +1404,7 @@ export function buildSvgScene(
       }
       const emphasis = "";
       const positionedFraction =
-        annotation.rotation === 0
+        annotation.kind === "instance-value" && annotation.rotation === 0
           ? renderPositionedFractionAnnotation(content, {
               attributes,
               position,
@@ -1405,6 +1417,15 @@ export function buildSvgScene(
       if (positionedFraction) {
         return `<g>${positionedFraction}${globalBadge}</g>`;
       }
+      const mixedFractions = renderFractionText(content, profile, {
+        x: position.x,
+        y: position.y,
+        fontSize: annotationFontSize,
+        alignment: annotation.alignment,
+        color: colorOverride ?? profile.foreground,
+      });
+      if (mixedFractions)
+        return `<g ${attributes}><g transform="${transform}">${mixedFractions}</g>${globalBadge}</g>`;
       const formula = renderFormulaDocument(content, profile, {
         x: position.x,
         baselineY: position.y,
@@ -1612,7 +1633,7 @@ function renderDraftText(
     object.anchor.kind === "object" || object.polarity
       ? centeredFirstBaselineY(content, textPosition.y, fontSize, profile)
       : textPosition.y;
-  const weight = object.styleOverride?.weight === "bold" ? "bold" : "normal";
+  const weight = object.styleOverride?.weight ?? "bold";
   const italic = object.styleOverride?.italic === true ? "italic" : "normal";
   const positioned = renderPositionedOverbarScriptDocument(content, profile, {
     x: textPosition.x,
@@ -1624,6 +1645,15 @@ function renderDraftText(
       : {}),
     defaultBold: weight === "bold",
     defaultItalic: italic === "italic",
+  });
+  const fractions = renderFractionText(content, profile, {
+    x: textPosition.x,
+    y: baselineY,
+    fontSize,
+    alignment: object.alignment,
+    color,
+    bold: weight === "bold",
+    italic: italic === "italic",
   });
   const formula = renderFormulaDocument(content, profile, {
     x: textPosition.x,
@@ -1646,16 +1676,21 @@ function renderDraftText(
         return `<line data-role="polarity-${line.role}" x1="${rendered.from.x}" y1="${rendered.from.y}" x2="${rendered.to.x}" y2="${rendered.to.y}" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="${profile.lineCap}"/>`;
       })
       .join("");
-    const text = formula
-      ? formula
-      : positioned
-        ? `<text x="${textPosition.x}" y="${baselineY}" text-anchor="start" font-size="${fontSize}" font-weight="${weight}" font-style="${italic}" fill="${color}">${positioned.tspans}</text>${positioned.decorations}`
-        : `<text x="${textPosition.x}" y="${baselineY}" text-anchor="${object.alignment}" font-size="${fontSize}" font-weight="${weight}" font-style="${italic}" fill="${color}">${renderRichTextDocument(content, profile, { lineOriginX: textPosition.x, fontSize })}</text>`;
+    const text =
+      fractions ??
+      (formula
+        ? formula
+        : positioned
+          ? `<text x="${textPosition.x}" y="${baselineY}" text-anchor="start" font-size="${fontSize}" font-weight="${weight}" font-style="${italic}" fill="${color}">${positioned.tspans}</text>${positioned.decorations}`
+          : `<text x="${textPosition.x}" y="${baselineY}" text-anchor="${object.alignment}" font-size="${fontSize}" font-weight="${weight}" font-style="${italic}" fill="${color}">${renderRichTextDocument(content, profile, { lineOriginX: textPosition.x, fontSize, defaultBold: weight === "bold", defaultItalic: italic === "italic" })}</text>`);
     return `<g data-object-id="${object.id}" data-kind="draft-text" data-polarity="${object.polarity}"${unresolved} transform="rotate(${rotation} ${position.x} ${position.y})">${markers}${text}</g>`;
   }
   // P1: the renderer consumes geometry.rotation (the single rotation truth),
   // not the raw persisted object rotation. The rotation pivot stays on the
   // resolved anchor so centered labels rotate about their center.
+  if (fractions) {
+    return `<g data-object-id="${object.id}" data-kind="draft-text"${unresolved} transform="rotate(${rotation} ${position.x} ${position.y})">${fractions}</g>`;
+  }
   if (formula) {
     return `<g data-object-id="${object.id}" data-kind="draft-text"${unresolved} transform="rotate(${rotation} ${position.x} ${position.y})">${formula}</g>`;
   }
@@ -1665,6 +1700,8 @@ function renderDraftText(
   const markup = renderRichTextDocument(content, profile, {
     lineOriginX: textPosition.x,
     fontSize,
+    defaultBold: weight === "bold",
+    defaultItalic: italic === "italic",
   });
   return `<text data-object-id="${object.id}" data-kind="draft-text"${unresolved} x="${textPosition.x}" y="${baselineY}" text-anchor="${object.alignment}" transform="rotate(${rotation} ${position.x} ${position.y})" font-size="${fontSize}" font-weight="${weight}" font-style="${italic}" fill="${color}">${markup}</text>`;
 }
@@ -1840,7 +1877,7 @@ function renderDraftCallout(
   const fontSize =
     typographyFontSize(object.typographyToken ?? "body", profile) *
     (object.styleOverride?.sizeScale ?? 1);
-  const weight = object.styleOverride?.weight === "bold" ? "bold" : "normal";
+  const weight = object.styleOverride?.weight ?? "bold";
   const italic = object.styleOverride?.italic === true ? "italic" : "normal";
   const formula = renderFormulaDocument(object.content, profile, {
     x: textPosition.x,
@@ -1854,7 +1891,7 @@ function renderDraftCallout(
   // P1: renderer consumes geometry.rotation (the single rotation truth).
   const text = formula
     ? `<g transform="rotate(${rotation} ${textPosition.x} ${textPosition.y})">${formula}</g>`
-    : `<text x="${textPosition.x}" y="${textPosition.y}" text-anchor="${object.alignment}" transform="rotate(${rotation} ${textPosition.x} ${textPosition.y})" font-size="${fontSize}" font-weight="${weight}" font-style="${italic}">${renderRichTextDocument(object.content, profile, { lineOriginX: textPosition.x, fontSize })}</text>`;
+    : `<text x="${textPosition.x}" y="${textPosition.y}" text-anchor="${object.alignment}" transform="rotate(${rotation} ${textPosition.x} ${textPosition.y})" font-size="${fontSize}" font-weight="${weight}" font-style="${italic}">${renderRichTextDocument(object.content, profile, { lineOriginX: textPosition.x, fontSize, defaultBold: weight === "bold", defaultItalic: italic === "italic" })}</text>`;
   return `<g data-object-id="${object.id}" data-kind="draft-callout"${unresolved}>${leader}${text}</g>`;
 }
 

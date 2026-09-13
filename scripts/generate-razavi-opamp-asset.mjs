@@ -10,6 +10,14 @@ import { format } from "prettier";
 
 import { loadRazaviReferenceAuthority } from "./lib/razavi-reference-authority.mjs";
 
+import {
+  ANALOG_TRIANGLE,
+  ANALOG_TRIANGLE_BOUNDS,
+  ANALOG_TRIANGLE_PATH,
+  ANALOG_TRIANGLE_OUTPUT_X,
+  ANALOG_TRIANGLE_VIEWBOX,
+} from "./lib/analog-triangle.mjs";
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const referenceRoot = resolve(
   root,
@@ -26,14 +34,8 @@ const differentialAssetPaths = {
     "packages/components/definitions/opamp-differential-crossed.json",
   ),
 };
-/** Figure-derived pair height before the reviewed product-scale adjustment. */
-const SOURCE_PAIR_OFFSET = 10;
 /** Every differential input/output pair uses the ordinary Op Amp's ±10 grid. */
 const OUTPUT_PAIR_OFFSET = 10;
-/** Polarity glyphs stay associated with that same shared pair spacing. */
-const POLARITY_PAIR_OFFSET = 10;
-/** Add a small horizontal gap between input- and output-side glyphs. */
-const POLARITY_HORIZONTAL_SPREAD = 1;
 const catalogPath = resolve(root, "packages/components/catalog.json");
 const check = process.argv.includes("--check");
 const normalize = (value) => `${value.replaceAll("\r\n", "\n").trimEnd()}\n`;
@@ -41,9 +43,42 @@ const hash = (value) => createHash("sha256").update(value).digest("hex");
 const normal = { strokeRole: "normal", lineCap: "butt", lineJoin: "miter" };
 const ANALOG_BLOCK_LEAD_LENGTH = 10;
 const OPAMP_INPUT_PIN_X = -40;
-const OPAMP_OUTPUT_PIN_X = 40;
-const OPAMP_BODY_LEFT_X = -26.7979;
-const OPAMP_BODY_APEX_X = 23.2021;
+const OPAMP_OUTPUT_PIN_X = ANALOG_TRIANGLE_OUTPUT_X;
+const OPAMP_BODY_LEFT_X = ANALOG_TRIANGLE.leftX;
+const OPAMP_BODY_APEX_X = ANALOG_TRIANGLE.apexX;
+const INPUT_MARK_X = OPAMP_BODY_LEFT_X + 6.25;
+const OUTPUT_MARK_X = Number((ANALOG_TRIANGLE.apexX - 35.5).toFixed(6));
+const MARK_ROW_Y = 14;
+const MARK_HALF_SIZE = 3;
+
+// Use the differential gm block's square +/- construction for every analog
+// triangle. Scaling the PDF's axes separately distorted the FD Amp marks.
+function polarityPair(x, side) {
+  const mark = (from, to, part) => ({
+    kind: "line",
+    from,
+    to,
+    part,
+    style: { ...normal, lineCap: "round", lineJoin: "round" },
+  });
+  return [
+    mark(
+      { x, y: MARK_ROW_Y - MARK_HALF_SIZE },
+      { x, y: MARK_ROW_Y + MARK_HALF_SIZE },
+      `${side}-polarity`,
+    ),
+    mark(
+      { x: x - MARK_HALF_SIZE, y: MARK_ROW_Y },
+      { x: x + MARK_HALF_SIZE, y: MARK_ROW_Y },
+      `${side}-polarity`,
+    ),
+    mark(
+      { x: x - MARK_HALF_SIZE, y: -MARK_ROW_Y },
+      { x: x + MARK_HALF_SIZE, y: -MARK_ROW_Y },
+      `upright-${side}-polarity-negative`,
+    ),
+  ];
+}
 
 function fail(message) {
   throw new Error(`Razavi op-amp generation: ${message}`);
@@ -82,7 +117,7 @@ const symbol = {
   schemaVersion: 1,
   id: "opamp",
   name: "Operational Amplifier",
-  viewBox: { x: -44, y: -28, width: 88, height: 56 },
+  viewBox: ANALOG_TRIANGLE_VIEWBOX,
   pins: [
     {
       name: "IN+",
@@ -133,7 +168,8 @@ const symbol = {
     }),
     {
       kind: "path",
-      data: geometry.trianglePathData,
+      data: ANALOG_TRIANGLE_PATH,
+      bounds: ANALOG_TRIANGLE_BOUNDS,
       style: {
         strokeRole: "emphasis",
         lineCap: "butt",
@@ -141,12 +177,7 @@ const symbol = {
         miterLimit: 4,
       },
     },
-    line(geometry.plusVertical),
-    line(geometry.plusHorizontal),
-    {
-      ...line(geometry.minusHorizontal),
-      part: "upright-input-polarity-negative",
-    },
+    ...polarityPair(INPUT_MARK_X, "input"),
   ],
   variants: [],
 };
@@ -158,8 +189,8 @@ const assetSource = normalize(
  * Figure 13.48 supplies the fully differential polarity layout and dual-output
  * topology. Its printed triangle is compact, whereas the product contract is
  * that every triangular Analog Block uses the ordinary Razavi Op Amp body
- * (Figure 8.26). Scale only Figure 13.48's polarity layout into that exact
- * shared body; retain pin semantics and derive only marks needed per state.
+ * with the user-requested equilateral normalization and uniform +/- strokes.
+ * Retain Figure 13.48's pin semantics and derive only marks needed per state.
  */
 const differentialAuthority = manifest.vectorEvidence?.find(
   (candidate) =>
@@ -193,86 +224,8 @@ if (
   fail("Figure 13.48 differential op-amp evidence contract mismatch");
 }
 
-const opampTriangle = {
-  leftX: -26.7979,
-  apexX: 23.2021,
-  topY: -24.9983,
-  bottomY: 25,
-};
-const compactDifferentialTriangle = {
-  leftX: -20,
-  apexX: 14.9998,
-  topY: -15.0002,
-  bottomY: 14.9993,
-};
-const opampCenterX = (opampTriangle.leftX + opampTriangle.apexX) / 2;
-const opampCenterY = (opampTriangle.topY + opampTriangle.bottomY) / 2;
-const scaleDifferentialMarkPoint = ({ x, y }) => ({
-  x:
-    opampTriangle.leftX +
-    ((x - compactDifferentialTriangle.leftX) *
-      (opampTriangle.apexX - opampTriangle.leftX)) /
-      (compactDifferentialTriangle.apexX - compactDifferentialTriangle.leftX),
-  y:
-    opampTriangle.topY +
-    ((y - compactDifferentialTriangle.topY) *
-      (opampTriangle.bottomY - opampTriangle.topY)) /
-      (compactDifferentialTriangle.bottomY - compactDifferentialTriangle.topY),
-});
-const scaledDifferentialTriangle = { ...opampTriangle, apexY: 0 };
-const baseDifferentialTriangle = scaledDifferentialTriangle;
-const differentialTrianglePathData = geometry.trianglePathData;
-const triangleEdgeXAtY = (triangle, y) => {
-  const reachesApexFromTop = y <= triangle.apexY;
-  const edgeY = reachesApexFromTop ? triangle.topY : triangle.bottomY;
-  const ratio = reachesApexFromTop
-    ? (y - edgeY) / (triangle.apexY - edgeY)
-    : (edgeY - y) / (edgeY - triangle.apexY);
-  return triangle.leftX + ratio * (triangle.apexX - triangle.leftX);
-};
-const scaleDifferentialPairLine = (geometry, spreadDirection) => {
-  const base = {
-    from: scaleDifferentialMarkPoint(geometry.from),
-    to: scaleDifferentialMarkPoint(geometry.to),
-  };
-  const center = {
-    x: (base.from.x + base.to.x) / 2,
-    y: (base.from.y + base.to.y) / 2,
-  };
-  const side = Math.sign(center.y - opampCenterY);
-  const targetCenterY =
-    center.y + side * (POLARITY_PAIR_OFFSET - SOURCE_PAIR_OFFSET);
-  const baseEdgeX = triangleEdgeXAtY(baseDifferentialTriangle, center.y);
-  const crossSectionFraction =
-    (center.x - baseDifferentialTriangle.leftX) /
-    (baseEdgeX - baseDifferentialTriangle.leftX);
-  const targetEdgeX = triangleEdgeXAtY(
-    scaledDifferentialTriangle,
-    targetCenterY,
-  );
-  const targetCenterX =
-    scaledDifferentialTriangle.leftX +
-    crossSectionFraction * (targetEdgeX - scaledDifferentialTriangle.leftX) +
-    spreadDirection * POLARITY_HORIZONTAL_SPREAD;
-  const shiftPoint = (point) => ({
-    x: targetCenterX + (point.x - center.x),
-    y: targetCenterY + (point.y - center.y),
-  });
-  return {
-    from: shiftPoint(base.from),
-    to: shiftPoint(base.to),
-  };
-};
-const differentialLine = (geometry) => ({
-  kind: "line",
-  from: geometry.from,
-  to: geometry.to,
-  style: normal,
-});
-const taggedLine = (geometry, part) => ({
-  ...differentialLine(geometry),
-  part,
-});
+const scaledDifferentialTriangle = ANALOG_TRIANGLE;
+const differentialTrianglePathData = ANALOG_TRIANGLE_PATH;
 const acrossAxis = (primitive) => ({
   ...primitive,
   from: { ...primitive.from, y: -primitive.from.y },
@@ -339,34 +292,8 @@ const outputLead = (contact, pin) => ({
   to: pin.at,
   style: normal,
 });
-const sourceInputMarks = [
-  taggedLine(
-    scaleDifferentialPairLine(differentialGeometry.input_plus_vertical, -1),
-    "input-polarity",
-  ),
-  taggedLine(
-    scaleDifferentialPairLine(differentialGeometry.input_plus_horizontal, -1),
-    "input-polarity",
-  ),
-  taggedLine(
-    scaleDifferentialPairLine(differentialGeometry.input_minus_horizontal, -1),
-    "upright-input-polarity-negative",
-  ),
-];
-const sourceOutputMarks = [
-  taggedLine(
-    scaleDifferentialPairLine(differentialGeometry.output_minus_horizontal, 1),
-    "upright-output-polarity-negative",
-  ),
-  taggedLine(
-    scaleDifferentialPairLine(differentialGeometry.output_plus_vertical, 1),
-    "output-polarity",
-  ),
-  taggedLine(
-    scaleDifferentialPairLine(differentialGeometry.output_plus_horizontal, 1),
-    "output-polarity",
-  ),
-];
+const sourceInputMarks = polarityPair(INPUT_MARK_X, "input");
+const sourceOutputMarks = polarityPair(OUTPUT_MARK_X, "output");
 const differentialSymbol = (id, name, plusOutputAtBottom) => {
   const topInput = pinOneGridOutsideBody(
     inputLeadContact(-OUTPUT_PAIR_OFFSET),
@@ -378,28 +305,18 @@ const differentialSymbol = (id, name, plusOutputAtBottom) => {
     symbol.pins[0],
     "west",
   );
-  const topOutput = pinOneGridOutsideBody(
-    outputLeadContact(-OUTPUT_PAIR_OFFSET),
-    {
-      name: "OUT-",
-      role: "output",
-      at: { x: geometry.output.to.x, y: -OUTPUT_PAIR_OFFSET },
-      direction: "east",
-      presentation: { visibility: "visible", leadLength: 20 },
-    },
-    "east",
-  );
-  const bottomOutput = pinOneGridOutsideBody(
-    outputLeadContact(OUTPUT_PAIR_OFFSET),
-    {
-      name: "OUT+",
-      role: "output",
-      at: { x: geometry.output.to.x, y: OUTPUT_PAIR_OFFSET },
-      direction: "east",
-      presentation: { visibility: "visible", leadLength: 20 },
-    },
-    "east",
-  );
+  // Share the single-ended output column, rather than deriving a shorter
+  // terminal position from each sloped edge's contact point.
+  const topOutput = {
+    ...symbol.pins[2],
+    name: "OUT-",
+    at: { x: OPAMP_OUTPUT_PIN_X, y: -OUTPUT_PAIR_OFFSET },
+  };
+  const bottomOutput = {
+    ...symbol.pins[2],
+    name: "OUT+",
+    at: { x: OPAMP_OUTPUT_PIN_X, y: OUTPUT_PAIR_OFFSET },
+  };
   const outputPins = plusOutputAtBottom
     ? [bottomOutput, topOutput]
     : [
@@ -426,6 +343,7 @@ const differentialSymbol = (id, name, plusOutputAtBottom) => {
       {
         kind: "path",
         data: differentialTrianglePathData,
+        bounds: ANALOG_TRIANGLE_BOUNDS,
         style: {
           strokeRole: "emphasis",
           lineCap: "butt",
@@ -468,7 +386,8 @@ const generation = {
   referencePath:
     "fixtures/visual-reference/razavi-reference-v1/opamp-vector-source.json",
   converterPath: "scripts/generate-razavi-opamp-asset.mjs",
-  converterVersion: 2,
+  converterVersion: 6,
+  bodyNormalization: "equilateral-triangle",
 };
 const differentialGeneration = {
   kind: "razavi-pdf-vector-reference",
@@ -477,7 +396,8 @@ const differentialGeneration = {
   referencePath:
     "fixtures/visual-reference/razavi-reference-v1/differential-opamp-vector-source.json",
   converterPath: "scripts/generate-razavi-opamp-asset.mjs",
-  converterVersion: 4,
+  converterVersion: 8,
+  bodyNormalization: "equilateral-triangle",
 };
 const differentialAuthorityPaths = [
   "fixtures/visual-reference/razavi-reference-v1/opamp-vector-source.json",
@@ -502,12 +422,53 @@ for (const [id, source] of differentialSources) {
   };
   entry.generation = { ...differentialGeneration };
 }
+// Comparator states share the same outline and port leads. Their transfer
+// characteristic stays authored; unmarked removes only the input +/- strokes.
+const comparatorOutputs = [];
+for (const id of ["comparator", "comparator-unmarked"]) {
+  const path = resolve(root, `packages/components/definitions/${id}.json`);
+  const previous = JSON.parse(await readComponentProjection(path));
+  const next = {
+    ...previous,
+    viewBox: symbol.viewBox,
+    pins: symbol.pins,
+    primitives: [
+      ...symbol.primitives.slice(0, id === "comparator" ? 7 : 4),
+      ...previous.primitives
+        .filter((primitive) => primitive.part === "hysteresis-step")
+        .map((primitive) => {
+          // Marked comparators reserve space beside the input signs; both
+          // transfer glyphs move with the triangle instead of sheet origin.
+          const center = Number(
+            (id === "comparator"
+              ? ANALOG_TRIANGLE.apexX - 32
+              : (2 * ANALOG_TRIANGLE.leftX + ANALOG_TRIANGLE.apexX) / 3
+            ).toFixed(6),
+          );
+          return {
+            ...primitive,
+            data: `M ${center - 8} 7 L ${center} 7 L ${center} -7 L ${center + 8} -7`,
+            bounds: { x: center - 8, y: -7, width: 16, height: 14 },
+          };
+        }),
+    ],
+  };
+  const source = normalize(
+    await format(JSON.stringify(next, null, 2), { parser: "json" }),
+  );
+  comparatorOutputs.push([path, source]);
+  const entry = catalog.entries.find((candidate) => candidate.symbolId === id);
+  if (!entry) fail(`missing catalog entry ${id}`);
+  entry.assetHash = hash(source);
+  entry.generation = { ...generation };
+}
 const catalogSource = normalize(
   await format(JSON.stringify(catalog, null, 2), { parser: "json" }),
 );
 
 const outputs = [
   [assetPath, assetSource],
+  ...comparatorOutputs,
   ...differentialSymbols.map((candidate) => [
     differentialAssetPaths[candidate.id],
     differentialSources.get(candidate.id),

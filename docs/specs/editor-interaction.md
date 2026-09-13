@@ -98,6 +98,13 @@ adjustable variants, author `1k`, `1p`, and `1n` as their initial netlist
 values. T-coil starts with `L1=1n`, `L2=1n`, `K=1`, and `CB=1p`; XFMR starts
 with `Lp=1n`, `Ls=1n`, and `K=1`. These compound-device parameters remain
 authoring values until an explicit structural lowering contract is added.
+Transformer and T-Coil Properties expose independent switches under
+`display.parameters`: K and each winding inductance (plus CB for T-Coil).
+Each switch controls one live value label. Editing a parameter updates its
+label; clearing the value hides it. Visibility changes are undoable, and
+re-enabling a label preserves its authored position. Untouched labels stack
+outside the symbol and remain upright through rotation and mirroring.
+
 Fixed colors are displayed as compact
 `[R, G, B]` tuples with integer channels 0–255; six-digit hex input remains
 accepted and persisted instance colors remain hex. Four direct line-color
@@ -131,7 +138,8 @@ line annotation, and `netlistTarget` carries a compact non-data selector.
 Canvas-layer field metadata still owns
 validation of rotation, mirror, color channels, and other bounded values. A
 small, non-text switch is visually decorated after each `display.visualAnnotation` and
-`display.value` boolean for immediate visibility toggling. Compact action
+`display.value` boolean, as well as each `display.parameters` entry, for immediate
+visibility toggling. Compact action
 buttons after `placement.rotation` and `placement.mirror` rotate clockwise by
 90 degrees and reflect left/right or top/bottom. Direct JSON editing continues
 to accept all eight 45-degree orientations. Horizontal
@@ -303,6 +311,14 @@ Idle
   -> Wire(source, authoredSteps, routingMode, cornerOrder, preview)
   -> Drawing(tool, source, waypoints, preview, snap)
 ```
+
+`T` and the Text toolbar action enter drafting-text placement through the same
+placement state as components. A translucent text preview starts at the last
+canvas pointer position and follows the pointer on the annotation grid. Clicking
+commits one free text object at that preview position and opens its text editor.
+Before that click, neither the document nor undo history changes; Escape or
+choosing another tool discards the preview. Fixed catalog text presets keep their
+existing placement behavior.
 
 Box selection, selection move, pan, and text-edit sessions remain bounded
 gesture owners, but every reset boundary cancels them together with the
@@ -588,6 +604,18 @@ drafting color override, whose Auto state uses the Document profile foreground.
 Both controls transact through their owning object and preserve unrelated
 style fields, selection, and electrical content.
 
+The floating RichText editor also inserts canonical `fraction` runs at the
+caret in notes and literal visual annotations. Numerator and denominator are
+editable in place; Tab advances through the two parts and back to surrounding
+text, while Shift+Tab reverses that navigation. A selection with one unambiguous
+slash is converted without losing its character styles; other selections become
+the numerator. Editing and reopening preserve fraction nodes. Fractions can be
+mixed with styled companion text and additional fractions on the same line.
+Their bars are formal SVG line elements, so canvas and exported artwork agree.
+The existing W/L projection retains its established geometry. Source-only fields
+and bound electrical names do not gain arbitrary fraction formatting, and an
+atomic Formula continues to use its existing editor.
+
 The floating RichText editor has one formula action for editable text content.
 It opens a MathLive math field plus the exact LaTeX source, lets the author
 choose inline or display intent, validates against the bounded Analog Canvas
@@ -611,8 +639,8 @@ Open, demo load, restore, and human-approved staged import replace the entire
 Project through one replacement boundary; they are not Edit Engine
 transactions. Replacement cancels pending recovery for the outgoing Project
 and terminates its Agent session. A complete Project covered by the schema
-24→51 upgrade chain may be upgraded at the read boundary and then enters the
-editor only as schema-53; migrated files are marked as needing save.
+24→54 upgrade chain may be upgraded at the read boundary and then enters the
+editor only as schema-54; migrated files are marked as needing save.
 
 Selection, viewport, active tool, previews, Agent tokens, and approval UI are
 transient and never enter Project JSON. Recovery is scheduled only after a

@@ -1,13 +1,20 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
-import { CURRENT_PROJECT_SCHEMA_VERSION } from "@icm/model";
+import {
+  CURRENT_PROJECT_SCHEMA_VERSION,
+  createEmptyProject,
+  flattenRichText,
+} from "@icm/model";
 
 import {
   awaitEditorReady,
+  editComponentPropertyCode,
+  readComponentPropertyCode,
   chooseComponent,
   clickCommand,
   clickDrawTool,
+  placeText,
   downloadBytes,
 } from "./editor-fixtures.js";
 
@@ -56,26 +63,48 @@ test("outline arrow style is chosen before stamp/drag and shares editable geomet
   await page.mouse.click(hitPoint.x, hitPoint.y);
   await page.keyboard.press("q");
   const properties = page.getByTestId("drafting-properties");
-  await properties.getByLabel("Arrow style", { exact: true }).click();
-  await page.keyboard.press("Escape");
   await expect(properties).toBeVisible();
-  await expect(properties.getByLabel("Arrow width")).toHaveValue("30");
-  await expect(properties.getByLabel("Tangent angle")).toHaveCount(0);
-  await properties.getByLabel("Stroke width", { exact: true }).fill("2");
+  expect(JSON.parse(await readComponentPropertyCode(page)).geometry.width).toBe(
+    30,
+  );
+  expect(
+    JSON.parse(await readComponentPropertyCode(page)).geometry,
+  ).not.toHaveProperty("tangentAngles");
+  const arrowStyle = page.getByRole("combobox", {
+    name: "Arrow style options",
+    exact: true,
+  });
+  await expect(arrowStyle.locator("option")).toHaveCount(10);
+  const rotation = page.getByRole("combobox", {
+    name: "Rotation options",
+    exact: true,
+  });
+  await expect(rotation.locator("option")).toHaveText([
+    "0°",
+    "45°",
+    "90°",
+    "135°",
+    "180°",
+    "225°",
+    "270°",
+    "315°",
+  ]);
+  await editComponentPropertyCode(page, (code) => {
+    code.appearance.strokeScale = 2;
+  });
   await expect(outline).toHaveAttribute("stroke-width", "3.2");
   await expect(outline).toHaveAttribute("points", previewPoints!);
-  await properties.getByLabel("Arrow width").fill("45");
+  await editComponentPropertyCode(page, (code) => {
+    code.geometry.width = 45;
+  });
   await expect(outline).not.toHaveAttribute("points", previewPoints!);
   await expect(page.getByTestId(/^draft-handle-width-/)).toBeVisible();
   await expect(page.getByTestId(/^draft-handle-rotate-/)).toBeVisible();
   await expect(page.getByTestId(/^draft-handle-segment-/)).toHaveCount(0);
-  await properties.getByLabel("Drawing bearing").fill("45");
-  await properties.getByLabel("Drawing bearing").blur();
+  await rotation.selectOption("45");
+
   const rotated = await outline.getAttribute("points");
-  await properties.getByLabel("Arrow style", { exact: true }).click();
-  await properties
-    .getByRole("button", { name: "Outline double arrow", exact: true })
-    .click();
+  await arrowStyle.selectOption("outline-both");
   expect(await outline.getAttribute("points")).not.toBe(rotated);
 
   await canvas.focus();
@@ -201,14 +230,14 @@ test("adds formatted drafting text and undo/redo restores it", async ({
   await page.goto("/editor");
   await expect(page.getByTestId("revision")).toHaveText("0");
 
-  await clickDrawTool(page, "text");
+  await placeText(page);
   const draftInput = page.getByRole("textbox", {
     name: "Canvas text editor",
   });
   await expect(draftInput).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Insert fraction" }),
-  ).toHaveCount(0);
+  ).toBeEnabled();
   await expect(draftInput).toHaveCSS(
     "font-family",
     /ICM Round Period.*DejaVu Sans.*Arial/u,
@@ -356,7 +385,7 @@ test("drafting text owns an independent color override with Auto inheritance", a
   page,
 }) => {
   await page.goto("/editor");
-  await clickDrawTool(page, "text");
+  await placeText(page);
   const draftInput = page.getByRole("textbox", {
     name: "Canvas text editor",
   });
@@ -368,22 +397,13 @@ test("drafting text owns an independent color override with Auto inheritance", a
   await hit.click({ force: true });
   await page.keyboard.press("q");
   const properties = page.getByTestId("drafting-properties");
-  await expect(properties).toHaveAttribute(
-    "aria-label",
-    "Drawing text properties",
-  );
-  await expect(properties).toHaveClass(/property-section/u);
-  await expect(properties.locator(":scope > .property-card")).toBeVisible();
-  await expect(properties.getByLabel("Text color presets")).toBeVisible();
-  await expect(properties.locator(".component-color-swatch")).toHaveCount(4);
-  await expect(properties.getByLabel("Text color custom RGB")).toBeAttached();
-  await expect(properties.locator('input[type="color"]')).toHaveCount(0);
-  await expect(properties.getByLabel("Text color hex value")).toHaveText(
-    "Automatic",
-  );
-
-  await properties
-    .getByRole("button", { name: "Use Blue for text color" })
+  await expect(page.getByLabel("Editable Canvas property code")).toBeVisible();
+  expect(
+    JSON.parse(await readComponentPropertyCode(page)).appearance.color,
+  ).toBe("auto");
+  await properties.getByRole("button", { name: "Edit text color" }).click();
+  await page
+    .getByRole("button", { name: "Use Blue for text", exact: true })
     .click();
   await expect(text).toHaveAttribute("fill", "#2563eb");
 
@@ -397,11 +417,12 @@ test("drafting text owns an independent color override with Auto inheritance", a
   );
   expect(coloredText.styleOverride.color).toBe("#2563eb");
 
-  await properties.getByRole("button", { name: "Reset text color" }).click();
+  await properties.getByRole("button", { name: "Edit text color" }).click();
+  await page.getByRole("button", { name: "Reset text color" }).click();
   await expect(text).toHaveAttribute("fill", "#000");
-  await expect(properties.getByLabel("Text color hex value")).toHaveText(
-    "Automatic",
-  );
+  expect(
+    JSON.parse(await readComponentPropertyCode(page)).appearance.color,
+  ).toBe("auto");
 
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(text).toHaveAttribute("fill", "#2563eb");
@@ -414,7 +435,7 @@ test("authors one validated formula through the canonical text editor", async ({
 }) => {
   await page.goto("/editor");
   await awaitEditorReady(page);
-  await clickDrawTool(page, "text");
+  await placeText(page);
 
   await page.getByRole("button", { name: "Insert formula" }).click();
   await expect(page.getByRole("dialog", { name: "Formula" })).toBeVisible();
@@ -632,7 +653,7 @@ test("edits an unrestricted device formula in the same visual annotation", async
 test("keeps unsafe formula source out of the Project", async ({ page }) => {
   await page.goto("/editor");
   await awaitEditorReady(page);
-  await clickDrawTool(page, "text");
+  await placeText(page);
   await page.getByRole("button", { name: "Insert formula" }).click();
   await page
     .getByRole("textbox", { name: "Formula LaTeX source" })
@@ -649,44 +670,154 @@ test("keeps unsafe formula source out of the Project", async ({ page }) => {
   await expect(page.locator('[data-role="formula"]')).toHaveCount(0);
 });
 
-test("snaps quick Text creation after a non-grid viewport zoom", async ({
+test("T previews text at the pointer without creating it and Escape cancels", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("icm.annotation-grid.v1", "1"),
+  );
+  await page.goto("/editor");
+  const canvas = page.getByTestId("schematic-canvas");
+  await canvas.hover({ position: { x: 317, y: 243 } });
+  const box = (await canvas.boundingBox())!;
+  const point = { x: box.x + 317, y: box.y + 243 };
+  const expected = await snappedCanvasPoint(canvas, point, 1);
+  expect(expected.x % 10 !== 0 || expected.y % 10 !== 0).toBe(true);
+
+  await page.keyboard.press("t");
+  await expect(page.getByTestId("canvas-empty-state")).toHaveCount(0);
+  const preview = page.getByTestId("text-placement-preview");
+  await expect(preview).toBeVisible();
+  await expect(preview).toHaveText("Design note");
+  await expect(preview).toHaveAttribute(
+    "transform",
+    `translate(${expected.x} ${expected.y}) rotate(0)`,
+  );
+  await expect(preview).toHaveCSS("pointer-events", "none");
+  expect(
+    Number(
+      await preview.evaluate((element) => getComputedStyle(element).opacity),
+    ),
+  ).toBeLessThan(1);
+  await expect(page.getByTestId("canvas-text-editor")).toHaveCount(0);
+  await expect(page.locator('[data-kind="draft-text"]')).toHaveCount(0);
+  await expect(page.getByTestId("revision")).toHaveText("0");
+
+  const moved = { x: point.x + 153, y: point.y + 77 };
+  await page.mouse.move(moved.x, moved.y);
+  const next = await snappedCanvasPoint(canvas, moved, 1);
+  await expect(preview).toHaveAttribute(
+    "transform",
+    `translate(${next.x} ${next.y}) rotate(0)`,
+  );
+  await page.keyboard.press("Escape");
+  await expect(preview).toHaveCount(0);
+  await expect(page.locator('[data-kind="draft-text"]')).toHaveCount(0);
+  await expect(page.getByTestId("revision")).toHaveText("0");
+  await expect(page.getByTestId("draw-tool-undo")).toBeDisabled();
+  await expect(page.getByTestId("canvas-empty-state")).toBeVisible();
+
+  // The toolbar uses the same cancellable placement, then lets a new tool take over.
+  await clickDrawTool(page, "text");
+  await canvas.hover({ position: { x: 420, y: 310 } });
+  await expect(preview).toBeVisible();
+  await clickDrawTool(page, "rectangle");
+  await expect(preview).toHaveCount(0);
+  await expect(page.getByTestId("revision")).toHaveText("0");
+});
+
+async function snappedCanvasPoint(
+  canvas: Locator,
+  client: { x: number; y: number },
+  pitch: number,
+) {
+  return canvas.evaluate(
+    (element, { client, pitch }) => {
+      const svg = element as SVGSVGElement;
+      const point = new DOMPoint(client.x, client.y).matrixTransform(
+        svg.getScreenCTM()!.inverse(),
+      );
+      return {
+        x: Math.round(point.x / pitch) * pitch,
+        y: Math.round(point.y / pitch) * pitch,
+      };
+    },
+    { client, pitch },
+  );
+}
+
+test("places Text at its preview after zoom and pan, then edits and undoes it", async ({
   page,
 }) => {
   await page.goto("/editor");
   const canvas = page.getByTestId("schematic-canvas");
   await canvas.hover({ position: { x: 317, y: 243 } });
+  const initialViewBox = await canvas.getAttribute("viewBox");
   await page.mouse.wheel(0, -120);
-  await page.mouse.wheel(0, -120);
-
-  const zoomedViewBox = (await canvas.getAttribute("viewBox"))!
-    .split(" ")
-    .map(Number);
-  const [x, y, width, height] = zoomedViewBox;
-  const unsnappedTextPosition = {
-    x: Math.round(x! + width! / 2),
-    y: Math.round(y! + height! - 20),
-  };
-  expect(
-    Object.values(unsnappedTextPosition).some((value) => value % 10 !== 0),
-  ).toBe(true);
-
-  await clickDrawTool(page, "text");
-  await expect(page.getByTestId("revision")).toHaveText("1");
-  await expect(page.getByTestId("status")).toContainText("Added drafting text");
-
-  const projectBytes = await downloadBytes(
-    page,
-    "File",
-    "Export Project File…",
+  await expect(canvas).not.toHaveAttribute("viewBox", initialViewBox!);
+  const box = (await canvas.boundingBox())!;
+  await page.mouse.move(box.x + 300, box.y + 220);
+  await page.mouse.down({ button: "middle" });
+  await page.mouse.move(box.x + 360, box.y + 260, { steps: 5 });
+  await page.mouse.up({ button: "middle" });
+  const point = { x: box.x + 427, y: box.y + 287 };
+  await page.mouse.move(point.x, point.y);
+  const expected = await snappedCanvasPoint(canvas, point, 5);
+  await page.keyboard.press("t");
+  const preview = page.getByTestId("text-placement-preview");
+  await expect(preview).toHaveAttribute(
+    "transform",
+    `translate(${expected.x} ${expected.y}) rotate(0)`,
   );
-  const project = JSON.parse(projectBytes.toString("utf8"));
+  await page.keyboard.press("r");
+  await expect(preview).toHaveAttribute(
+    "transform",
+    `translate(${expected.x} ${expected.y}) rotate(90)`,
+  );
+  await expect(preview.locator("text")).toHaveAttribute("font-weight", "bold");
+  const previewBounds = await preview.locator("text").boundingBox();
+  await page.mouse.click(point.x, point.y);
+  await expect(preview).toHaveCount(0);
+  await expect(page.getByTestId("revision")).toHaveText("1");
+  const texts = page.locator('[data-kind="draft-text"]');
+  await expect(texts).toHaveCount(1);
+  await expect(texts).toHaveAttribute("x", String(expected.x));
+  await expect(texts).toHaveAttribute("y", String(expected.y));
+  const placedBounds = (await texts.boundingBox())!;
+  expect(placedBounds.x).toBeCloseTo(previewBounds!.x, 1);
+  expect(placedBounds.y).toBeCloseTo(previewBounds!.y, 1);
+  expect(placedBounds.width).toBeCloseTo(previewBounds!.width, 1);
+  expect(placedBounds.height).toBeCloseTo(previewBounds!.height, 1);
+  const input = page.getByRole("textbox", { name: "Canvas text editor" });
+  await expect(input).toBeVisible();
+  await input.fill("Custom text");
+  await page.getByRole("button", { name: "Apply text changes" }).click();
+  await expect(texts).toHaveText("Custom text");
+  await expect(page.getByTestId("revision")).toHaveText("2");
+
+  const project = JSON.parse(
+    (await downloadBytes(page, "File", "Export Project File…")).toString(
+      "utf8",
+    ),
+  );
   const textObject = project.documents[0].drafting.objects.find(
     (object: { kind: string }) => object.kind === "text",
   );
-  // Quick text rounds to the annotation pitch (default 5), never raw
-  // fractional viewport coordinates.
-  expect(textObject.anchor.position.x % 5).toBe(0);
-  expect(textObject.anchor.position.y % 5).toBe(0);
+  expect(textObject.anchor).toEqual({ kind: "free", position: expected });
+  expect(textObject.rotation).toBe(90);
+  const svg = (await downloadBytes(page, "File", "Export SVG")).toString(
+    "utf8",
+  );
+  expect(svg).toContain("Custom text");
+  expect(svg).toContain(`rotate(90 ${expected.x} ${expected.y})`);
+  expect(svg).not.toContain("text-placement-preview");
+  await clickCommand(page, "Edit", "Undo");
+  await expect(texts).toHaveText("Design note");
+  await clickCommand(page, "Edit", "Undo");
+  await expect(texts).toHaveCount(0);
+  await clickCommand(page, "Edit", "Redo");
+  await clickCommand(page, "Edit", "Redo");
+  await expect(texts).toHaveText("Custom text");
 });
 
 test("previews a copied text at the cursor and commits its rotated pose atomically", async ({
@@ -695,7 +826,7 @@ test("previews a copied text at the cursor and commits its rotated pose atomical
   await page.goto("/editor");
   const canvas = page.getByTestId("schematic-canvas");
 
-  await clickDrawTool(page, "text");
+  await placeText(page);
   const draftInput = page.getByRole("textbox", { name: "Canvas text editor" });
   await draftInput.fill("Design note");
   await page.getByRole("button", { name: "Apply text changes" }).click();
@@ -774,7 +905,7 @@ test("fits drafting text with F using an integer grid camera", async ({
   page,
 }) => {
   await page.goto("/editor");
-  await clickDrawTool(page, "text");
+  await placeText(page);
   const draftInput = page.getByRole("textbox", {
     name: "Canvas text editor",
   });
@@ -797,12 +928,12 @@ test("text floating editor closes on Escape or an outside pointer", async ({
   page,
 }) => {
   await page.goto("/editor");
-  await clickDrawTool(page, "text");
+  await placeText(page);
   await expect(page.getByTestId("canvas-text-editor")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("canvas-text-editor")).toHaveCount(0);
 
-  await clickDrawTool(page, "text");
+  await placeText(page);
   await expect(page.getByTestId("canvas-text-editor")).toBeVisible();
   await page
     .getByTestId("schematic-canvas")
@@ -876,7 +1007,7 @@ test("existing text drag commits once and undoes atomically", async ({
   page,
 }) => {
   await page.goto("/editor");
-  await clickDrawTool(page, "text");
+  await placeText(page);
   await page
     .getByRole("textbox", { name: "Canvas text editor" })
     .press("Escape");
@@ -913,7 +1044,7 @@ test("Escape cancels an existing text drag without a revision", async ({
   page,
 }) => {
   await page.goto("/editor");
-  await clickDrawTool(page, "text");
+  await placeText(page);
   await page
     .getByRole("textbox", { name: "Canvas text editor" })
     .press("Escape");
@@ -1122,7 +1253,7 @@ test("construction line uses stroke-based hit, not a blocking rect", async ({
 // An unedited Apply must not add a revision.
 test("unedited Apply does not add a revision", async ({ page }) => {
   await page.goto("/editor");
-  await clickDrawTool(page, "text");
+  await placeText(page);
   const draftInput = page.getByRole("textbox", {
     name: "Canvas text editor",
   });
@@ -1144,7 +1275,7 @@ test("drafting content and anchor survive save and reopen", async ({
   page,
 }) => {
   await page.goto("/editor");
-  await clickDrawTool(page, "text");
+  await placeText(page);
   const draftInput = page.getByRole("textbox", {
     name: "Canvas text editor",
   });
@@ -1169,7 +1300,7 @@ test("drafting content and anchor survive save and reopen", async ({
   ).toContain("span");
   expect(textObject.anchor).toMatchObject({ kind: "free" });
   expect(typeof textObject.anchor.position.x).toBe("number");
-  await clickDrawTool(page, "text");
+  await placeText(page);
   await expect(page.locator('[data-kind="draft-text"]')).toHaveCount(2);
 
   await page.getByTestId("project-file").setInputFiles({
@@ -1289,9 +1420,9 @@ test("R creates a selectable, styleable rectangle with four resize handles", asy
   ).toHaveCount(4);
   await page.keyboard.press("q");
 
-  await page
-    .getByRole("combobox", { name: "Line style" })
-    .selectOption("dotted");
+  await editComponentPropertyCode(page, (code) => {
+    code.appearance.lineStyle = "dotted";
+  });
   await expect(rectangle).toHaveAttribute("stroke-dasharray", "2 3");
   await expect(page.getByTestId("revision")).toHaveText("3");
 
@@ -1352,9 +1483,11 @@ test("the Circle toolbar creates a selectable shape with one radial handle and n
   await expect(
     page.getByTestId("drafting-properties").getByLabel("Drawing bearing"),
   ).toHaveCount(0);
-  await expect(
-    page.getByTestId("drafting-properties").getByLabel("Line style"),
-  ).toHaveCount(1);
+  await page.keyboard.press("q");
+  expect(
+    JSON.parse(await readComponentPropertyCode(page)).appearance.lineStyle,
+  ).toBe("solid");
+  await page.getByTestId("schematic-canvas").focus();
 
   await page.keyboard.press("r");
   await expect(page.getByTestId("revision")).toHaveText("1");
@@ -1436,11 +1569,11 @@ test("Properties changes drawing line style", async ({ page }) => {
   await clickCreate(page, { x: 200, y: 200 }, { x: 420, y: 200 });
   await page.getByTestId(/^drafting-hit-construction-/).click({ force: true });
   await page.keyboard.press("q");
-  await page
-    .getByRole("combobox", { name: "Line style" })
-    .selectOption("solid");
+  await editComponentPropertyCode(page, (code) => {
+    code.appearance.lineStyle = "solid";
+  });
   await expect(page.getByTestId("revision")).toHaveText("2");
-  await expect(page.locator('[aria-label="Drawing style"]')).toHaveCount(1);
+  await expect(page.getByTestId("drafting-properties")).toHaveCount(1);
   await expect(page.getByTestId("drafting-inline-inspector")).toHaveCount(0);
 });
 
@@ -1452,9 +1585,9 @@ test("Properties renders an arrow line-style override", async ({ page }) => {
   await page.keyboard.press("q");
   const commandBar = page.getByRole("navigation", { name: "Editor commands" });
   const commandBarBefore = await commandBar.boundingBox();
-  await page
-    .getByRole("combobox", { name: "Line style" })
-    .selectOption("dotted");
+  await editComponentPropertyCode(page, (code) => {
+    code.appearance.lineStyle = "dotted";
+  });
   await expect(
     page.locator('[data-kind="draft-arrow"] > polyline'),
   ).toHaveAttribute("stroke-dasharray", "2 3");
@@ -1476,16 +1609,17 @@ test("arrow Properties omits the Segment selector", async ({ page }) => {
     properties.getByRole("combobox", { name: "Curve segment" }),
   ).toHaveCount(0);
 
-  await properties.getByLabel("Stroke width").fill("2");
+  await editComponentPropertyCode(page, (code) => {
+    code.appearance.strokeScale = 2;
+  });
   await expect(shaft).toHaveAttribute("stroke-width", "3.2");
 
   await expect(
     properties.getByRole("combobox", { name: "Arrow head size" }),
   ).toHaveCount(0);
-  await properties.getByLabel("Arrow style", { exact: true }).click();
-  await properties
-    .getByRole("button", { name: "Open end arrow", exact: true })
-    .click();
+  await editComponentPropertyCode(page, (code) => {
+    code.appearance.arrowStyle = "open-end";
+  });
   await expect(head).toHaveAttribute("fill", "none");
   expect(await head.getAttribute("points")).not.toBe(originalPoints);
 });
@@ -1532,9 +1666,9 @@ test("drawing Properties unlocks a protected drawing and Delete overrides its lo
   await drawing.click({ force: true });
   await page.keyboard.press("q");
 
-  await page
-    .getByRole("combobox", { name: "Line style" })
-    .selectOption("dotted");
+  await editComponentPropertyCode(page, (code) => {
+    code.appearance.lineStyle = "dotted";
+  });
   const styledProject = JSON.parse(
     (await downloadBytes(page, "File", "Export Project File…")).toString(
       "utf8",
@@ -1548,7 +1682,7 @@ test("drawing Properties unlocks a protected drawing and Delete overrides its lo
   await expect(
     page.getByRole("button", { name: "Unlock", exact: true }),
   ).toBeVisible();
-  await expect(page.locator('[aria-label="Drawing style"]')).toHaveCount(1);
+  await expect(page.getByTestId("drafting-properties")).toHaveCount(1);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Lock", exact: true }),
@@ -1635,6 +1769,7 @@ test("double-click inside a rectangle writes a centered, anchored label", async 
   await page.mouse.dblclick(center.x, center.y);
   const editor = page.getByRole("textbox", { name: "Canvas text editor" });
   await expect(editor).toBeVisible();
+  await expect(editor).toHaveCSS("font-weight", "700");
   await page.keyboard.type("PFD");
   await page.keyboard.press("Escape");
 
@@ -1642,6 +1777,7 @@ test("double-click inside a rectangle writes a centered, anchored label", async 
   await expect(label).toHaveCount(1);
   await expect(label).toHaveAttribute("text-anchor", "middle");
   await expect(label).toContainText("PFD");
+  await expect(label.locator("tspan")).toHaveCSS("font-weight", "700");
 
   // The painted label centers on the rectangle's logical center: x on the
   // center exactly, baseline 0.35 em below for optical cap centering.
@@ -1746,8 +1882,12 @@ test("Properties sets precise size, stroke width, and color per shape", async ({
   const properties = page.getByTestId("drafting-properties");
   await expect(properties).toBeVisible();
 
-  await properties.getByLabel("Rectangle width").fill("120");
-  await properties.getByLabel("Rectangle height").fill("48");
+  await editComponentPropertyCode(page, (code) => {
+    code.geometry.width = 120;
+  });
+  await editComponentPropertyCode(page, (code) => {
+    code.geometry.height = 48;
+  });
   const size = await rectangle.evaluate((element) => {
     const polygon = element as SVGPolygonElement;
     const points = Array.from({ length: 4 }, (_, index) =>
@@ -1762,8 +1902,11 @@ test("Properties sets precise size, stroke width, and color per shape", async ({
   });
   expect(size).toEqual({ width: 120, height: 48 });
 
-  await properties.getByLabel("Stroke width").fill("2.5");
-  await properties.getByRole("button", { name: "Use Red for border" }).click();
+  await editComponentPropertyCode(page, (code) => {
+    code.appearance.strokeScale = 2.5;
+  });
+  await properties.getByRole("button", { name: "Edit border color" }).click();
+  await page.getByRole("button", { name: "Use Red for border" }).click();
   await expect(rectangle).toHaveAttribute("stroke", "#dc2626");
   const rectangleStroke = Number(await rectangle.getAttribute("stroke-width"));
 
@@ -1789,7 +1932,9 @@ test("Properties sets precise size, stroke width, and color per shape", async ({
   // The dock stays open from the rectangle phase (Q toggles it); selecting
   // the circle swaps the panel content in place.
   await page.mouse.click(circleEdge.x, circleEdge.y);
-  await properties.getByLabel("Circle radius").fill("75");
+  await editComponentPropertyCode(page, (code) => {
+    code.geometry.radius = 75;
+  });
   await expect(circle).toHaveAttribute("r", "75");
   const circleStroke = Number(await circle.getAttribute("stroke-width"));
   expect(circleStroke).toBeLessThan(rectangleStroke);
@@ -1810,7 +1955,8 @@ test("Properties sets precise size, stroke width, and color per shape", async ({
   });
   if (!resizedEdge) throw new Error("resized rectangle is not measurable");
   await page.mouse.click(resizedEdge.x, resizedEdge.y);
-  await properties.getByRole("button", { name: "Reset border" }).click();
+  await properties.getByRole("button", { name: "Edit border color" }).click();
+  await page.getByRole("button", { name: "Reset border color" }).click();
   const stroke = await rectangle.getAttribute("stroke");
   expect(stroke).not.toBe("#dc2626");
 });
@@ -1892,4 +2038,732 @@ test("annotation grid pitch frees drawings from the device grid", async ({
   // The pitch choice is an editor preference that survives a reload.
   await page.reload();
   await expect(page.getByTestId("annotation-grid-select")).toHaveValue("1");
+});
+
+test("authors inline fractions alongside styled text and preserves them through editing and export", async ({
+  page,
+}) => {
+  await page.goto("/editor");
+  await clickDrawTool(page, "text");
+  await page.keyboard.press("r");
+  await page
+    .getByTestId("schematic-canvas")
+    .click({ position: { x: 450, y: 340 } });
+  const editor = page.getByRole("textbox", {
+    name: "Canvas text editor",
+    exact: true,
+  });
+  await editor.fill("R = ");
+  await editor.press("End");
+  await page
+    .getByRole("button", { name: "Insert fraction", exact: true })
+    .click();
+  const fraction = editor.locator("[data-rich-text-fraction]");
+  await expect(fraction).toHaveCount(1);
+  await page.keyboard.insertText("1");
+  await page.keyboard.press("Tab");
+  await page.keyboard.insertText("gmN");
+  const denominator = fraction.locator('[data-fraction-part="denominator"]');
+  await denominator.evaluate((element) => {
+    const range = document.createRange();
+    range.setStart(element.firstChild!, 1);
+    range.setEnd(element.firstChild!, 3);
+    const selection = window.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+    element.dispatchEvent(new Event("pointerup", { bubbles: true }));
+  });
+  await page.getByRole("button", { name: "Subscript", exact: true }).click();
+  await expect(denominator.locator("sub")).toHaveText("mN");
+  await page.keyboard.press("Tab");
+  await page.keyboard.insertText(" + R1");
+  await expect(editor).toHaveText("R = 1gmN + R1");
+  await page.keyboard.press("Shift+ArrowLeft");
+  await page.getByRole("button", { name: "Subscript", exact: true }).click();
+  await expect(editor.locator("sub")).toHaveCount(2);
+  const alignment = await editor.evaluate((element) => {
+    const prefix = document
+      .createTreeWalker(element, NodeFilter.SHOW_TEXT)
+      .nextNode()!;
+    const range = document.createRange();
+    range.selectNodeContents(prefix);
+    const text = range.getBoundingClientRect();
+    const numerator = element
+      .querySelector('[data-fraction-part="numerator"]')!
+      .getBoundingClientRect();
+    return {
+      gap: Math.abs(numerator.bottom - (text.top + text.height / 2)),
+      fontSize: parseFloat(getComputedStyle(element).fontSize),
+    };
+  });
+  expect(alignment.gap).toBeLessThan(alignment.fontSize * 0.35);
+  await page.getByRole("button", { name: "Apply text changes" }).click();
+  const note = page.locator('[data-kind="draft-text"]');
+  await expect(note.locator('[data-role="fraction-bar"]')).toHaveCount(1);
+  await expect(note).toContainText("R = ");
+  await expect(note).toContainText(" + R");
+  await expect(note.locator('[data-text-run="subscript"]')).toHaveCount(2);
+  const saved = await downloadBytes(page, "File", "Export Project File…");
+  const project = JSON.parse(saved.toString("utf8"));
+  const content = project.documents[0].drafting.objects[0].content;
+  expect(content.runs.map((run: { kind: string }) => run.kind)).toContain(
+    "fraction",
+  );
+  expect(
+    content.runs.find((run: { kind: string }) => run.kind === "fraction")
+      .denominator.runs[1].style,
+  ).toBe("subscript");
+  const revision = await page.getByTestId("revision").textContent();
+  await page.getByTestId(/^drafting-hit-note-/).dblclick();
+  await expect(
+    editor.locator('[data-fraction-part="denominator"] sub'),
+  ).toHaveText("mN");
+  await page.getByRole("button", { name: "Apply text changes" }).click();
+  await expect(page.getByTestId("revision")).toHaveText(revision!);
+
+  await expect(note).toHaveAttribute("transform", /rotate\(90 /u);
+  const svg = (await downloadBytes(page, "File", "Export SVG")).toString(
+    "utf8",
+  );
+  expect(svg).toContain('data-role="fraction-bar"');
+  expect(svg).toContain('data-text-run="subscript"');
+  expect(svg).toContain(" + R");
+  expect(svg).not.toContain("data-rich-text-fraction");
+  await page.getByTestId("project-file").setInputFiles({
+    name: "fractions.icproj.json",
+    mimeType: "application/json",
+    buffer: saved,
+  });
+  await expect(note.locator('[data-role="fraction-bar"]')).toHaveCount(1);
+  const reopened = JSON.parse(
+    (await downloadBytes(page, "File", "Export Project File…")).toString(
+      "utf8",
+    ),
+  );
+  expect(reopened.documents[0].drafting.objects[0].content).toEqual(content);
+});
+
+test("converts a selected slash fraction and mixes multiple fractions in one note", async ({
+  page,
+}) => {
+  await page.goto("/editor");
+  await placeText(page);
+  const editor = page.getByRole("textbox", {
+    name: "Canvas text editor",
+    exact: true,
+  });
+  await editor.fill("1u/150n");
+  await editor.press("ControlOrMeta+A");
+  await page
+    .getByRole("button", { name: "Insert fraction", exact: true })
+    .click();
+  await expect(editor.locator('[data-fraction-part="numerator"]')).toHaveText(
+    "1u",
+  );
+  await expect(editor.locator('[data-fraction-part="denominator"]')).toHaveText(
+    "150n",
+  );
+  await editor.focus();
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(editor.locator("[data-rich-text-fraction]")).toHaveCount(0);
+  await expect(editor).toHaveText("1u/150n");
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  await expect(editor.locator("[data-rich-text-fraction]")).toHaveCount(1);
+  await editor.locator('[data-fraction-part="numerator"]').click();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+  await page.keyboard.insertText(" + ");
+  await page
+    .getByRole("button", { name: "Insert fraction", exact: true })
+    .click();
+  await page.keyboard.insertText("2");
+  await page.keyboard.press("Tab");
+  await page.keyboard.insertText("3");
+  await page.keyboard.press("Tab");
+  await page.keyboard.insertText(" = x");
+  await editor.focus();
+  await editor.press("ControlOrMeta+A");
+  await page.getByRole("button", { name: "Bold", exact: true }).click();
+  await page.getByRole("button", { name: "Apply text changes" }).click();
+  const note = page.locator('[data-kind="draft-text"]');
+  await expect(note.locator('[data-role="fraction-bar"]')).toHaveCount(2);
+  await expect(note).toContainText(" = x");
+  await expect(
+    note.locator('[data-role="fraction-numerator"] text').first(),
+  ).toHaveCSS("font-weight", "400");
+  await clickCommand(page, "Edit", "Undo");
+  await expect(note).toHaveText("Design note");
+  await clickCommand(page, "Edit", "Redo");
+  await expect(note.locator('[data-role="fraction-bar"]')).toHaveCount(2);
+});
+
+test("places a mixed fraction in a device visual annotation without changing its reference", async ({
+  page,
+}) => {
+  await page.goto("/editor");
+  await chooseComponent(page, "resistor");
+  await page
+    .getByTestId("schematic-canvas")
+    .click({ position: { x: 450, y: 340 } });
+  await page.keyboard.press("Escape");
+  await page.getByTestId("annotation-hit-instance-label-R1").dblclick();
+  const editor = page.getByRole("textbox", {
+    name: "Canvas text editor",
+    exact: true,
+  });
+  await editor.fill("1/gmN + R1");
+  await editor.evaluate((element) => {
+    const range = document.createRange();
+    const text = document
+      .createTreeWalker(element, NodeFilter.SHOW_TEXT)
+      .nextNode()!;
+    range.setStart(text, 0);
+    range.setEnd(text, 5);
+    const selection = window.getSelection()!;
+    selection.removeAllRanges();
+    selection.addRange(range);
+    element.dispatchEvent(new Event("pointerup", { bubbles: true }));
+  });
+  await page
+    .getByRole("button", { name: "Insert fraction", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Apply text changes" }).click();
+  const label = page.locator('[data-object-id="instance-label-R1"]');
+  await expect(label.locator('[data-role="fraction-bar"]')).toHaveCount(1);
+  await expect(label).toContainText(" + R1");
+  const project = JSON.parse(
+    (await downloadBytes(page, "File", "Export Project File…")).toString(
+      "utf8",
+    ),
+  );
+  const doc = project.documents[0];
+  expect(doc.instances[0].reference).toBe("R1");
+  const annotation = doc.annotations.find(
+    (annotation: { id: string }) => annotation.id === "instance-label-R1",
+  );
+  expect(annotation.binding).toBeUndefined();
+  expect(annotation.content.runs[0].kind).toBe("fraction");
+  expect(flattenRichText(annotation.content)).toBe("1/gmN + R1");
+  // Effective formatting survives; the normal-weight reader can put bold
+  // spans below italic spans so explicit unbold descendants remain expressible.
+  for (const part of ["numerator", "denominator"]) {
+    const text = label
+      .locator(`[data-role="fraction-${part}"] text tspan`)
+      .last();
+    await expect(text).toHaveCSS("font-weight", "700");
+    await expect(text).toHaveCSS("font-style", "italic");
+  }
+});
+
+test("centers fraction parts on a content-sized bar and defaults notes to bold", async ({
+  page,
+}) => {
+  await page.goto("/editor");
+  await placeText(page);
+  const editor = page.getByRole("textbox", {
+    name: "Canvas text editor",
+    exact: true,
+  });
+  await expect(editor).toHaveCSS("font-weight", "700");
+  await editor.fill("1 + ");
+  await editor.press("End");
+  await page
+    .getByRole("button", { name: "Insert fraction", exact: true })
+    .click();
+  await page.keyboard.insertText("1");
+  await page.keyboard.press("Tab");
+  await page.keyboard.insertText("Gm");
+  await page.keyboard.press("Shift+ArrowLeft");
+  await page.getByRole("button", { name: "Subscript", exact: true }).click();
+  await page.keyboard.press("ArrowRight");
+  await page.getByRole("button", { name: "Subscript", exact: true }).click();
+  await page.keyboard.insertText("R");
+  const part = (name: string) =>
+    editor.locator(`[data-fraction-part="${name}"]`);
+  const apply = () =>
+    page.getByRole("button", { name: "Apply text changes" }).click();
+  const note = page.locator('[data-kind="draft-text"]');
+  const reopen = () => page.getByTestId(/^drafting-hit-note-/).dblclick();
+  const measure = async (target: Locator) =>
+    target.evaluate((element) => {
+      const bounds = (role: string) => {
+        const part = element.querySelector<SVGGraphicsElement>(
+          `[data-role="fraction-${role}"]`,
+        )!;
+        if (role === "bar") {
+          const box = part.getBBox();
+          return { x: box.x, width: box.width, center: box.x + box.width / 2 };
+        }
+        // Center the browser's actual typographic advances. getBBox includes
+        // platform-specific glyph overhang, which is not the textLength that
+        // positions the parts and sizes the bar (Linux GmR extends by 0.27).
+        const positions = Array.from(part.querySelectorAll("text")).flatMap(
+          (text) =>
+            Array.from({ length: text.getNumberOfChars() }, (_, index) => [
+              text.getStartPositionOfChar(index).x,
+              text.getEndPositionOfChar(index).x,
+            ]).flat(),
+        );
+        const x = Math.min(...positions);
+        const width = Math.max(...positions) - x;
+        return { x, width, center: x + width / 2 };
+      };
+      return {
+        top: bounds("numerator"),
+        bottom: bounds("denominator"),
+        bar: bounds("bar"),
+      };
+    });
+  const check = async (target: Locator) => {
+    const { top, bottom, bar } = await measure(target);
+    for (const part of [top, bottom]) {
+      expect(Math.abs(part.center - bar.center)).toBeLessThan(0.02);
+      expect(part.x).toBeGreaterThan(bar.x);
+      expect(part.x + part.width).toBeLessThan(bar.x + bar.width);
+    }
+    // Fixed small overhang; the line must not grow independently of the text.
+    expect(bar.width - Math.max(top.width, bottom.width)).toBeCloseTo(
+      15.116 * 0.988 * 0.105 * 2,
+      2,
+    );
+    return bar.width;
+  };
+  await apply();
+  const initialWidth = await check(note);
+  const weights = () =>
+    note.evaluate((element) => {
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+      const weights: string[] = [];
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (node.textContent?.trim())
+          weights.push(getComputedStyle(node.parentElement!).fontWeight);
+      }
+      return weights;
+    });
+  expect(await weights()).toEqual(["700", "700", "700", "700", "700"]);
+  await reopen();
+  const revision = await page.getByTestId("revision").textContent();
+  await apply();
+  await expect(page.getByTestId("revision")).toHaveText(revision!);
+  await reopen();
+  await part("numerator").fill("WWW + MMM");
+  await apply();
+  const grownWidth = await check(note);
+  expect(grownWidth).toBeGreaterThan(initialWidth * 2);
+  await reopen();
+  await part("numerator").fill("1");
+  await part("denominator").fill("R");
+  await apply();
+  expect(await check(note)).toBeLessThan(initialWidth);
+
+  const saved = await downloadBytes(page, "File", "Export Project File…");
+  const svg = await downloadBytes(page, "File", "Export SVG");
+  const exported = await page.context().newPage();
+  await exported.setContent(svg.toString("utf8"));
+  await check(exported.locator('[data-kind="draft-text"]'));
+  await exported.close();
+  await page.getByTestId("project-file").setInputFiles({
+    name: "fraction-layout.icproj.json",
+    mimeType: "application/json",
+    buffer: saved,
+  });
+  await check(note);
+  await reopen();
+  await editor.focus();
+  await editor.press("ControlOrMeta+A");
+  await page.getByRole("button", { name: "Bold", exact: true }).click();
+  await apply();
+  expect((await weights()).every((weight) => weight === "400")).toBe(true);
+  await reopen();
+  await expect(editor).toHaveCSS("font-weight", "400");
+  await editor.focus();
+  await editor.press("ControlOrMeta+A");
+  await page.getByRole("button", { name: "Bold", exact: true }).click();
+  await apply();
+  expect((await weights()).every((weight) => weight === "700")).toBe(true);
+  await check(note);
+});
+
+test("persists normal weight selected inside an otherwise bold text box", async ({
+  page,
+}) => {
+  await page.goto("/editor");
+  await placeText(page);
+  const editor = page.getByRole("textbox", {
+    name: "Canvas text editor",
+    exact: true,
+  });
+  await editor.fill("Bold Plain");
+  await editor.press("End");
+  for (let index = 0; index < 5; index++)
+    await page.keyboard.press("Shift+ArrowLeft");
+  await page.getByRole("button", { name: "Bold", exact: true }).click();
+  await page.getByRole("button", { name: "Apply text changes" }).click();
+  const note = page.locator('[data-kind="draft-text"]');
+  const renderedWeights = () =>
+    note.evaluate((element) => {
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+      const result = [];
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (node.textContent?.trim())
+          result.push({
+            text: node.textContent,
+            weight: getComputedStyle(node.parentElement!).fontWeight,
+          });
+      }
+      return result;
+    });
+  const expected = [
+    { text: "Bold ", weight: "700" },
+    { text: "Plain", weight: "400" },
+  ];
+  expect(await renderedWeights()).toEqual(expected);
+  const saved = await downloadBytes(page, "File", "Export Project File…");
+  await page.getByTestId("project-file").setInputFiles({
+    name: "text-weight.icproj.json",
+    mimeType: "application/json",
+    buffer: saved,
+  });
+  expect(await renderedWeights()).toEqual(expected);
+  await page.getByTestId(/^drafting-hit-note-/).dblclick();
+  await expect(editor.locator("strong")).toHaveText("Bold ");
+  const revision = await page.getByTestId("revision").textContent();
+  await page.getByRole("button", { name: "Apply text changes" }).click();
+  await expect(page.getByTestId("revision")).toHaveText(revision!);
+});
+
+for (const kind of ["rectangle", "circle"] as const) {
+  test(`${kind} annotation code commits paint and stacking atomically and survives export`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 1100 });
+    const project = createEmptyProject(`code-${kind}`, "Annotation code");
+    const document = project.documents[0]!;
+    const base = {
+      id: "shape",
+      locked: false,
+      zIndex: 0,
+      anchor: { kind: "free" as const, position: { x: 100, y: 100 } },
+      center: { x: 100, y: 100 },
+      lineStyle: "solid" as const,
+    };
+    document.drafting = {
+      objects: [
+        kind === "rectangle"
+          ? { ...base, kind, width: 160, height: 80, rotation: 0 }
+          : { ...base, kind, radius: 60 },
+      ],
+    };
+    await page.goto("/editor");
+    await page.getByTestId("project-file").setInputFiles({
+      name: "annotation.icproj.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(project)),
+    });
+    const hit = page.getByTestId("drafting-hit-shape");
+    const edgePoint = () =>
+      hit.evaluate((element) => {
+        const node = element as SVGGraphicsElement;
+        const bounds = node.getBBox();
+        const point = new DOMPoint(
+          bounds.x,
+          bounds.y + bounds.height / 2,
+        ).matrixTransform(node.getScreenCTM()!);
+        return { x: point.x, y: point.y };
+      });
+    const edge = await edgePoint();
+    await page.mouse.click(edge.x, edge.y, {
+      button: kind === "circle" ? "right" : "left",
+    });
+    if (kind === "circle")
+      await page
+        .getByRole("menuitem", { name: "Properties (Q)", exact: true })
+        .click();
+    else await page.keyboard.press("q");
+    const editor = page.getByLabel("Editable Canvas property code");
+    await expect(editor).toBeVisible();
+    const shape = page.locator(
+      `[data-kind="draft-${kind}"][data-object-id="shape"]`,
+    );
+    const before = JSON.parse(await readComponentPropertyCode(page));
+    expect(before.stacking).toEqual({ layer: "front" });
+    expect(before.placement).not.toHaveProperty("bearing");
+    const lineStyle = page.getByRole("combobox", {
+      name: "Line style options",
+      exact: true,
+    });
+    expect(
+      await lineStyle
+        .locator("option")
+        .evaluateAll((options) =>
+          options.map((option) => (option as HTMLOptionElement).value),
+        ),
+    ).toEqual(["solid", "dashed", "dotted"]);
+    const layer = page.getByRole("combobox", {
+      name: "Layer options",
+      exact: true,
+    });
+    expect(
+      await layer
+        .locator("option")
+        .evaluateAll((options) =>
+          options.map((option) => (option as HTMLOptionElement).value),
+        ),
+    ).toEqual(["front", "back"]);
+    await lineStyle.selectOption("dotted");
+    await expect(shape).toHaveAttribute("stroke-dasharray", /\d/);
+    await layer.selectOption("back");
+    await expect(
+      page.locator(
+        '[data-drafting-layer="background"] [data-object-id="shape"]',
+      ),
+    ).toHaveCount(1);
+    await layer.selectOption("front");
+    await lineStyle.selectOption("solid");
+    await expect(shape).not.toHaveAttribute("stroke-dasharray");
+    const revision = Number(await page.getByTestId("revision").textContent());
+    await editComponentPropertyCode(page, (code) => {
+      code.appearance.color = [12, 34, 56];
+      code.appearance.fillColor = [225, 238, 255];
+      code.stacking.layer = "back";
+    });
+    await expect(page.getByTestId("revision")).toHaveText(String(revision + 1));
+    await expect(shape).toHaveAttribute("stroke", "#0c2238");
+    await expect(shape).toHaveAttribute("fill", "#e1eeff");
+    await expect(
+      page.locator(
+        '[data-drafting-layer="background"] [data-object-id="shape"]',
+      ),
+    ).toHaveCount(1);
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    expect(JSON.parse(await readComponentPropertyCode(page))).toEqual(before);
+    await expect(shape).toHaveAttribute("fill", "none");
+    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    const valid = await readComponentPropertyCode(page);
+    const bad = JSON.parse(valid);
+    bad.appearance.fillColor = [999, 0, 0];
+    bad.geometry[kind === "rectangle" ? "width" : "radius"] = 200;
+    await editor.fill(JSON.stringify(bad));
+    await expect(
+      page.getByRole("button", { name: "Discard draft" }),
+    ).toBeVisible();
+    await expect(shape).toHaveAttribute("fill", "#e1eeff");
+    const lastRevision = await page.getByTestId("revision").textContent();
+    await page.getByRole("button", { name: "Discard draft" }).click();
+    expect(JSON.parse(await readComponentPropertyCode(page))).toEqual(
+      JSON.parse(valid),
+    );
+    await expect(page.getByTestId("revision")).toHaveText(lastRevision!);
+    const saved = await downloadBytes(page, "File", "Export Project File…");
+    const svg = (await downloadBytes(page, "File", "Export SVG")).toString(
+      "utf8",
+    );
+    expect(svg).toContain('fill="#e1eeff"');
+    expect(svg).toContain('stroke="#0c2238"');
+    await page.getByTestId("project-file").setInputFiles({
+      name: "reopen.icproj.json",
+      mimeType: "application/json",
+      buffer: saved,
+    });
+    await expect(page.getByTestId("status")).toContainText(
+      "Opened reopen.icproj.json",
+    );
+    const reopenedEdge = await edgePoint();
+    await page.mouse.click(reopenedEdge.x, reopenedEdge.y, { button: "right" });
+    await page
+      .getByRole("menuitem", { name: "Properties (Q)", exact: true })
+      .click();
+    expect(JSON.parse(await readComponentPropertyCode(page))).toEqual(
+      JSON.parse(valid),
+    );
+    if (kind === "rectangle")
+      await page.screenshot({ path: "plan/annotation-code-properties.png" });
+    await page.getByRole("button", { name: "Edit fill color" }).click();
+    await page.getByRole("button", { name: "Reset fill color" }).click();
+    await expect(shape).toHaveAttribute("fill", "none");
+    await expect(shape).toHaveAttribute("stroke", "#0c2238");
+  });
+}
+
+test("text and voltage/polarity annotations expose their own live code without leaking drafts", async ({
+  page,
+}) => {
+  const project = createEmptyProject("all-notes", "Annotation types");
+  project.documents[0]!.drafting = {
+    objects: [undefined, "both", "positive", "negative"].map(
+      (polarity, index) => ({
+        id: `note-${index}`,
+        kind: "text" as const,
+        locked: false,
+        zIndex: index,
+        anchor: {
+          kind: "free" as const,
+          position: { x: 100 + index * 150, y: 100 },
+        },
+        content: {
+          runs:
+            polarity === "positive" || polarity === "negative"
+              ? [{ kind: "line-break" as const }]
+              : [{ kind: "text" as const, value: "VDD" }],
+        },
+        alignment: "middle" as const,
+        rotation: 0 as const,
+        ...(polarity
+          ? { polarity: polarity as "both" | "positive" | "negative" }
+          : {}),
+      }),
+    ),
+  };
+  await page.goto("/editor");
+  await page.getByTestId("project-file").setInputFiles({
+    name: "notes.icproj.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(project)),
+  });
+  await expect(page.getByTestId("status")).toContainText(
+    "Opened notes.icproj.json",
+  );
+  for (let index = 0; index < 4; index++) {
+    await page.getByTestId(`drafting-hit-note-${index}`).click({ force: true });
+    const editor = page.getByLabel("Editable Canvas property code");
+    if (index === 0) await page.keyboard.press("q");
+    const code = JSON.parse(await readComponentPropertyCode(page));
+    expect(code.appearance.color).toBe("auto");
+    expect(Boolean(code.content)).toBe(index < 2);
+    await editComponentPropertyCode(page, (value) => {
+      value.appearance.color = [220, 38, 38];
+      if (index < 2) value.content.runs[0].value = `V${index}`;
+    });
+    const note = page.locator(
+      `[data-kind="draft-text"][data-object-id="note-${index}"]`,
+    );
+    if (index === 0) {
+      await expect(note).toHaveAttribute("fill", "#dc2626");
+      await expect(note).toHaveText("V0");
+    } else
+      await expect(note.locator("line").first()).toHaveAttribute(
+        "stroke",
+        "#dc2626",
+      );
+    await editor.fill('{ "placement":');
+    await expect(
+      page.getByRole("button", { name: "Discard draft" }),
+    ).toBeVisible();
+  }
+});
+
+test("annotation dropdowns use typed values and disable locked or incompatible choices", async ({
+  page,
+}) => {
+  const project = createEmptyProject(
+    "annotation-options",
+    "Annotation options",
+  );
+  const anchor = { kind: "free" as const, position: { x: 100, y: 100 } };
+  project.documents[0]!.drafting = {
+    objects: [
+      {
+        id: "note",
+        kind: "text",
+        anchor,
+        locked: false,
+        zIndex: 12,
+        content: { runs: [{ kind: "text", value: "Annotation" }] },
+        alignment: "middle",
+        rotation: 0,
+      },
+      {
+        id: "curve",
+        kind: "arrow",
+        anchor,
+        locked: false,
+        zIndex: 3,
+        from: { kind: "free", position: { x: 100, y: 200 } },
+        to: { kind: "free", position: { x: 300, y: 200 } },
+        curveControls: [{ x: 200, y: 280 }],
+      },
+    ],
+  };
+  await page.goto("/editor");
+  await awaitEditorReady(page);
+  await page.getByTestId("project-file").setInputFiles({
+    name: "annotation-options.icproj.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(project)),
+  });
+  await expect(page.getByTestId("status")).toContainText(
+    "Opened annotation-options.icproj.json",
+  );
+  await page.getByTestId("drafting-hit-note").click();
+  await page.keyboard.press("q");
+  const weight = page.getByRole("combobox", {
+    name: "Text weight options",
+    exact: true,
+  });
+  const lock = page.getByRole("combobox", {
+    name: "Lock options",
+    exact: true,
+  });
+  await weight.selectOption("normal");
+  await page
+    .getByRole("combobox", { name: "Text alignment options", exact: true })
+    .selectOption("end");
+  await page
+    .getByRole("combobox", { name: "Italic options", exact: true })
+    .selectOption("true");
+  await page
+    .getByRole("combobox", { name: "Rotation options", exact: true })
+    .selectOption("45");
+  expect(JSON.parse(await readComponentPropertyCode(page))).toMatchObject({
+    placement: { rotation: 45 },
+    appearance: { alignment: "end", weight: "normal", italic: true },
+  });
+  await lock.selectOption("true");
+  await expect(weight.locator('option[value="bold"]')).toBeDisabled();
+  await expect(lock.locator('option[value="false"]')).toBeEnabled();
+  await lock.selectOption("false");
+  await expect(weight.locator('option[value="bold"]')).toBeEnabled();
+  await weight.selectOption("bold");
+  const revision = await page.getByTestId("revision").textContent();
+  await page.getByLabel("Editable Canvas property code").fill('{"placement":');
+  await page
+    .getByRole("button", { name: "Discard draft", exact: true })
+    .click();
+  await expect(page.getByTestId("revision")).toHaveText(revision!);
+  await expect(weight).toHaveValue("bold");
+
+  await page.getByTestId("drafting-hit-curve").click({ force: true });
+  const arrowStyle = page.getByRole("combobox", {
+    name: "Arrow style options",
+    exact: true,
+  });
+  await expect(arrowStyle.locator("option")).toHaveCount(10);
+  for (const value of ["outline-start", "outline-end", "outline-both"])
+    await expect(arrowStyle.locator(`option[value="${value}"]`)).toBeDisabled();
+  await arrowStyle.selectOption("filled-both");
+  const saved = JSON.parse(
+    (await downloadBytes(page, "File", "Export Project File…")).toString(
+      "utf8",
+    ),
+  );
+  expect(saved.documents[0].drafting.objects).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: "note",
+        rotation: 45,
+        locked: false,
+        zIndex: 12,
+        styleOverride: expect.objectContaining({
+          weight: "bold",
+          italic: true,
+        }),
+      }),
+      expect.objectContaining({
+        id: "curve",
+        zIndex: 3,
+        curveControls: [{ x: 200, y: 280 }],
+        styleOverride: expect.objectContaining({ arrowHeadAt: "both" }),
+      }),
+    ]),
+  );
 });

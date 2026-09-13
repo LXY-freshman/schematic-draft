@@ -254,7 +254,10 @@ import { useAgentSession } from "../agent/use-agent-session";
 import type { AgentFileCandidateSummary } from "@icm/agent-adapter";
 import { referencedDocumentId } from "../document/editor-session";
 import { useInteractionState } from "../interaction/interaction-state";
-import type { EditorTool } from "../interaction/interaction-state";
+import type {
+  EditorTool,
+  PendingComponentPlacement,
+} from "../interaction/interaction-state";
 import { resolveTextEditingTarget } from "../features/text-editing/text-editing";
 import { planMosBulkDefaultUpdate } from "../features/component-insert/mos-bulk-defaults";
 import { logicalNetChoices } from "../features/logical-net-choices";
@@ -280,6 +283,10 @@ import {
 import { deriveSelectionInspectionModel } from "../features/selection/selection-inspection-model";
 import { usePropertiesEditor } from "../features/properties/use-properties-editor";
 import { createPropertyEditPlanner } from "../features/properties/property-edit-planner";
+import {
+  instanceParameterVisibility,
+  instanceParameterVisibilityEdits,
+} from "../features/instance-display/instance-parameter-display";
 import { createSelectionPropertyCommands } from "../features/properties/selection-property-commands";
 import { planComponentPropertyCodeEdits } from "../features/properties/component-property-code-edits";
 import type { ComponentPropertyCodeValue } from "../features/properties/component-property-code";
@@ -1199,14 +1206,6 @@ export function App({
     objectId: string;
     index: number;
   } | null>(null);
-  const [draftingTangentInput, setDraftingTangentInput] = useState<{
-    key: string;
-    value: string;
-  } | null>(null);
-  const [draftingBearingInput, setDraftingBearingInput] = useState<{
-    objectId: string;
-    value: string;
-  } | null>(null);
   const [selectedRouteSegmentIndex, setSelectedRouteSegmentIndex] = useState<
     number | null
   >(null);
@@ -1304,13 +1303,13 @@ export function App({
   const lastCanvasPointRef = useRef<Point | null>(null);
 
   /** Show a placement ghost under the cursor without waiting for a move. */
-  function seedComponentPreviewFromPointer(): void {
+  function seedComponentPreviewFromPointer(
+    kind: PendingComponentPlacement["kind"],
+  ): void {
     const point = lastCanvasPointRef.current;
     if (!point) return;
     const pitch =
-      pendingComponentPlacement?.kind === "drafting-text"
-        ? annotationGrid
-        : document.presentation.grid;
+      kind === "drafting-text" ? annotationGrid : document.presentation.grid;
     setComponentPreviewPoint({
       x: snapCoordinate(point.x, pitch),
       y: snapCoordinate(point.y, pitch),
@@ -2429,7 +2428,7 @@ export function App({
     activateDrawingTool: setTool,
     beginComponentPlacement: (request) => {
       beginComponentPlacement(request);
-      seedComponentPreviewFromPointer();
+      seedComponentPreviewFromPointer(request.kind);
     },
     beginDraftingTextEditing,
     nextId: (prefix) => {
@@ -2779,11 +2778,7 @@ export function App({
     insertArrowWaypoint,
     deleteConstructionVertex,
     setDraftingStyle,
-    setDraftingGeometry,
     setDraftingStacking,
-    setArrowPreset,
-    setDraftingTangentAngle,
-    setDraftingBearing,
     toggleDraftingLock,
     addPlainText,
     addCurrentArrow,
@@ -2791,7 +2786,6 @@ export function App({
     document,
     annotationGrid,
     resolver,
-    viewBox,
     selection: visualSelection,
     selectedDrafting,
     inspectorSegment: draftingInspectorSegment,
@@ -2804,7 +2798,18 @@ export function App({
       uniqueSuffixCounter.current += 1;
       return `${prefix}-${uniqueSuffixCounter.current}`;
     },
-    beginTextEditing: beginDraftingTextEditing,
+    beginTextPlacement: () =>
+      startInsertFromHook({
+        kind: "quick",
+        request: {
+          kind: "drafting-text",
+          symbolId: "text",
+          symbolName: "Text",
+          text: "Design note",
+          initialRotation: 0,
+          editAfterPlacement: true,
+        },
+      }),
     selectAnnotation: (id) => selectOnly("annotation", [id]),
   });
   const {
@@ -2876,7 +2881,6 @@ export function App({
     },
     selectDraftingObject,
     setInspectorSegment: setDraftingInspectorSegment,
-    clearTangentInput: () => setDraftingTangentInput(null),
     setHandlePreview: setDraftingHandlePreview,
     transact,
     setStatus,
@@ -3092,8 +3096,9 @@ export function App({
       setPanPreview,
       getInteractionKind: () => getCurrentInteractionState().kind,
       paintSnapGuides,
-      noteCanvasPoint: (point, rawPoint, svg) => {
-        lastCanvasPointRef.current = point;
+      noteCanvasPoint: (_point, rawPoint, svg) => {
+        // Preserve precision until the chosen tool applies its own grid.
+        lastCanvasPointRef.current = rawPoint;
         if (netLabelPlacement?.phase === "placing") {
           const target = resolveNetLabelPlacementTarget(rawPoint, svg);
           updateNetLabelPlacementPosition(
@@ -3991,8 +3996,6 @@ export function App({
   function selectDraftingObject(id: string, additive = false): void {
     selectVisualObjects("drafting", draftingSelectionIds(id), additive);
     setDraftingInspectorSegment(null);
-    setDraftingTangentInput(null);
-    setDraftingBearingInput(null);
   }
 
   useEffect(() => {
@@ -4176,10 +4179,16 @@ export function App({
         case "edit-net-label":
           activateTool("pointer");
           {
-            const position = lastCanvasPointRef.current ?? {
-              x: viewBox.x + viewBox.width / 2,
-              y: viewBox.y + viewBox.height / 2,
-            };
+            const pointer = lastCanvasPointRef.current;
+            const position = pointer
+              ? {
+                  x: snapCoordinate(pointer.x, document.presentation.grid),
+                  y: snapCoordinate(pointer.y, document.presentation.grid),
+                }
+              : {
+                  x: viewBox.x + viewBox.width / 2,
+                  y: viewBox.y + viewBox.height / 2,
+                };
             beginNetLabelEditing(
               position,
               selectedRoute
@@ -5795,6 +5804,10 @@ export function App({
                           ? selectedInstanceValue !== null &&
                             selectedInstanceValue.visible !== false
                           : null,
+                        parameterVisibility: instanceParameterVisibility(
+                          document,
+                          selectedInstance,
+                        ),
                         netName: selectedSupplyMarker
                           ? (selectedPortLogicalName ?? "")
                           : null,
@@ -5864,6 +5877,18 @@ export function App({
                                   : instance,
                               ),
                             };
+                            if (value.display?.parameters) {
+                              // Apply visibility before movement so the transaction transforms
+                              // new and retained parameter anchors exactly once.
+                              edits.unshift(
+                                ...instanceParameterVisibilityEdits(
+                                  candidateDocument,
+                                  candidateInstance,
+                                  resolver,
+                                  value.display.parameters,
+                                ),
+                              );
+                            }
                             const desiredReference =
                               value.display?.visualAnnotation;
                             const currentReference =
@@ -6282,30 +6307,13 @@ export function App({
                   ? {
                       annotation: selectedAnnotation,
                       inheritedColor: selectedAnnotationInheritedTextColor,
-                      onChange: (textColor) => {
-                        if (selectedAnnotation.locked) {
-                          setStatus(
-                            "Unlock this annotation before changing its text color",
-                          );
-                          return;
-                        }
-                        const annotation = { ...selectedAnnotation };
-                        if (textColor === undefined)
-                          delete annotation.textColor;
-                        else annotation.textColor = textColor;
+                      onApply: (annotation) => {
                         const result = transact([
-                          {
-                            kind: "upsert_schematic_annotation",
-                            annotation,
-                          },
+                          { kind: "upsert_schematic_annotation", annotation },
                         ]);
-                        if (result.ok) {
-                          setStatus(
-                            textColor === undefined
-                              ? "Annotation text color set to Auto"
-                              : "Updated annotation text color",
-                          );
-                        }
+                        if (result.ok)
+                          setStatus("Updated annotation properties");
+                        return result;
                       },
                     }
                   : null
@@ -6341,17 +6349,14 @@ export function App({
                       resolver,
                       object: selectedDrafting,
                       defaultColor: styleProfile.foreground,
-                      inspectorSegment: draftingInspectorSegment,
-                      tangentInput: draftingTangentInput,
-                      bearingInput: draftingBearingInput,
-                      onInspectorSegmentChange: setDraftingInspectorSegment,
-                      onTangentInputChange: setDraftingTangentInput,
-                      onBearingInputChange: setDraftingBearingInput,
-                      onStyleChange: setDraftingStyle,
-                      onGeometryChange: setDraftingGeometry,
-                      onTangentAngleChange: setDraftingTangentAngle,
-                      onBearingChange: setDraftingBearing,
-                      onArrowPresetChange: setArrowPreset,
+                      grid: annotationGrid,
+                      onApply: (object) => {
+                        const result = transact([
+                          { kind: "upsert_drafting_object", object },
+                        ]);
+                        if (result.ok) setStatus("Updated drawing properties");
+                        return result;
+                      },
                       onStackingChange: setDraftingStacking,
                       onToggleLock: () => toggleDraftingLock(selectedDrafting),
                     }
@@ -6543,7 +6548,10 @@ export function App({
         />
         <EditorCanvasSurface
           empty={canvasIsEmpty}
-          showQuickStart={!analogSimulationOpen}
+          showQuickStart={
+            !analogSimulationOpen &&
+            !pendingComponentPlacement?.editAfterPlacement
+          }
           cameraRuntime={cameraRuntime}
           onWheel={handleWheel}
           onPinch={zoomAtClientPoint}
@@ -6629,6 +6637,11 @@ export function App({
             copyPlacementActive: copyPlacement !== null,
           }}
           placementPreview={{
+            styleProfile,
+            ...(pendingComponentPlacement?.kind === "drafting-text" &&
+            pendingComponentPlacement.editAfterPlacement
+              ? { draftingText: pendingComponentPlacement.text }
+              : {}),
             vddRailMode,
             vddRailStart,
             previewPoint: componentPreviewPoint,
@@ -6989,6 +7002,13 @@ export function App({
               editorCommands.execute({ id: "selection.align", mode })
             }
             actions={[
+              {
+                label: "Properties (Q)",
+                enabled: editorCommands.state({ id: "properties.open" })
+                  .enabled,
+                execute: () =>
+                  editorCommands.execute({ id: "properties.open" }),
+              },
               {
                 label: "Duplicate (C)",
                 enabled:

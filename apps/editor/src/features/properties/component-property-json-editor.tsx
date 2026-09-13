@@ -290,7 +290,16 @@ function jsonDecorations(state: EditorState, read: () => Props): DecorationSet {
     { path: "display.visualAnnotation", label: "visual annotation" },
     { path: "display.value", label: "value" },
     { path: "appearance.inputPolarity", label: "input polarity" },
-  ] as const) {
+    { path: "appearance.inputsSwapped", label: "inputs" },
+    { path: "appearance.outputsSwapped", label: "outputs" },
+    ...spans
+      .filter(
+        (span) =>
+          span.field.path.startsWith("display.parameters.") &&
+          span.field.kind === "boolean",
+      )
+      .map((span) => span.field),
+  ]) {
     const span = spans.find(({ field: item }) => item.path === field.path);
     if (!span) continue;
     const valueValid =
@@ -333,7 +342,7 @@ function jsonDecorations(state: EditorState, read: () => Props): DecorationSet {
   const rotation = spans.find(
     ({ field }) => field.path === "placement.rotation",
   );
-  if (rotation) {
+  if (rotation?.field.kind === "rotation") {
     const valueValid = ROTATION_OPTIONS.some(
       ({ value }) => value === rotation.value,
     );
@@ -372,10 +381,9 @@ function jsonDecorations(state: EditorState, read: () => Props): DecorationSet {
         }).range(mirror.to),
       );
   }
-  const foreground = spans.find(
-    ({ field }) => field.path === "appearance.foreground",
-  );
-  if (foreground) {
+  for (const foreground of spans.filter(
+    ({ field }) => field.kind === "color",
+  )) {
     let color = read().defaultForeground;
     let inherited = false;
     let mixed = false;
@@ -386,10 +394,14 @@ function jsonDecorations(state: EditorState, read: () => Props): DecorationSet {
       } else {
         const parsed = parseCanvasColor(
           foreground.value,
-          "appearance.foreground",
+          foreground.field.path,
         );
         inherited = parsed === "auto";
-        color = inherited ? read().defaultForeground : parsed;
+        color = inherited
+          ? foreground.field.path === "appearance.fillColor"
+            ? "transparent"
+            : read().defaultForeground
+          : parsed;
       }
     } catch {
       colorValid = false;
@@ -397,6 +409,8 @@ function jsonDecorations(state: EditorState, read: () => Props): DecorationSet {
     ranges.push(
       Decoration.widget({
         widget: new ForegroundColorWidget(
+          foreground.field.path,
+          foreground.field.label,
           color,
           inherited,
           mixed,
@@ -416,10 +430,21 @@ function jsonDecorations(state: EditorState, read: () => Props): DecorationSet {
           side: 2,
         }).range(at),
       );
-    if (span.field.path === "netlistTarget" && span.field.kind === "choice")
+    if (span.field.kind === "choice")
       ranges.push(
         Decoration.widget({
-          widget: new NetlistTargetSelect(span, documentValid, read),
+          widget: new PropertyChoiceSelect(
+            span,
+            documentValid,
+            (span.field.options ?? []).map(
+              (option) =>
+                documentValid &&
+                editorChanges(source, read(), {
+                  [span.field.path]: option.value,
+                }).length > 0,
+            ),
+            read,
+          ),
           side: 1,
         }).range(span.to),
       );
@@ -449,21 +474,26 @@ class PropertyUnit extends WidgetType {
   }
 }
 
-class NetlistTargetSelect extends WidgetType {
+class PropertyChoiceSelect extends WidgetType {
   constructor(
     private readonly span: PropertyCodeSpan,
     private readonly enabled: boolean,
+    private readonly optionEnabled: readonly boolean[],
     private readonly read: () => Props,
   ) {
     super();
   }
 
-  override eq(other: NetlistTargetSelect): boolean {
+  override eq(other: PropertyChoiceSelect): boolean {
     return (
+      this.span.field.path === other.span.field.path &&
+      this.span.field.label === other.span.field.label &&
+      this.span.field.help === other.span.field.help &&
       JSON.stringify(this.span.field.options) ===
         JSON.stringify(other.span.field.options) &&
       this.span.value === other.span.value &&
-      this.enabled === other.enabled
+      this.enabled === other.enabled &&
+      JSON.stringify(this.optionEnabled) === JSON.stringify(other.optionEnabled)
     );
   }
 
@@ -472,9 +502,10 @@ class NetlistTargetSelect extends WidgetType {
     picker.className = "cm-netlist-target-picker";
     picker.contentEditable = "false";
     picker.dataset.disabled = String(!this.enabled);
+    const label = this.span.field.label;
     picker.title = this.enabled
-      ? "Choose netlist target"
-      : "Fix the property JSON before changing the netlist target";
+      ? (this.span.field.help ?? `Choose ${label.toLowerCase()}`)
+      : `Fix the property JSON before changing ${label.toLowerCase()}`;
     const arrow = document.createElement("span");
     arrow.className = "cm-netlist-target-arrow";
     arrow.setAttribute("aria-hidden", "true");
@@ -482,28 +513,35 @@ class NetlistTargetSelect extends WidgetType {
     const select = document.createElement("select");
     select.className = "cm-netlist-target-select";
     select.contentEditable = "false";
-    select.setAttribute("aria-label", "Target netlist options");
+    select.setAttribute(
+      "aria-label",
+      this.span.field.path === "netlistTarget"
+        ? "Target netlist options"
+        : `${label} options`,
+    );
     select.disabled = !this.enabled;
     const options = this.span.field.options ?? [];
-    for (const option of options) {
+    for (const [index, option] of options.entries()) {
       const element = document.createElement("option");
-      element.value = option.value;
+      element.value = String(option.value);
       element.textContent = option.label;
+      element.disabled = !this.optionEnabled[index];
       select.append(element);
     }
-    if (
-      typeof this.span.value === "string" &&
-      !options.some((option) => option.value === this.span.value)
-    ) {
+    if (!options.some((option) => option.value === this.span.value)) {
       const authored = document.createElement("option");
-      authored.value = this.span.value;
-      authored.textContent = this.span.value;
+      authored.value = String(this.span.value);
+      authored.textContent = String(this.span.value);
       select.append(authored);
     }
     select.value = String(this.span.value);
     select.addEventListener("change", () => {
+      const option = options.find(
+        (item) => String(item.value) === select.value,
+      );
+      if (!option) return;
       const changes = editorChanges(view.state.doc.toString(), this.read(), {
-        netlistTarget: select.value,
+        [this.span.field.path]: option.value,
       });
       if (changes.length)
         view.dispatch({ changes, userEvent: "input.property-control" });
@@ -521,9 +559,8 @@ class NetlistTargetSelect extends WidgetType {
 
 class DisplayToggleWidget extends WidgetType {
   constructor(
-    private readonly path:
-      "display.visualAnnotation" | "display.value" | "appearance.inputPolarity",
-    private readonly label: "visual annotation" | "value" | "input polarity",
+    private readonly path: string,
+    private readonly label: string,
     private readonly checked: boolean | "mixed",
     private readonly disabled: boolean,
     private readonly read: () => Props,
@@ -544,11 +581,16 @@ class DisplayToggleWidget extends WidgetType {
     toggle.className = "cm-property-inline-toggle";
     toggle.contentEditable = "false";
     toggle.setAttribute("role", "switch");
+    const swapsPolarity =
+      this.path === "appearance.inputsSwapped" ||
+      this.path === "appearance.outputsSwapped";
     toggle.setAttribute(
       "aria-label",
-      this.path === "appearance.inputPolarity"
-        ? "Toggle input polarity marks"
-        : `Toggle ${this.label} visibility`,
+      swapsPolarity
+        ? `Swap the + and - ${this.label}`
+        : this.path === "appearance.inputPolarity"
+          ? "Toggle input polarity marks"
+          : `Toggle ${this.label} visibility`,
     );
     toggle.setAttribute(
       "aria-checked",
@@ -559,18 +601,30 @@ class DisplayToggleWidget extends WidgetType {
     toggle.tabIndex = this.disabled ? -1 : 0;
     toggle.title = this.disabled
       ? `Fix the property JSON before changing ${
-          this.path === "appearance.inputPolarity"
-            ? "input polarity marks"
-            : "visibility"
+          swapsPolarity
+            ? `${this.label} polarity`
+            : this.path === "appearance.inputPolarity"
+              ? "input polarity marks"
+              : "visibility"
         }`
       : `${
           this.path === "appearance.inputPolarity"
             ? "Input polarity marks"
             : this.label === "visual annotation"
               ? "Visual annotation"
-              : "Value"
+              : this.label === "value"
+                ? "Value"
+                : this.label
         } · ${
-          this.checked === "mixed" ? "Mixed" : this.checked ? "Shown" : "Hidden"
+          this.checked === "mixed"
+            ? "Mixed"
+            : swapsPolarity
+              ? this.checked
+                ? "Swapped"
+                : "Default"
+              : this.checked
+                ? "Shown"
+                : "Hidden"
         }`;
     const apply = (): void => {
       if (this.disabled) return;
@@ -778,6 +832,8 @@ function mirrorActionIcon(rotation: 0 | 90): SVGSVGElement {
 
 class ForegroundColorWidget extends WidgetType {
   constructor(
+    private readonly path: string,
+    private readonly label: string,
     private readonly color: string,
     private readonly inherited: boolean,
     private readonly mixed: boolean,
@@ -789,6 +845,8 @@ class ForegroundColorWidget extends WidgetType {
 
   override eq(other: ForegroundColorWidget): boolean {
     return (
+      other.path === this.path &&
+      other.label === this.label &&
       other.color === this.color &&
       other.inherited === this.inherited &&
       other.mixed === this.mixed &&
@@ -801,26 +859,39 @@ class ForegroundColorWidget extends WidgetType {
     button.className = "cm-property-inline-color";
     button.contentEditable = "false";
     button.setAttribute("role", "button");
-    button.setAttribute("aria-label", "Edit line color");
+    button.setAttribute("aria-label", `Edit ${this.label.toLowerCase()} color`);
     button.setAttribute("aria-disabled", String(this.disabled));
     button.tabIndex = this.disabled ? -1 : 0;
     button.title = this.disabled
-      ? "Fix the property JSON before changing line color"
+      ? `Fix the property JSON before changing ${this.label.toLowerCase()} color`
       : this.mixed
-        ? "Line color · Mixed"
+        ? `${this.label} color · Mixed`
         : this.inherited
-          ? `Line color · Auto (${this.color})`
-          : `Line color · ${this.color}`;
+          ? `${this.label} color · ${this.path === "appearance.fillColor" ? "Transparent" : `Auto (${this.color})`}`
+          : `${this.label} color · ${this.color}`;
     button.dataset.inherited = this.inherited ? "true" : "false";
     button.dataset.mixed = this.mixed ? "true" : "false";
     button.style.setProperty("--component-inline-color", this.color);
     button.addEventListener("click", () => {
-      if (!this.disabled) showForegroundColorPopover(view, this.read, button);
+      if (!this.disabled)
+        showForegroundColorPopover(
+          view,
+          this.read,
+          button,
+          this.path,
+          this.label,
+        );
     });
     button.addEventListener("keydown", (event) => {
       if (!this.disabled && (event.key === "Enter" || event.key === " ")) {
         event.preventDefault();
-        showForegroundColorPopover(view, this.read, button);
+        showForegroundColorPopover(
+          view,
+          this.read,
+          button,
+          this.path,
+          this.label,
+        );
       }
     });
     return button;
@@ -835,42 +906,46 @@ function showForegroundColorPopover(
   view: EditorView,
   read: () => Props,
   anchor: HTMLElement,
+  path: string,
+  labelText: string,
 ): void {
   document
     .querySelectorAll(".component-property-color-popover")
     .forEach((element) => element.remove());
 
   const span = editorSpans(view.state.doc.toString(), read()).find(
-    ({ field }) => field.path === "appearance.foreground",
+    ({ field }) => field.path === path,
   );
   if (!span) return;
 
   let parsed: "auto" | `#${string}`;
   const mixed = span.value === "mixed" && read().adapter?.mixedValues === true;
   try {
-    parsed = mixed
-      ? "auto"
-      : parseCanvasColor(span.value, "appearance.foreground");
+    parsed = mixed ? "auto" : parseCanvasColor(span.value, path);
   } catch {
     return;
   }
   const inherited = parsed === "auto";
-  const effective = inherited ? read().defaultForeground : parsed;
+  const effective = inherited
+    ? path === "appearance.fillColor"
+      ? "#ffffff"
+      : read().defaultForeground
+    : parsed;
   const channels = colorToRgb(effective);
   const popover = document.createElement("div");
   popover.className = "component-property-color-popover";
   popover.setAttribute("popover", "auto");
   popover.setAttribute("role", "dialog");
-  popover.setAttribute("aria-label", "Line color settings");
+  popover.setAttribute("aria-label", `${labelText} color settings`);
   popover.style.setProperty("--component-inline-color", effective);
 
   const close = (): void => {
     if (popover.matches(":popover-open")) popover.hidePopover();
     else popover.remove();
   };
-  const apply = (value: [number, number, number]): void => {
+  const apply = (value: [number, number, number] | "auto"): void => {
     const changes = editorChanges(view.state.doc.toString(), read(), {
-      "appearance.foreground": value,
+      [path]: value,
     });
     if (changes.length !== 1) return;
     view.dispatch({ changes, userEvent: "input.property-color" });
@@ -878,29 +953,37 @@ function showForegroundColorPopover(
 
   const header = document.createElement("header");
   const title = document.createElement("strong");
-  title.textContent = "Line color";
+  title.textContent = `${labelText} color`;
   const current = document.createElement("span");
   current.textContent = mixed
     ? "Mixed"
     : inherited
-      ? `Auto · ${effective}`
+      ? path === "appearance.fillColor"
+        ? "Transparent"
+        : `Auto · ${effective}`
       : effective;
   const closeButton = document.createElement("button");
   closeButton.type = "button";
   closeButton.className = "component-property-color-popover-close";
-  closeButton.setAttribute("aria-label", "Close line color settings");
+  closeButton.setAttribute(
+    "aria-label",
+    `Close ${labelText.toLowerCase()} color settings`,
+  );
   closeButton.textContent = "×";
   closeButton.addEventListener("click", close);
   header.append(title, current, closeButton);
 
   const presets = document.createElement("div");
   presets.className = "component-property-color-popover-presets";
-  presets.setAttribute("aria-label", "Line presets");
+  presets.setAttribute("aria-label", `${labelText} presets`);
   for (const preset of LINE_COLOR_PRESETS) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "component-property-color-popover-swatch";
-    button.setAttribute("aria-label", `Use ${preset.label} for line`);
+    button.setAttribute(
+      "aria-label",
+      `Use ${preset.label} for ${labelText.toLowerCase()}`,
+    );
     button.setAttribute(
       "aria-pressed",
       String(!mixed && !inherited && effective.toLowerCase() === preset.value),
@@ -921,7 +1004,7 @@ function showForegroundColorPopover(
   custom.className = "component-property-color-popover-custom";
   const rgb = document.createElement("div");
   rgb.className = "component-property-color-popover-rgb";
-  rgb.setAttribute("aria-label", "Line custom RGB");
+  rgb.setAttribute("aria-label", `${labelText} custom RGB`);
   const label = document.createElement("label");
   label.textContent = "RGB";
   const input = document.createElement("input");
@@ -929,7 +1012,7 @@ function showForegroundColorPopover(
   input.inputMode = "decimal";
   input.value = `[${channels.join(",")}]`;
   input.placeholder = "[220,38,38]";
-  input.setAttribute("aria-label", "Line RGB");
+  input.setAttribute("aria-label", `${labelText} RGB`);
   input.addEventListener("input", () => {
     const next = parseRgbTuple(input.value);
     input.setAttribute("aria-invalid", String(next === null));
@@ -944,7 +1027,16 @@ function showForegroundColorPopover(
   label.append(input);
   rgb.append(label);
   custom.append(rgb);
+  const reset = document.createElement("button");
+  reset.type = "button";
+  reset.textContent = path === "appearance.fillColor" ? "Transparent" : "Auto";
+  reset.setAttribute("aria-label", `Reset ${labelText.toLowerCase()} color`);
+  reset.addEventListener("click", () => {
+    apply("auto");
+    close();
+  });
   popover.append(header, presets, custom);
+  if (path !== "appearance.foreground") popover.append(reset);
   popover.addEventListener("toggle", () => {
     if (!popover.matches(":popover-open")) popover.remove();
   });

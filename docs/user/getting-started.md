@@ -63,6 +63,11 @@ is defined.
   `"vertical"`, or `"both"` and never changes the rotation value. Use the color button after
   `appearance.foreground` for light gray, red, green, blue, black, and one RGB
   tuple input such as `[220,38,38]`.
+  Differential-input blocks expose `appearance.inputsSwapped`; fully
+  differential amplifiers also expose `appearance.outputsSwapped`. Edit these
+  booleans or use their inline switches to exchange the +/− positions
+  independently. Connections follow their named pins, and internal marks stay
+  intact. **Defaults** resets both swaps to `false`.
   These controls are visual only and are absent from selected, copied, and
   saved JSON. Fixed colors display as
   `[R, G, B]` (0–255); hex input also works. Type `"auto"` directly to inherit
@@ -91,8 +96,19 @@ is defined.
   its wires as dangling Junction endpoints at the former pin positions.
 - Select an instance to edit its displayed name. Select a wire Route to add an
   electrical Net label; assigning the same name to another Net explicitly
-  connects those Nets. Use **More / Add text** for non-electrical notes. Label
-  handles may be dragged near their owner, while plain text moves freely.
+  connects those Nets. Press `T` or choose **Text** for a non-electrical note: move its translucent
+  preview with the pointer, click to place it, then edit the text. `Esc` cancels
+  placement. Label handles may be dragged near their owner, while plain text moves freely.
+  Text notes and text inside drawn boxes default to **bold**. Use **B** to
+  switch selected text to normal weight; that choice survives saving and reopening.
+- To mix a stacked fraction with other text, use **Insert fraction** (the
+  a-over-b button) in the text toolbar. Type the numerator, press `Tab` for the
+  denominator, then `Tab` again to continue the line, for example `+ R₁`.
+  Subscript and superscript work inside either part. Selecting `1u/150n` before
+  clicking the button converts it while preserving character formatting.
+  Double-click a note or visual annotation to edit its fractions again.
+  Both parts stay centered under the same axis, and the bar follows the wider part.
+  Use **ƒx** for a complete mathematical formula such as `\frac{1}{g_{mN}} + R_1`.
 - Press `R` to rotate, `F` to fit, `X` to reverse a selected current arrow,
   `Ctrl+Z` to undo, and `Ctrl+Y` or `Ctrl+Shift+Z` to redo. Shortcuts do not
   fire while typing in a field.
@@ -113,15 +129,35 @@ Only the transient capture marker is shown; no snap points are added to the
 drawing. Hold `Alt` to suppress snapping. A visual snap aligns coordinates but
 does not create electrical connectivity or make one drawing follow another.
 
-Select an arrow and press `Q` for Properties. **Style** is the same icon gallery,
-including filled/open single- and double-headed line arrows and hollow outline
-arrows. **Stroke width** changes weight; an outline's **Width** changes its shape
-without changing weight.
-Drag endpoint handles to set length, the side handle for outline width, and the
-rotation handle for direction; `R` and **Bearing** also rotate. Reversed and
-headless line arrows remain supported in existing drawings but are not offered
-in the style menu. The obsolete Head size, Rotate and Reverse controls are no
-longer separate panel controls.
+Select any annotation and press `Q`, or use its right-click Properties action,
+to edit its JSON. Placement and appearance come first; text content (including
+rich text runs) follows geometry and stacking. Valid edits update immediately
+as one undoable edit. Invalid or locked edits retain the last accepted drawing;
+**Discard draft** restores the current code. Semantic labels retain their
+electrical text bindings; their code changes presentation only. Values with a
+fixed set of choices have a small dropdown arrow beside the JSON value: line
+style, arrow style, layer, text alignment/weight, visibility and locking.
+The menu shows the available choices without repeating the selected value.
+
+For arrows, `appearance.arrowStyle` chooses `filled-end`, `open-end`,
+`filled-both`, `open-both`, `outline-end`, `outline-start`, or `outline-both`.
+The dropdown also lists `filled-start`, `open-start`, and `line` (no head).
+`appearance.strokeScale` changes stroke weight; an outline's `geometry.width`
+changes its shape without changing weight. `placement.rotation` is a clockwise
+angle in degrees: 0° points right and 90° points down. For a bent line it is the
+direction of the first segment; changing it rotates the whole path. The menu
+offers common 45° angles; rectangles and paths also accept custom angles in
+code, while text uses 45° steps. `geometry.tangentAngles` sets the curve angle
+for each segment.
+Endpoint, width and rotation handles remain available on the canvas.
+
+Rectangles and circles have independent `appearance.color` (border) and
+`appearance.fillColor`. Click either color swatch for presets or RGB input;
+hex and `[R, G, B]` are also accepted in code. `"auto"` inherits the document
+border color and makes the fill transparent. `stacking.layer` selects
+`"back"` or `"front"` relative to circuit artwork. The numeric drawing order
+is managed internally; **Bring to front** and **Send to back** place a shape
+above or below other drawings. Width, height and radius live in `geometry`.
 
 Existing head sizes remain intact when loading or restyling old drawings.
 Converting a bent/curved line arrow to an outline is disabled: no bends are
@@ -220,7 +256,7 @@ Build the versioned bundle and start it with Node 24:
 
 ```powershell
 pnpm release:package
-node output/release/interactive-circuit-maker-v0.4.1/start.mjs
+node output/release/interactive-circuit-maker-v0.5.0/start.mjs
 ```
 
 Open `http://127.0.0.1:4173`. Chromium can install the app from its browser

@@ -3,6 +3,28 @@
 Notable changes to Analog Canvas. Entries describe what changed for the person
 using the product, not the commits that got there.
 
+## 0.5.0 (2026-09-13)
+
+### Drawing and properties
+
+- Place text with a cursor-following preview. Mix stacked fractions with other
+  text, with centered numerator/denominator and a bar sized to the wider part.
+  New text boxes default to bold, and text alignment uses precise text bounds.
+- Edit annotations through live property JSON with inline option menus.
+  Rectangles and circles have independent border/fill colors and front/back
+  layers; rotation and arrow/line styles have discoverable choices.
+- Show transformer and T-Coil coupling and inductance parameters independently.
+  Swap Analog Block input and output polarities independently in Properties.
+- Use consistent equilateral Analog Block triangles, grid-aligned left edges
+  and balanced output leads. Digital gate bodies also align from the left;
+  selection frames follow their visible artwork.
+- Connect visible component pins crossed by a Power Rail when drawing or
+  adjusting that rail.
+
+Project schema 54 adds independent magnetic parameter visibility. Existing
+Projects remain importable; some older drawings affected by the new symbol
+geometry or pin columns may need manual layout or route repairs.
+
 ## 0.4.1 (2026-09-13)
 
 ### Agent authoring and simulation results

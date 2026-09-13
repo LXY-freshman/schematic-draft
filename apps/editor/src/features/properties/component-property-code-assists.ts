@@ -1,4 +1,5 @@
 import { jsonLanguage } from "@codemirror/lang-json";
+import { magneticDisplayParameters } from "@icm/derived";
 import { reflectOrientation } from "@icm/model";
 import { componentDetailFields } from "./component-property-details";
 import {
@@ -23,10 +24,22 @@ export interface PropertyCodeSpan {
 export function propertyCodeSpans(
   source: string,
   context?: ComponentPropertyCodeContext,
+  customFields?: readonly CanvasPropertyField[],
 ): PropertyCodeSpan[] {
   const spans: PropertyCodeSpan[] = [];
-  const fields = [
+  const fields: readonly CanvasPropertyField[] = customFields ?? [
     ...CANVAS_PROPERTY_FIELDS,
+    ...(context
+      ? magneticDisplayParameters(context.instance.symbolId).map(
+          (parameter) => ({
+            path: `display.parameters.${parameter.name}`,
+            label: parameter.label,
+            kind: "boolean" as const,
+            description: "",
+            help: `Show ${parameter.label} on the canvas`,
+          }),
+        )
+      : []),
     ...(context
       ? componentDetailFields(context.instance, context.details)
       : []),

@@ -13,6 +13,7 @@ import {
   chooseComponent,
   clickCommand,
   clickDrawTool,
+  placeText,
   clickNetlistWorkflowCommand,
   downloadBytes,
   editComponentPropertyCode,
@@ -2482,7 +2483,8 @@ test("fills a closed shape and moves it behind or in front of circuit artwork", 
   await expect(
     properties.getByText("Send to back", { exact: true }),
   ).toBeVisible();
-  await properties.getByRole("button", { name: "Use Blue for fill" }).click();
+  await properties.getByRole("button", { name: "Edit fill color" }).click();
+  await page.getByRole("button", { name: "Use Blue for fill" }).click();
   await expect(
     page.locator('[data-kind="draft-rectangle"][data-object-id="box"]'),
   ).toHaveAttribute("fill", "#2563eb");
@@ -3535,7 +3537,7 @@ test("moves an explicitly selected attached label", async ({ page }) => {
 
 test("moves floating text after it is created", async ({ page }) => {
   await page.goto("/editor");
-  await clickDrawTool(page, "text");
+  await placeText(page);
   await page
     .getByRole("textbox", { name: "Canvas text editor" })
     .fill("Floating note");
@@ -3621,7 +3623,7 @@ test("edits instance, electrical Net, and free text with bounded label handles",
   await expect(page.getByTestId("net-count")).toHaveText("2");
   await expect(page.getByTestId("status")).toHaveText("Saved Net Label Vref");
 
-  await clickDrawTool(page, "text");
+  await placeText(page);
   const textInput = page.getByRole("textbox", {
     name: "Canvas text editor",
   });
@@ -3676,7 +3678,7 @@ test("keeps literal text line breaks and overbars visible while editing", async 
   page,
 }) => {
   await page.goto("/editor");
-  await clickDrawTool(page, "text");
+  await placeText(page);
   const editor = page.getByRole("textbox", { name: "Canvas text editor" });
   await editor.fill("Vx");
   await editor.press("ControlOrMeta+A");
@@ -3706,7 +3708,7 @@ test("stacks complementary scripts under one uninterrupted overbar", async ({
   page,
 }) => {
   await page.goto("/editor");
-  await clickDrawTool(page, "text");
+  await placeText(page);
   const editor = page.getByRole("textbox", { name: "Canvas text editor" });
   await editor.fill("In22");
 
@@ -3941,17 +3943,22 @@ test("stacks complementary scripts under one uninterrupted overbar", async ({
   const overbar = savedRuns.find(
     (run) => run.kind === "span" && run.style === "overbar",
   );
+  const boldText = (value: string) => ({
+    kind: "span",
+    style: "bold",
+    children: [{ kind: "text", value }],
+  });
   expect(overbar?.children).toEqual([
-    { kind: "text", value: "I" },
+    boldText("I"),
     {
       kind: "span",
       style: "subscript",
-      children: [{ kind: "text", value: "n2" }],
+      children: [boldText("n2")],
     },
     {
       kind: "span",
       style: "superscript",
-      children: [{ kind: "text", value: "2" }],
+      children: [boldText("2")],
     },
   ]);
   expect(
@@ -4371,73 +4378,46 @@ test("Properties keeps component and Annotation text colors independent", async 
   await expect(
     properties.getByRole("region", { name: "Text properties" }),
   ).toBeVisible();
-  await properties
-    .locator('details[aria-label="Text appearance"] > summary')
-    .click();
-  await expect(properties.getByLabel("Text color hex value")).toHaveText(
-    "Automatic",
-  );
-
-  await properties
-    .getByRole("button", { name: "Use Blue for text color" })
+  expect(
+    JSON.parse(await readComponentPropertyCode(page)).appearance.color,
+  ).toBe("auto");
+  await properties.getByRole("button", { name: "Edit text color" }).click();
+  await page
+    .getByRole("button", { name: "Use Blue for text", exact: true })
     .click();
   await expect(label).toHaveAttribute("fill", "#2563eb");
   await expect(symbol).toHaveAttribute("stroke", "#dc2626");
-  await expect(
-    component.locator('[data-role="instance-background"]'),
-  ).toHaveCount(0);
 
-  // A pending RGB draft belongs to this Annotation only. Selecting another
-  // Annotation remounts the keyed Text properties before the deferred blur
-  // commit, so R1's draft cannot reach either Annotation.
-  await page.clock.pauseAt(clockStart + 60_000);
-  await properties.locator("summary", { hasText: /^RGB$/u }).click();
-  await properties.getByLabel("Text color red").fill("12");
+  // Incomplete property code belongs only to this selection and never reaches another label.
+  await page
+    .getByLabel("Editable Canvas property code")
+    .fill('{ "appearance":');
   await page
     .getByTestId("annotation-hit-instance-label-R2")
     .click({ force: true });
-  await properties
-    .locator('details[aria-label="Text appearance"] > summary')
-    .click();
-  await page.clock.runFor(300);
-  await page.clock.resume();
   await expect(label).toHaveAttribute("fill", "#2563eb");
   await expect(secondLabel).not.toHaveAttribute("fill");
-  await expect(properties.getByLabel("Text color hex value")).toHaveText(
-    "Automatic",
-  );
+  expect(
+    JSON.parse(await readComponentPropertyCode(page)).appearance.color,
+  ).toBe("auto");
 
   await page
     .getByTestId("annotation-hit-instance-label-R1")
     .click({ force: true });
-  await properties
-    .locator('details[aria-label="Text appearance"] > summary')
-    .click();
-  await properties.locator("summary", { hasText: /^RGB$/u }).click();
-  await properties.getByLabel("Text color red").fill("12");
-  const resetTextColor = properties.getByRole("button", {
-    name: "Reset text color",
+  await editComponentPropertyCode(page, (code) => {
+    code.appearance.color = "auto";
   });
-  await resetTextColor.focus();
-  await page.keyboard.press("Enter");
-  await page.waitForTimeout(300);
   await expect(label).toHaveAttribute("fill", "#dc2626");
-  await expect(properties.getByLabel("Text color hex value")).toHaveText(
-    "Automatic",
-  );
-
-  // Auto replaces the pending draft as one history entry. One Undo restores
-  // the intentional blue override, never the transient #0c63eb draft.
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(label).toHaveAttribute("fill", "#2563eb");
-  await expect(properties.getByLabel("Text color hex value")).toHaveText(
-    "#2563eb",
-  );
+  expect(
+    JSON.parse(await readComponentPropertyCode(page)).appearance.color,
+  ).toEqual([37, 99, 235]);
   await page.getByRole("button", { name: "Redo", exact: true }).click();
   await expect(label).toHaveAttribute("fill", "#dc2626");
-  await expect(properties.getByLabel("Text color hex value")).toHaveText(
-    "Automatic",
-  );
+  expect(
+    JSON.parse(await readComponentPropertyCode(page)).appearance.color,
+  ).toBe("auto");
 
   const project = JSON.parse(
     (await downloadBytes(page, "File", "Export Project File…")).toString(
@@ -4520,6 +4500,37 @@ test("value display projects MOS W/L and passive values beside the reference", a
   await expect(value).toContainText("180n");
   await expect(value).toContainText("×4");
   await expect(page.locator('[data-role="fraction-bar"]')).toHaveCount(1);
+  const fractionCenters = await value.evaluate((element) => {
+    const box = (role: string) => {
+      const part = element.querySelector<SVGGraphicsElement>(
+        `[data-role="fraction-${role}"]`,
+      )!;
+      if (role === "bar") return part.getBBox();
+      // Compare typographic advances, not platform-specific ink overhang.
+      const texts = part.matches("text")
+        ? [part as SVGTextElement]
+        : Array.from(part.querySelectorAll("text"));
+      const positions = texts.flatMap((text) =>
+        Array.from({ length: text.getNumberOfChars() }, (_, index) => [
+          text.getStartPositionOfChar(index).x,
+          text.getEndPositionOfChar(index).x,
+        ]).flat(),
+      );
+      const x = Math.min(...positions);
+      return { x, width: Math.max(...positions) - x };
+    };
+    const bar = box("bar");
+    return [box("numerator"), box("denominator")].map((part) => ({
+      centerGap: Math.abs(part.x + part.width / 2 - bar.x - bar.width / 2),
+      leftGap: part.x - bar.x,
+      rightGap: bar.x + bar.width - part.x - part.width,
+    }));
+  });
+  for (const part of fractionCenters) {
+    expect(part.centerGap).toBeLessThan(0.02);
+    expect(part.leftGap).toBeGreaterThan(0);
+    expect(part.rightGap).toBeGreaterThan(0);
+  }
   const multiplierGap = await value.evaluate((element) => {
     const bar = element.querySelector<SVGLineElement>(
       '[data-role="fraction-bar"]',
@@ -7156,6 +7167,132 @@ test("resizes a plain Power Rail from its end handle", async ({ page }) => {
   expect(new Set(after.map((point) => point.y)).size).toBe(1);
 });
 
+test("bonds pins crossed by Power Rail drawing, resizing, and dragging", async ({
+  page,
+}) => {
+  const project = createEmptyProject("rail-pin-gestures", "Rail pin gestures");
+  const document = project.documents[0]!;
+  document.instances = [
+    {
+      id: "M1",
+      symbolId: "pmos",
+      placement: { position: { x: 100, y: 200 }, rotation: 0, mirror: "none" },
+    },
+    {
+      id: "M2",
+      symbolId: "pmos",
+      placement: {
+        position: { x: 240, y: 200 },
+        rotation: 0,
+        mirror: "horizontal",
+      },
+    },
+    {
+      id: "R1",
+      symbolId: "resistor",
+      placement: { position: { x: 340, y: 200 }, rotation: 0, mirror: "none" },
+    },
+    {
+      id: "C1",
+      symbolId: "capacitor",
+      placement: { position: { x: 200, y: 140 }, rotation: 0, mirror: "none" },
+    },
+  ];
+  document.nets.push({
+    id: "old-source",
+    terminals: [{ instanceId: "M1", pinName: "S" }],
+  });
+  await page.goto("/editor");
+  await awaitEditorReady(page);
+  await page.getByTestId("project-file").setInputFiles({
+    name: "rail-pins.icproj.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(project)),
+  });
+  await expect(page.getByTestId("hit-M2")).toBeVisible();
+  const canvas = page.getByTestId("schematic-canvas");
+  const screen = (point: { x: number; y: number }) =>
+    canvas.evaluate((element, point) => {
+      const matrix = (element as SVGSVGElement).getScreenCTM()!;
+      const screen = new DOMPoint(point.x, point.y).matrixTransform(matrix);
+      return { x: screen.x, y: screen.y };
+    }, point);
+  const clickAt = async (point: { x: number; y: number }) => {
+    const position = await screen(point);
+    await page.mouse.click(position.x, position.y);
+  };
+  const drag = async (from: { x: number; y: number }, to: typeof from) => {
+    const start = await screen(from),
+      end = await screen(to);
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(end.x, end.y, { steps: 8 });
+    await page.mouse.up();
+  };
+  const readDocument = async () =>
+    JSON.parse(
+      (await downloadBytes(page, "File", "Export Project File…")).toString(
+        "utf8",
+      ),
+    ).documents[0] as SchematicDocument;
+  const expectVddPins = (
+    saved: SchematicDocument,
+    pins: Array<[string, string]>,
+  ) => {
+    const rail = saved.routes.find(
+      (route) => route.presentation === "power-rail",
+    )!;
+    const net = saved.nets.find((net) => net.id === rail.netId)!;
+    for (const [instanceId, pinName] of pins)
+      expect(net.terminals).toContainEqual({ instanceId, pinName });
+    expect(net.terminals).not.toContainEqual({
+      instanceId: "M1",
+      pinName: "G",
+    });
+    expect(net.terminals).not.toContainEqual({
+      instanceId: "M2",
+      pinName: "D",
+    });
+  };
+  const sources: Array<[string, string]> = [
+    ["M1", "S"],
+    ["M2", "S"],
+  ];
+  await page.getByTestId("shapes-chip-vdd").click();
+  await clickAt({ x: 60, y: 180 });
+  await clickAt({ x: 280, y: 180 });
+  await expect(page.getByTestId("status")).toContainText("Added VDD rail");
+  await page.keyboard.press("Escape");
+  expectVddPins(await readDocument(), sources);
+
+  await page.keyboard.press("ControlOrMeta+z");
+  const undone = await readDocument();
+  expect(undone.routes).toHaveLength(0);
+  expect(undone.nets.find((net) => net.id === "old-source")?.terminals).toEqual(
+    [{ instanceId: "M1", pinName: "S" }],
+  );
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  expectVddPins(await readDocument(), sources);
+
+  await clickAt({ x: 80, y: 180 });
+  await drag({ x: 280, y: 180 }, { x: 380, y: 180 });
+  await expect(page.getByTestId("status")).toContainText("Resized Power Rail");
+  expectVddPins(await readDocument(), [...sources, ["R1", "1"]]);
+
+  await clickAt({ x: 80, y: 180 });
+  await drag({ x: 80, y: 180 }, { x: 80, y: 120 });
+  await expect(page.getByTestId("status")).toContainText("Moved Power Rail");
+  const moved = await readDocument();
+  expectVddPins(moved, [...sources, ["R1", "1"], ["C1", "1"]]);
+  project.documents = [moved];
+  await page.getByTestId("project-file").setInputFiles({
+    name: "rail-pins-saved.icproj.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(project)),
+  });
+  expectVddPins(await readDocument(), [...sources, ["R1", "1"], ["C1", "1"]]);
+});
+
 test("keeps a long right-aligned Port label readable while editing", async ({
   page,
 }) => {
@@ -7361,14 +7498,22 @@ test("swaps a comparator's + and - without turning the body over", async ({
       // The + is the only vertical stroke among the polarity marks.
       plusMarkY: Array.from(element.querySelectorAll("line"))
         .filter((line) => line.getAttribute("x1") === line.getAttribute("x2"))
-        .map((line) => Number(line.getAttribute("y1"))),
+        .map(
+          (line) =>
+            (Number(line.getAttribute("y1")) +
+              Number(line.getAttribute("y2"))) /
+            2,
+        ),
     }));
 
   const before = await readBody();
   expect(before.plusMarkY).toHaveLength(1);
   expect(before.plusMarkY[0]!).toBeGreaterThan(0);
 
-  await setComponentCodeField(page, "symbol", "comparator-inputs-swapped");
+  await setComponentCodeField(page, "appearance.inputsSwapped", true);
+  await expect
+    .poll(async () => (await readBody()).plusMarkY)
+    .toEqual([-before.plusMarkY[0]!]);
 
   const after = await readBody();
   // The + crossed to the other input.
@@ -7825,3 +7970,83 @@ test("keeps the chosen corner shape when the wire tool is picked again", async (
   expect(dy).toBeGreaterThan(0);
   expect(dx).not.toBe(dy);
 });
+
+for (const symbol of ["xfmr", "tcoil"] as const) {
+  test(`${symbol} independently displays magnetic parameters and preserves them through history and files`, async ({
+    page,
+  }) => {
+    await page.goto("/editor");
+    await placeComponent(page, symbol, { x: 360, y: 220 });
+    await openSelectionShelf(page);
+    const winding = symbol === "xfmr" ? "lp" : "l1";
+    const windingLabel = symbol === "xfmr" ? "Lp" : "L1";
+    const formalLabels = page.locator(
+      '[data-layer="formal"] [data-kind="instance-value"]',
+    );
+    const kToggle = page.getByRole("switch", {
+      name: "Toggle K visibility",
+      exact: true,
+    });
+    await expect(kToggle).toHaveAttribute("aria-checked", "false");
+    await kToggle.click();
+    await expect(formalLabels).toHaveCount(1);
+    await expect(formalLabels).toContainText("K = 1");
+    await editComponentPropertyCode(page, (code) => {
+      code.display.parameters.k = false;
+      code.display.parameters[winding] = true;
+      code.parameters[winding] = "2.5n";
+    });
+    await expect(formalLabels).toHaveCount(1);
+    await expect(formalLabels).toContainText(`${windingLabel} = 2.5n`);
+    await clickCommand(page, "Edit", "Undo");
+    await expect(formalLabels).toContainText("K = 1");
+    await clickCommand(page, "Edit", "Redo");
+    await expect(formalLabels).toContainText(`${windingLabel} = 2.5n`);
+    await editComponentPropertyCode(page, (code) => {
+      code.display.parameters.k = true;
+      code.parameters.k = "0.83";
+      code.placement.rotation = 45;
+    });
+    await expect(formalLabels).toHaveCount(2);
+    await expect(formalLabels.filter({ hasText: "K = 0.83" })).toHaveCount(1);
+    const labelBoxes = await formalLabels.evaluateAll((elements) =>
+      elements.map((element) => {
+        const box = element.getBoundingClientRect();
+        return { x: box.x, y: box.y, bottom: box.bottom };
+      }),
+    );
+    expect(labelBoxes[0]!.x).toBeCloseTo(labelBoxes[1]!.x, 1);
+    expect(labelBoxes[0]!.bottom).toBeLessThan(labelBoxes[1]!.y);
+    const svg = (await downloadBytes(page, "File", "Export SVG")).toString(
+      "utf8",
+    );
+    expect(svg).toContain("K = 0.83");
+    expect(svg).toContain(`${windingLabel} = 2.5n`);
+    const saved = await downloadBytes(page, "File", "Export Project File…");
+    const project = JSON.parse(saved.toString("utf8"));
+    const instanceId = project.documents[0].instances[0].id;
+    expect(
+      project.documents[0].annotations.filter(
+        (annotation: { binding?: { parameter?: string } }) =>
+          annotation.binding?.parameter,
+      ),
+    ).toHaveLength(2);
+    await page.getByTestId("project-file").setInputFiles({
+      name: `${symbol}.icproj.json`,
+      mimeType: "application/json",
+      buffer: saved,
+    });
+    await page.getByTestId(`hit-${instanceId}`).click();
+    await openSelectionShelf(page);
+    await expect(kToggle).toHaveAttribute("aria-checked", "true");
+    await expect(formalLabels).toHaveCount(2);
+    await page
+      .getByRole("switch", {
+        name: `Toggle ${windingLabel} visibility`,
+        exact: true,
+      })
+      .click();
+    await expect(formalLabels).toHaveCount(1);
+    await expect(formalLabels).toContainText("K = 0.83");
+  });
+}
