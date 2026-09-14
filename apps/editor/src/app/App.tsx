@@ -68,6 +68,10 @@ import { renderCrashRequested, sceneCrashRequested } from "./crash-test-hooks";
 import { buildSceneSafely } from "./scene-safety";
 import { externalSubcircuitSymbolId, hierarchicalSymbolId } from "@icm/symbols";
 import { clipboardPreviewDocument } from "../features/clipboard/clipboard";
+import {
+  copyPlacementAnchors,
+  snapPendingCopyPlacement,
+} from "../features/clipboard/copy-placement-snap";
 import type { SchematicClipboard } from "../features/clipboard/clipboard";
 import {
   canvasInsetsFromOverlays,
@@ -289,10 +293,12 @@ import {
 } from "../features/instance-display/instance-parameter-display";
 import { createSelectionPropertyCommands } from "../features/properties/selection-property-commands";
 import { planComponentPropertyCodeEdits } from "../features/properties/component-property-code-edits";
+import { planGroupPropertyCodeEdits } from "../features/properties/group-property-code-edits";
 import type { ComponentPropertyCodeValue } from "../features/properties/component-property-code";
 import {
   commonGroupValue,
-  type GroupPropertyColor,
+  groupForeground,
+  groupParameterContext,
   type GroupPropertyCodeValue,
 } from "../features/properties/group-property-code";
 import {
@@ -1455,26 +1461,26 @@ export function App({
   const sceneInnerHtml = useMemo(() => ({ __html: scene.formalBody }), [scene]);
   const copyPreviewState = useMemo(() => {
     if (!copyPlacement) {
-      return { scene: null, error: null };
+      return { scene: null, anchors: [], error: null };
     }
     try {
+      const previewDocument = clipboardPreviewDocument(
+        document,
+        copyPlacement.clipboard,
+        { x: 0, y: 0 },
+        copyPlacement.orientationOperations,
+        resolver,
+        copyPlacement.sequence,
+      );
       return {
-        scene: buildSvgScene(
-          clipboardPreviewDocument(
-            document,
-            copyPlacement.clipboard,
-            { x: 0, y: 0 },
-            copyPlacement.orientationOperations,
-            resolver,
-            copyPlacement.sequence,
-          ),
-          resolver,
-        ),
+        scene: buildSvgScene(previewDocument, resolver),
+        anchors: copyPlacementAnchors(previewDocument, resolver),
         error: null,
       };
     } catch (error) {
       return {
         scene: null,
+        anchors: [],
         error:
           error instanceof Error
             ? error.message
@@ -2220,7 +2226,7 @@ export function App({
     }),
   );
   const selectedGroupValueInstances = selectedGroupInstances.filter(
-    (instance) => displayableInstanceValue(instance).kind === "displayable",
+    (instance) => symbolSupportsValueAnnotation(instance.symbolId),
   );
   const selectedGroupValueVisibility =
     selectedGroupValueInstances.length === 0
@@ -2231,17 +2237,19 @@ export function App({
             return value !== null && value.visible !== false;
           }),
         );
-  const selectedGroupForeground = commonGroupValue<
-    Exclude<GroupPropertyColor, "mixed">
-  >(
-    selectedGroupInstances.map(
-      (instance) =>
-        (instance.styleOverride?.foreground ?? "auto") as Exclude<
-          GroupPropertyColor,
-          "mixed"
-        >,
-    ),
+  const selectedGroupForeground = groupForeground(
+    selectedGroupInstances,
+    styleProfile.foreground,
   );
+  const selectedGroupContext = {
+    ...groupParameterContext(
+      selectedGroupInstances,
+      propertyParametersForInstance,
+    ),
+    reference: selectedGroupReferenceVisibility,
+    value: selectedGroupValueVisibility,
+    foreground: selectedGroupForeground,
+  };
   const wireUnderSymbolWarnings = useMemo(
     () =>
       deriveWireUnderSymbolWarnings(document, resolver, routeGeometryRecords),
@@ -3121,7 +3129,7 @@ export function App({
         pendingSymbolId && pendingComponentPlacement,
       ),
       componentSymbolPending: pendingSymbolId !== null,
-      snapComponentPlacementPoint: resolvePendingPlacementPoint,
+      snapPlacementPoint: resolvePendingPlacementPoint,
       setComponentPreviewPoint,
       vddRailMode,
       vddRailStart,
@@ -3713,6 +3721,16 @@ export function App({
     point: Point,
     svg: SVGSVGElement,
   ): { point: Point; guides: readonly SnapGuideLine[] } {
+    if (copyPlacement) {
+      return snapPendingCopyPlacement({
+        movingAnchors: copyPreviewState.anchors,
+        sceneSnapTargetIndex,
+        anchor: copyPlacement.anchor,
+        position: point,
+        grid: document.presentation.grid,
+        tolerance: logicalRadiusForPixels(svg, SNAP_CAPTURE_RADIUS_PX),
+      });
+    }
     const pitch =
       pendingComponentPlacement?.kind === "drafting-text"
         ? annotationGrid
@@ -3748,6 +3766,17 @@ export function App({
     });
     return { point: snapped.position, guides: snapped.snap.guides };
   }
+
+  useEffect(() => {
+    const svg = snapGuideLayerRef.current?.ownerSVGElement;
+    const point = lastCanvasPointRef.current;
+    if (!copyPlacement?.previewPoint || !svg || !point) return;
+    // Rotation, reflection and repeated stamping change the geometry under a
+    // stationary pointer too. Keep the ghost and its guides in agreement.
+    const snapped = resolvePendingPlacementPoint(point, svg);
+    setCopyPreviewPoint(snapped.point);
+    paintSnapGuides(snapped.guides);
+  }, [copyPreviewState, sceneSnapTargetIndex]);
 
   function paintSnapGuides(guides: readonly SnapGuideLine[]): void {
     replaceCanvasSnapGuides(snapGuideLayerRef.current, guides);
@@ -4477,7 +4506,10 @@ export function App({
       commitWaveformPlacement,
       clearComponentPreview: () => setComponentPreviewPoint(null),
       clearVddRailPreview: () => setVddRailPreviewPoint(null),
-      clearCopyPreview: () => setCopyPreviewPoint(null),
+      clearCopyPreview: () => {
+        setCopyPreviewPoint(null);
+        paintSnapGuides([]);
+      },
       clearWaveformPreview: () => setWaveformPlacementPoint(null),
     },
     gesture: {
@@ -4730,12 +4762,17 @@ export function App({
                     ? "Connect Agent"
                     : "Manage Agent",
                 execute: () => {
-                  if (agentSession.status === "idle") {
-                    setAgentPanelOpen(true);
-                    return;
+                  setAgentPanelOpen(true);
+                  if (
+                    agentSession.status === "idle" ||
+                    agentSession.status === "revoked" ||
+                    agentSession.status === "expired" ||
+                    (agentSession.status === "waiting-for-agent" &&
+                      agentSession.claimExpiresAt !== null &&
+                      agentSession.claimExpiresAt <= Date.now())
+                  ) {
+                    void agentSession.newConnection();
                   }
-                  setSelectionOpen(true);
-                  setAgentDetailsOpen(true);
                 },
               }
             : null
@@ -5220,7 +5257,6 @@ export function App({
                 expiresAt: agentSession.expiresAt,
                 error: agentSession.error,
                 now: Date.now(),
-                onGrant: agentSession.grant,
                 onPause: agentSession.pause,
                 onResume: agentSession.resume,
                 onReconnect: agentSession.reconnect,
@@ -5718,17 +5754,21 @@ export function App({
               groupProperties={{
                 active: selectedIds.length > 1,
                 count: selectedIds.length,
+                selectionKey: JSON.stringify([
+                  document.id,
+                  [...selectedIds].sort(),
+                ]),
                 revision: document.revision,
                 defaultForeground: styleProfile.foreground,
-                context: {
-                  reference: selectedGroupReferenceVisibility,
-                  value: selectedGroupValueVisibility,
-                  foreground: selectedGroupForeground,
-                },
+                context: selectedGroupContext,
                 onApply: (value: GroupPropertyCodeValue) => {
-                  const edits: SchematicEdit[] = [];
+                  const edits = planGroupPropertyCodeEdits(
+                    selectedGroupInstances,
+                    value,
+                    selectedGroupContext,
+                  );
                   if (
-                    value.display.visualAnnotation !== "mixed" &&
+                    value.display.visualAnnotation !== "" &&
                     value.display.visualAnnotation !==
                       selectedGroupReferenceVisibility
                   )
@@ -5740,36 +5780,58 @@ export function App({
                     );
                   if (
                     value.display.value !== undefined &&
-                    value.display.value !== "mixed" &&
+                    value.display.value !== "" &&
                     value.display.value !== selectedGroupValueVisibility
-                  )
+                  ) {
+                    // Display creation must see parameter changes in this same
+                    // transaction, including components that had no value yet.
+                    const patches = new Map(
+                      edits.flatMap((edit) =>
+                        edit.kind === "patch_instance_netlist_parameters"
+                          ? [[edit.instanceId, edit.set ?? {}] as const]
+                          : [],
+                      ),
+                    );
+                    const candidateDocument = {
+                      ...document,
+                      instances: document.instances.map((instance) => {
+                        const set = patches.get(instance.id);
+                        return set && instance.netlist
+                          ? {
+                              ...instance,
+                              netlist: {
+                                ...instance.netlist,
+                                parameters: {
+                                  ...instance.netlist.parameters,
+                                  ...set,
+                                },
+                              },
+                            }
+                          : instance;
+                      }),
+                    };
+                    if (
+                      value.display.value &&
+                      candidateDocument.instances.some(
+                        (instance) =>
+                          selectedIds.includes(instance.id) &&
+                          symbolSupportsValueAnnotation(instance.symbolId) &&
+                          displayableInstanceValue(instance).kind !==
+                            "displayable",
+                      )
+                    )
+                      return {
+                        ok: false,
+                        message:
+                          "Set valid component values before enabling their display",
+                      };
                     edits.push(
                       ...valueVisibilityEdits(
-                        document,
+                        candidateDocument,
                         selectedIds,
                         value.display.value,
                       ),
                     );
-                  if (
-                    value.appearance.foreground !== "mixed" &&
-                    value.appearance.foreground !== selectedGroupForeground
-                  ) {
-                    for (const instance of selectedGroupInstances) {
-                      const styleOverride =
-                        value.appearance.foreground === "auto"
-                          ? null
-                          : { foreground: value.appearance.foreground };
-                      if (
-                        JSON.stringify(instance.styleOverride ?? null) ===
-                        JSON.stringify(styleOverride)
-                      )
-                        continue;
-                      edits.push({
-                        kind: "set_instance_style_override",
-                        instanceId: instance.id,
-                        styleOverride,
-                      });
-                    }
                   }
                   if (edits.length === 0) return { ok: true };
                   if (transact(edits).ok) {

@@ -8,6 +8,7 @@ import {
   AGENT_SIMULATION_MAX_TIMEOUT_MS,
   AgentSessionEventSchema,
   AgentSessionMessageSchema,
+  AgentSessionScopeSchema,
   parseAgentFileResourceRequest,
   parseAgentSimulationResourceRequest,
   parseAgentProjectResourceRequest,
@@ -177,7 +178,6 @@ export interface UseAgentSessionOptions {
 }
 
 export interface UseAgentSessionResult extends AgentSessionViewModel {
-  grant: (scopes: readonly AgentSessionScope[]) => Promise<void>;
   pause: () => Promise<void>;
   resume: () => Promise<void>;
   reconnect: () => void;
@@ -214,7 +214,7 @@ export function useAgentSession(
   options: UseAgentSessionOptions,
 ): UseAgentSessionResult {
   const liveRef = useRef<LiveSession | null>(null);
-  const lastScopesRef = useRef<AgentSessionScope[]>([]);
+  const creatingConnectionRef = useRef(false);
   const recoveryAttemptedForProjectRef = useRef<string | null>(null);
   const projectSessionRef = useRef(options.projectSessionId);
   const revisionRef = useRef(
@@ -302,7 +302,6 @@ export function useAgentSession(
     ) => {
       if (!options.enabled) return;
       if (liveRef.current) await revoke();
-      lastScopesRef.current = [...scopes];
       update({
         status: recovery ? "reconnecting" : "creating",
         error: null,
@@ -325,8 +324,17 @@ export function useAgentSession(
               scopes,
             }),
           });
-          if (!response.ok)
-            throw new Error(`Session creation failed (${response.status})`);
+          if (!response.ok) {
+            const failure = await response.json().catch(() => null);
+            const detail = failure?.error?.message;
+            throw new Error(
+              typeof detail === "string"
+                ? `${detail} (${response.status})`
+                : response.status === 404
+                  ? "Agent connection service was not found (404). For local use, restart pnpm dev and retry."
+                  : `Could not create an Agent connection (${response.status}). Please retry.`,
+            );
+          }
           const payload: unknown = await response.json();
           if (!isCreatedSessionResponse(payload)) {
             throw new Error("Session creation returned an invalid response");
@@ -359,6 +367,21 @@ export function useAgentSession(
         };
         liveRef.current = live;
 
+        const syncDeadline = (expiresAt: number) => {
+          live.expiresAt = expiresAt;
+          update({ expiresAt });
+          if (live.claimed) {
+            writeAgentSessionRecovery(window.localStorage, {
+              version: 1,
+              sessionId: live.sessionId,
+              editorSecret: live.editorSecret,
+              projectId: options.project.id,
+              projectSessionId: options.projectSessionId,
+              scopes: live.scopes,
+              expiresAt,
+            });
+          }
+        };
         const service = createAgentCircuitService({
           agentId: `web-agent:${live.sessionId}`,
           host: options.host,
@@ -476,6 +499,12 @@ export function useAgentSession(
             });
           });
           socket.addEventListener("message", (event) => {
+            if (
+              liveRef.current !== live ||
+              live.socket !== socket ||
+              !live.allowReconnect
+            )
+              return;
             let raw: unknown;
             try {
               raw = JSON.parse(String(event.data));
@@ -498,19 +527,22 @@ export function useAgentSession(
                 sessionEvent.data.type === "session.ready"
               ) {
                 live.claimed = true;
-                writeAgentSessionRecovery(window.localStorage, {
-                  version: 1,
-                  sessionId: live.sessionId,
-                  editorSecret: live.editorSecret,
-                  projectId: options.project.id,
-                  projectSessionId: options.projectSessionId,
-                  scopes: live.scopes,
-                  expiresAt: live.expiresAt,
-                });
+                syncDeadline(
+                  sessionEvent.data.expiresAt
+                    ? Date.parse(sessionEvent.data.expiresAt)
+                    : live.expiresAt,
+                );
                 update({ status: "connected" });
               } else if (
                 sessionEvent.success &&
-                sessionEvent.data.type === "session.revoked"
+                (sessionEvent.data.type === "session.renewed" ||
+                  sessionEvent.data.type === "session.expiring")
+              ) {
+                syncDeadline(Date.parse(sessionEvent.data.expiresAt));
+              } else if (
+                sessionEvent.success &&
+                (sessionEvent.data.type === "session.revoked" ||
+                  sessionEvent.data.type === "session.expired")
               ) {
                 stopReconnect(live);
                 clearAgentSessionRecovery(window.localStorage);
@@ -519,7 +551,10 @@ export function useAgentSession(
                 socket.close(1000, "session revoked");
                 if (liveRef.current === live) liveRef.current = null;
                 update({
-                  status: "revoked",
+                  status:
+                    sessionEvent.data.type === "session.expired"
+                      ? "expired"
+                      : "revoked",
                   claimCode: null,
                   claimExpiresAt: null,
                 });
@@ -946,13 +981,22 @@ export function useAgentSession(
     if (recoveryAttemptedForProjectRef.current === options.projectSessionId) {
       return;
     }
-    recoveryAttemptedForProjectRef.current = options.projectSessionId;
-    const recovery = readAgentSessionRecovery(window.localStorage, {
-      projectId: options.project.id,
-      projectSessionId: options.projectSessionId,
-      now: Date.now(),
+    // Wait for effect setup to survive StrictMode's setup/cleanup replay.
+    // Otherwise cleanup closes the recovering socket before the second setup.
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      recoveryAttemptedForProjectRef.current = options.projectSessionId;
+      const recovery = readAgentSessionRecovery(window.localStorage, {
+        projectId: options.project.id,
+        projectSessionId: options.projectSessionId,
+        now: Date.now(),
+      });
+      if (recovery) void grant(recovery.scopes, recovery);
     });
-    if (recovery) void grant(recovery.scopes, recovery);
+    return () => {
+      cancelled = true;
+    };
   }, [grant, options.enabled, options.project.id, options.projectSessionId]);
 
   const pause = useCallback(async () => {
@@ -1038,10 +1082,15 @@ export function useAgentSession(
   }, [options.enabled, update]);
 
   const newConnection = useCallback(async () => {
-    if (!options.enabled) return;
-    const scopes = liveRef.current?.scopes ?? lastScopesRef.current;
-    if (scopes.length === 0) return;
-    await grant(scopes);
+    if (!options.enabled || creatingConnectionRef.current) return;
+    creatingConnectionRef.current = true;
+    try {
+      // Connecting grants the complete editor capability set. Recovery above
+      // resumes the original session; a new connection always gets full edit.
+      await grant(AgentSessionScopeSchema.options);
+    } finally {
+      creatingConnectionRef.current = false;
+    }
   }, [grant, options.enabled]);
 
   useEffect(() => {
@@ -1176,5 +1225,5 @@ export function useAgentSession(
     [options.enabled, options.fileHost],
   );
 
-  return { ...view, grant, pause, resume, reconnect, newConnection, revoke };
+  return { ...view, pause, resume, reconnect, newConnection, revoke };
 }

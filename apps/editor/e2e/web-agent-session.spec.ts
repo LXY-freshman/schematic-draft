@@ -5,13 +5,118 @@ import { createHash } from "node:crypto";
 import { createEmptyProject } from "@icm/model";
 import { serializeProject } from "@icm/project-protocol";
 
-import { clickCommand, openMenu } from "./editor-fixtures.js";
+import { AgentHttpClient } from "../../../packages/agent-client/src/http-client.js";
+import {
+  clickCommand,
+  clickDrawTool,
+  readComponentPropertyCode,
+  setComponentParameter,
+} from "./editor-fixtures.js";
 
 type SessionMessage = {
   kind: string;
   requestId: string;
   payload: unknown;
 };
+
+test("retries a failed Agent connection without a permission picker", async ({
+  page,
+}) => {
+  let creates = 0;
+  let releaseCreation: () => void = () => {};
+  const creationReady = new Promise<void>((resolve) => {
+    releaseCreation = resolve;
+  });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: {
+        writeText: () => Promise.reject(new Error("Clipboard blocked")),
+      },
+    });
+  });
+  await page.routeWebSocket(
+    "**/api/agent/sessions/retry-session/editor",
+    () => {},
+  );
+  await page.route("**/api/agent/sessions", async (route) => {
+    creates += 1;
+    const { scopes } = route.request().postDataJSON() as { scopes: string[] };
+    expect(scopes).toContain("circuit.edit.connectivity");
+    expect(scopes).toContain("simulation.run");
+    if (creates === 1) {
+      await creationReady;
+      await route.fulfill({ status: 404 });
+      return;
+    }
+    await route.fulfill({
+      json: {
+        ok: true,
+        session: {
+          sessionId: "retry-session",
+          editorSecret: "retry-editor-secret",
+          claimCode: "retry-session.claim",
+          claimExpiresAt: Date.now() + 300_000,
+          expiresAt: Date.now() + 3_600_000,
+        },
+      },
+    });
+  });
+
+  await page.goto("/editor");
+  expect(creates).toBe(0);
+  await page.getByRole("button", { name: "Agent", exact: true }).click();
+  const panel = page.getByTestId("connect-agent-panel");
+  await expect(panel).toBeVisible();
+  await expect(panel.getByTestId("agent-status")).toHaveText(
+    "Creating connection…",
+  );
+  releaseCreation();
+  await expect(panel.getByRole("alert")).toContainText("restart pnpm dev");
+  expect(creates).toBe(1);
+  await expect(page.locator('[data-testid^="agent-preset-"]')).toHaveCount(0);
+  await panel.getByTestId("agent-connect").click();
+  await expect
+    .poll(() => panel.getByTestId("agent-copy-text").inputValue())
+    .toContain(JSON.stringify({ claimCode: "retry-session.claim" }));
+  await expect(panel.getByRole("alert")).toHaveCount(0);
+  await expect(panel.getByTestId("agent-connect")).toHaveCount(0);
+  expect(creates).toBe(2);
+  await expect(panel.locator("details")).toHaveCount(0);
+  await expect(
+    panel.getByText("Paste this message into your Agent chat to connect.", {
+      exact: true,
+    }),
+  ).toHaveCount(1);
+  // All actions stay above the message, including when the toolbar wraps.
+  for (const width of [1280, 375]) {
+    await page.setViewportSize({ width, height: 800 });
+    const message = await panel.getByTestId("agent-copy-text").boundingBox();
+    expect(message).not.toBeNull();
+    expect(message!.x).toBeGreaterThanOrEqual(0);
+    expect(message!.x + message!.width).toBeLessThanOrEqual(width);
+    for (const button of await panel.getByRole("button").all()) {
+      const bounds = await button.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(message!.y);
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+    }
+  }
+  await panel.getByTestId("agent-copy-instructions").click();
+  await expect(panel.getByRole("alert")).toContainText("Copy was blocked");
+  expect(
+    await panel.getByTestId("agent-copy-text").evaluate((element) => {
+      const input = element as HTMLTextAreaElement;
+      return input.selectionEnd - input.selectionStart === input.value.length;
+    }),
+  ).toBe(true);
+  await panel.getByRole("button", { name: "Close Agent dialog" }).click();
+  await page.getByRole("button", { name: "Agent", exact: true }).click();
+  await expect
+    .poll(() => panel.getByTestId("agent-copy-text").inputValue())
+    .toContain(JSON.stringify({ claimCode: "retry-session.claim" }));
+  expect(creates).toBe(2);
+});
 
 test("grants a browser Agent, edits through the live host, and shares undo", async ({
   page,
@@ -47,8 +152,21 @@ test("grants a browser Agent, edits through the live host, and shares undo", asy
       expect(body.projectId).toBe("project-main");
       expect(body.projectSessionId).toMatch(/^project-main:\d+$/u);
       expect(body.documentIds).toEqual(["document-main"]);
-      expect(body.scopes).toContain("circuit.edit.connectivity");
-      expect(body.scopes).toContain("editor.semantic-control");
+      expect([...body.scopes].sort()).toEqual(
+        [
+          "circuit.snapshot",
+          "circuit.render",
+          "circuit.source-spans",
+          "circuit.edit.geometry",
+          "circuit.edit.connectivity",
+          "circuit.edit.presentation",
+          "editor.semantic-control",
+          "project.download",
+          "project.import",
+          "visual.download",
+          "simulation.run",
+        ].sort(),
+      );
       await route.fulfill({
         contentType: "application/json",
         json: {
@@ -81,13 +199,13 @@ test("grants a browser Agent, edits through the live host, and shares undo", asy
   });
 
   await page.goto("/editor");
-  const agentMenu = await openMenu(page, "Agent");
-  await agentMenu.getByRole("button", { name: "Connect Agent" }).click();
-  await page.getByTestId("agent-preset-full").click();
-  await expect(page.getByTestId("agent-claim-code")).toHaveText(
-    `${sessionId}.one-time-claim`,
-  );
+  await page.getByRole("button", { name: "Agent", exact: true }).click();
+  await expect(page.locator('[data-testid^="agent-preset-"]')).toHaveCount(0);
+  await expect
+    .poll(() => page.getByTestId("agent-copy-text").inputValue())
+    .toContain(JSON.stringify({ claimCode: `${sessionId}.one-time-claim` }));
   await expect.poll(() => browserSocket !== null).toBe(true);
+  expect(sessionCreates).toBe(1);
   const socket = browserSocket!;
 
   socket.send(
@@ -328,7 +446,7 @@ test("grants a browser Agent, edits through the live host, and shares undo", asy
 
   await page
     .getByTestId("connect-agent-panel")
-    .getByRole("button", { name: "Hide Agent details" })
+    .getByRole("button", { name: "Close Agent dialog" })
     .click();
   await clickCommand(page, "Edit", "Undo");
   await expect(page.getByTestId("active-instance-count")).toHaveText("0");
@@ -342,29 +460,406 @@ test("grants a browser Agent, edits through the live host, and shares undo", asy
     )
     .toBe(true);
 
-  const reopenedAgentMenu = await openMenu(page, "Agent");
-  await reopenedAgentMenu.getByRole("button", { name: "Manage Agent" }).click();
-  await expect(page.getByTestId("agent-properties")).toContainText("Connected");
+  await page.getByRole("button", { name: "Agent", exact: true }).click();
+  const panel = page.getByTestId("connect-agent-panel");
+  await expect(panel).toBeVisible();
+  await expect(panel.getByTestId("agent-status")).toContainText("Connected");
+  expect(sessionCreates).toBe(1);
   const originalSocket = browserSocket as WebSocketRoute | null;
   if (!originalSocket) throw new Error("Agent WebSocket was not connected");
   originalSocket.close();
   await expect.poll(() => browserSocket !== originalSocket).toBe(true);
-  await expect(page.getByTestId("agent-properties")).toContainText("Connected");
-  await page.getByTestId("agent-pause").click();
-  await expect(page.getByTestId("agent-properties")).toContainText("Paused");
-  await page.getByTestId("agent-resume").click();
-  await expect(page.getByTestId("agent-properties")).toContainText("Connected");
-  await page.getByTestId("agent-new-connection").click();
+  await expect(panel.getByTestId("agent-status")).toContainText("Connected");
+  await panel.getByTestId("agent-pause").click();
+  await expect(panel.getByTestId("agent-status")).toContainText("Paused");
+  await panel.getByTestId("agent-resume").click();
+  await expect(panel.getByTestId("agent-status")).toContainText("Connected");
+  await panel.getByTestId("agent-new-connection").click();
   await expect.poll(() => sessionCreates).toBe(2);
   await expect.poll(() => revokeControls).toBe(1);
-  await expect(page.getByTestId("agent-claim-code")).toHaveText(
-    `${sessionId}.one-time-claim`,
-  );
-  await expect(page.getByTestId("agent-properties")).toContainText(
+  await expect
+    .poll(() => panel.getByTestId("agent-copy-text").inputValue())
+    .toContain(JSON.stringify({ claimCode: `${sessionId}.one-time-claim` }));
+  await expect(panel.getByTestId("agent-status")).toContainText(
     "Waiting for Agent",
   );
-  await page.getByTestId("agent-revoke").click();
-  await expect(page.getByTestId("agent-properties")).toContainText(
-    "Disconnected",
+  await panel.getByTestId("agent-revoke").click();
+  await expect(panel.getByTestId("agent-status")).toContainText("Disconnected");
+  await panel.getByRole("button", { name: "Close Agent dialog" }).click();
+  await page.getByRole("button", { name: "Agent", exact: true }).click();
+  await expect(panel.getByTestId("agent-status")).toContainText(
+    "Waiting for Agent",
   );
+  expect(sessionCreates).toBe(3);
+});
+
+test("copies a working handoff through the normal local dev relay", async ({
+  page,
+  context,
+  request,
+  baseURL,
+}) => {
+  test.setTimeout(60_000);
+  await page.addInitScript(() => {
+    const NativeWebSocket = window.WebSocket;
+    const sockets: WebSocket[] = [];
+    Object.assign(window, { experimentAgentSockets: sockets });
+    window.WebSocket = class extends NativeWebSocket {
+      constructor(url: string | URL, protocols?: string | string[]) {
+        super(url, protocols);
+        if (String(url).includes("/api/agent/")) sockets.push(this);
+      }
+    };
+  });
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/editor");
+  await page.getByRole("button", { name: "Agent", exact: true }).click();
+  const panel = page.getByTestId("connect-agent-panel");
+  await expect(panel).toBeVisible();
+  await expect(panel.getByTestId("agent-copy-instructions")).toBeVisible({
+    timeout: 30_000,
+  });
+  await panel.getByTestId("agent-copy-instructions").click();
+  await expect(panel.getByLabel("Connection setup copied")).toBeVisible();
+  const handoff = await page.evaluate(() => navigator.clipboard.readText());
+  expect(handoff).toBe(await panel.getByTestId("agent-copy-text").inputValue());
+  expect(handoff).toContain(`Connect to Analog Canvas at ${baseURL}.`);
+  const kitUrl = handoff.match(/HTTP Agent Kit: (\S+)/u)![1]!;
+  expect((await request.get(kitUrl)).ok()).toBe(true);
+  expect((await request.get(`${baseURL}/api/agent/openapi.json`)).ok()).toBe(
+    true,
+  );
+  expect(
+    (
+      await request.post(`${baseURL}/api/agent/sessions`, {
+        headers: { Origin: "https://unrelated.example" },
+        data: {},
+      })
+    ).status(),
+  ).toBe(403);
+
+  const { claimCode } = JSON.parse(handoff.match(/Claim: (.+)/u)![1]!) as {
+    claimCode: string;
+  };
+  const client = new AgentHttpClient({ baseUrl: baseURL! });
+  const session = await client.claim(claimCode);
+  const readIdleDeadline = () =>
+    page.evaluate(() => {
+      const record = JSON.parse(
+        localStorage.getItem("icm.agent-session-recovery.v1") ?? "null",
+      );
+      return record?.expiresAt ?? 0;
+    });
+  const documentId = session.documentIds[0]!;
+  const snapshot = await client.circuit(session.sessionId, session.agentToken, {
+    apiVersion: "3.0",
+    requestId: "local-before",
+    operation: "snapshot",
+    documentId,
+  });
+  expect(snapshot).toMatchObject({
+    ok: true,
+    operation: "snapshot",
+    revision: 0,
+  });
+  await expect(panel.getByTestId("agent-status")).toContainText("Connected");
+  await expect
+    .poll(readIdleDeadline)
+    .toBeGreaterThan(session.connectorExpiresAt);
+  // Exercise the real close handshake. The relay must acknowledge it so
+  // Chromium leaves CLOSING and the editor reattaches without a new claim.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await page.evaluate(() => {
+      const { experimentAgentSockets } = window as unknown as {
+        experimentAgentSockets: WebSocket[];
+      };
+      experimentAgentSockets.at(-1)!.close(4000, "transport recovery test");
+    });
+    await expect
+      .poll(
+        async () => {
+          try {
+            return (
+              await client.circuit(session.sessionId, session.agentToken, {
+                apiVersion: "3.0",
+                operation: "snapshot",
+                documentId,
+                requestId: `after-reconnect-${attempt}-${Date.now()}`,
+              })
+            ).ok;
+          } catch {
+            return false;
+          }
+        },
+        { timeout: 8_000 },
+      )
+      .toBe(true);
+    await expect(panel.getByTestId("agent-status")).toHaveText("Connected");
+  }
+  const transaction = await client.circuit(
+    session.sessionId,
+    session.agentToken,
+    {
+      apiVersion: "3.0",
+      requestId: "local-edit",
+      operation: "transact",
+      documentId,
+      transactionId: "local-edit",
+      expectedRevision: 0,
+      edits: [
+        {
+          kind: "add_instance",
+          instance: {
+            id: "Rlocal",
+            reference: "R1",
+            symbolId: "resistor",
+            netlist: { parameters: { value: "1k" } },
+            placement: {
+              position: { x: 300, y: 200 },
+              rotation: 0,
+              mirror: "none",
+            },
+          },
+        },
+      ],
+    },
+  );
+  expect(transaction).toMatchObject({ ok: true, applied: true, revision: 1 });
+  await expect(page.getByTestId("active-instance-count")).toHaveText("1");
+
+  // A second local Vite process used to replace the dependency cache of this
+  // live editor. Its eager JSON language and lazy Properties editor then loaded
+  // different CodeMirror state classes, crashing at the first manual selection.
+  const { createServer } = await import("vite");
+  const sibling = await createServer({
+    root: "apps/editor",
+    server: { host: "127.0.0.1", port: Number(new URL(baseURL!).port) + 1000 },
+    optimizeDeps: {
+      force: true,
+      rolldownOptions: { output: { chunkFileNames: "sibling-[hash].js" } },
+    },
+    logLevel: "error",
+  });
+  const siblingPage = await context.newPage();
+  try {
+    await sibling.listen();
+    await siblingPage.goto(sibling.resolvedUrls!.local[0]! + "editor");
+    await expect(siblingPage.getByTestId("schematic-canvas")).toBeVisible();
+  } finally {
+    await siblingPage.close();
+    await sibling.close();
+  }
+
+  await panel.getByRole("button", { name: "Close Agent dialog" }).click();
+  await page.getByTestId("hit-Rlocal").click();
+  const shelf = page.getByTestId("selection-shelf");
+  if ((await shelf.getAttribute("aria-expanded")) === "true")
+    await shelf.click();
+  await page.keyboard.press("q");
+  const beforeManualEdit = await readIdleDeadline();
+  await setComponentParameter(page, "value", "2.2k");
+  await expect.poll(readIdleDeadline).toBeGreaterThan(beforeManualEdit);
+  const readSnapshot = async (requestId: string) => {
+    const result = await client.circuit(session.sessionId, session.agentToken, {
+      apiVersion: "3.0",
+      requestId,
+      operation: "snapshot",
+      documentId,
+    });
+    if (!result.ok || result.operation !== "snapshot")
+      throw new Error(`Snapshot failed: ${JSON.stringify(result)}`);
+    return result;
+  };
+  const manual = await readSnapshot("after-manual-value");
+  expect(manual.revision).toBe(2);
+  expect(manual.snapshot.document.instances).toEqual([
+    expect.objectContaining({
+      id: "Rlocal",
+      netlist: { parameters: { value: "2.2k" } },
+    }),
+  ]);
+  const editAgain = (expectedRevision: number) =>
+    client.circuit(session.sessionId, session.agentToken, {
+      apiVersion: "3.0",
+      requestId: `agent-value-${expectedRevision}`,
+      operation: "transact",
+      documentId,
+      transactionId: `agent-value-${expectedRevision}`,
+      expectedRevision,
+      edits: [
+        {
+          kind: "set_instance_netlist",
+          instanceId: "Rlocal",
+          netlist: { parameters: { value: "3.3k" } },
+        },
+      ],
+    });
+  expect(await editAgain(1)).toMatchObject({
+    ok: false,
+    error: { code: "STALE_REVISION" },
+  });
+  expect(await editAgain(manual.revision)).toMatchObject({
+    ok: true,
+    applied: true,
+    revision: 3,
+  });
+  expect(
+    JSON.parse(await readComponentPropertyCode(page)).parameters.value,
+  ).toBe("3.3k");
+
+  // Both writers share history without disconnecting or freezing the canvas.
+  await clickCommand(page, "Edit", "Undo");
+  expect(
+    JSON.parse(await readComponentPropertyCode(page)).parameters.value,
+  ).toBe("2.2k");
+  await clickCommand(page, "Edit", "Redo");
+  const second = await client.circuit(session.sessionId, session.agentToken, {
+    apiVersion: "3.0",
+    requestId: "agent-second-resistor",
+    operation: "transact",
+    documentId,
+    transactionId: "agent-second-resistor",
+    expectedRevision: (await readSnapshot("after-shared-history")).revision,
+    edits: [
+      {
+        kind: "add_instance",
+        instance: {
+          id: "Rnext",
+          symbolId: "resistor",
+          placement: {
+            position: { x: 500, y: 300 },
+            rotation: 0,
+            mirror: "none",
+          },
+        },
+      },
+    ],
+  });
+  expect(second).toMatchObject({ ok: true, applied: true });
+  await clickDrawTool(page, "wire");
+  await page.getByTestId("terminal-Rlocal-2").click();
+  await page.getByTestId("terminal-Rnext-1").click();
+  await page.keyboard.press("Escape");
+  const wired = await readSnapshot("after-manual-wire");
+  expect(wired.snapshot.document.nets).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        terminals: expect.arrayContaining([
+          expect.objectContaining({ instanceId: "Rlocal", pinName: "2" }),
+          expect.objectContaining({ instanceId: "Rnext", pinName: "1" }),
+        ]),
+      }),
+    ]),
+  );
+  expect(wired.snapshot.document.routes).toHaveLength(1);
+  await clickCommand(page, "Edit", "Undo");
+  expect(
+    (await readSnapshot("after-wire-undo")).snapshot.document.routes,
+  ).toHaveLength(0);
+  await page.getByTestId("open-agent").click();
+  await expect(panel.getByTestId("agent-status")).toContainText("Connected");
+  await panel.getByTestId("agent-revoke").click();
+  await expect(panel.getByTestId("agent-status")).toContainText("Disconnected");
+  await expect(
+    client.circuit(session.sessionId, session.agentToken, {
+      apiVersion: "3.0",
+      requestId: "local-after-revoke",
+      operation: "snapshot",
+      documentId,
+    }),
+  ).rejects.toThrow();
+  await panel.getByRole("button", { name: "Close Agent dialog" }).click();
+  await clickCommand(page, "Edit", "Undo");
+  await expect(page.getByTestId("active-instance-count")).toHaveText("1");
+});
+
+test("keeps browser recovery on the renewed idle deadline and expires after inactivity", async ({
+  page,
+}) => {
+  const start = Date.now();
+  const idleMs = 30 * 60_000;
+  let deadline = start + idleMs;
+  let creates = 0;
+  let socket: WebSocketRoute | null = null;
+  const sendEvent = (type: string) =>
+    socket!.send(
+      JSON.stringify({
+        protocolVersion: "1.0",
+        sessionId: "idle-browser",
+        messageId: `message-${type}`,
+        requestId: `event-${type}`,
+        sentAt: new Date().toISOString(),
+        kind: "event",
+        payload: {
+          type,
+          sessionId: "idle-browser",
+          expiresAt: new Date(deadline).toISOString(),
+        },
+      }),
+    );
+  await page.clock.install({ time: new Date(start) });
+  await page.clock.setFixedTime(start);
+  await page.route("**/api/agent/sessions", (route) => {
+    creates += 1;
+    return route.fulfill({
+      json: {
+        ok: true,
+        session: {
+          sessionId: "idle-browser",
+          editorSecret: "editor-secret",
+          claimCode: "idle-browser.claim",
+          claimExpiresAt: start + idleMs,
+          expiresAt: deadline,
+        },
+      },
+    });
+  });
+  await page.routeWebSocket(
+    "**/api/agent/sessions/idle-browser/editor",
+    (route) => {
+      socket = route;
+      route.onMessage((message) => {
+        const control = JSON.parse(String(message));
+        if (control.kind === "heartbeat") {
+          route.send(
+            JSON.stringify({
+              ...control,
+              kind: "heartbeat-ack",
+            }),
+          );
+          sendEvent("session.ready");
+        }
+      });
+    },
+  );
+  const recovery = () =>
+    page.evaluate(() =>
+      JSON.parse(
+        localStorage.getItem("icm.agent-session-recovery.v1") ?? "null",
+      ),
+    );
+  await page.goto("/editor");
+  await page.getByTestId("open-agent").click();
+  await expect(page.getByTestId("agent-status")).toHaveText("Connected");
+  await expect(page.getByTestId("agent-idle-policy")).toContainText(
+    "30 minutes",
+  );
+  await page.clock.setFixedTime(start + 29 * 60_000);
+  deadline = start + 59 * 60_000;
+  sendEvent("session.renewed");
+  await expect.poll(async () => (await recovery())?.expiresAt).toBe(deadline);
+  // Crossing the initial deadline must not close the session or erase recovery.
+  await page.clock.setFixedTime(start + 31 * 60_000);
+  await page.clock.runFor(1_100);
+  await expect(page.getByTestId("agent-status")).toHaveText("Connected");
+  await page.reload();
+  await page.getByTestId("open-agent").click();
+  await expect(page.getByTestId("agent-status")).toHaveText("Connected");
+  expect(creates).toBe(1);
+  await expect.poll(async () => (await recovery())?.expiresAt).toBe(deadline);
+  // Passive heartbeats must not extend the deadline on the browser.
+  await page.clock.setFixedTime(deadline);
+  await page.clock.runFor(1_100);
+  await expect(page.getByTestId("agent-status")).toHaveText("Session expired");
+  expect(await recovery()).toBeNull();
 });

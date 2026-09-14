@@ -278,17 +278,12 @@ try {
     mimeType: "application/json",
     buffer: Buffer.from(destinationProjectText),
   });
-  await page
-    .locator("summary")
-    .filter({ hasText: /^Agent$/ })
-    .click();
-  await page
-    .getByRole("button", { name: "Connect Agent", exact: true })
-    .click();
-  await page.getByTestId("agent-preset-full").click();
-  const claimElement = page.getByTestId("agent-claim-code");
+  await page.getByRole("button", { name: "Agent", exact: true }).click();
+  const claimElement = page.getByTestId("agent-copy-text");
   await claimElement.waitFor({ state: "attached", timeout: 30_000 });
-  const claimCode = await claimElement.textContent();
+  const { claimCode } = JSON.parse(
+    (await claimElement.inputValue()).match(/^Claim: (.+)$/mu)?.[1] ?? "{}",
+  );
   assert(claimCode, "Preview returned no Agent claim code");
 
   await startMcp();

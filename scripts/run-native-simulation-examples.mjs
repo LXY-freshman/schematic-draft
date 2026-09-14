@@ -124,18 +124,15 @@ for (const project of manifest.projects.filter(
   try {
     await page.goto(base + "/editor");
     await page.getByTestId("project-file").setInputFiles(project.file);
+    await page.getByRole("button", { name: "Agent", exact: true }).click();
     await page
-      .locator("summary")
-      .filter({ hasText: /^Agent$/ })
-      .click();
-    await page
-      .getByRole("button", { name: "Connect Agent", exact: true })
-      .click();
-    await page.getByTestId("agent-preset-full").click();
-    await page
-      .getByTestId("agent-claim-code")
+      .getByTestId("agent-copy-text")
       .waitFor({ state: "attached", timeout: 30000 });
-    const claimCode = await page.getByTestId("agent-claim-code").textContent();
+    const { claimCode } = JSON.parse(
+      (await page.getByTestId("agent-copy-text").inputValue()).match(
+        /^Claim: (.+)$/mu,
+      )?.[1] ?? "{}",
+    );
     child = spawn(process.execPath, [executable], {
       env: {
         ...process.env,

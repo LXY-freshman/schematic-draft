@@ -113,7 +113,24 @@ is defined.
   `Ctrl+Z` to undo, and `Ctrl+Y` or `Ctrl+Shift+Z` to redo. Shortcuts do not
   fire while typing in a field.
 - Use `Ctrl`+mouse wheel to zoom around the cursor and middle-button drag to
-  pan. View changes do not increment the Document revision.
+  pan. While wiring, a middle click cycles **opposite right-angle corner →
+  45° → any angle → automatic right-angle corner**. Auto follows the incoming
+  leg; it is one of the two right-angle shapes, not a third extra stop.
+  View changes do not increment the Document revision.
+
+## Editing multiple components
+
+Select components together with Shift-click or a selection rectangle, then
+press `Q`. Properties shows one editable JSON block. Shared colors and values
+are displayed; differences appear as `""`. Color compares the actual document
+ink, so inherited black and explicitly assigned black show the same RGB value.
+Set `appearance.foreground` through its swatch, RGB, or hex to recolor all
+selected components, including different types. For one component type, edit
+`parameters.value` (or individual parameters such as MOS `w` and `l`) together.
+Blank parameters keep each component's existing value. The `symbol` field
+shows the common type; it is blank for differing types and is informational.
+Each valid code edit applies atomically and can be undone once. Invalid edits
+keep the last accepted drawing. Changing selection discards its pending draft.
 
 ## Arrow styles
 
@@ -136,12 +153,15 @@ as one undoable edit. Invalid or locked edits retain the last accepted drawing;
 **Discard draft** restores the current code. Semantic labels retain their
 electrical text bindings; their code changes presentation only. Values with a
 fixed set of choices have a small dropdown arrow beside the JSON value: line
-style, arrow style, layer, text alignment/weight, visibility and locking.
+style, arrow endpoint styles, layer, text alignment/weight, visibility and locking.
 The menu shows the available choices without repeating the selected value.
 
-For arrows, `appearance.arrowStyle` chooses `filled-end`, `open-end`,
-`filled-both`, `open-both`, `outline-end`, `outline-start`, or `outline-both`.
-The dropdown also lists `filled-start`, `open-start`, and `line` (no head).
+For arrows, `appearance.startStyle` and `appearance.endStyle` independently
+choose `small-arrow`, `medium-arrow`, `large-arrow`, `dot`, `none`, or
+`open-arrow`. Each value has its own dropdown. Start and end follow the first
+and last points of the path when it rotates or mirrors. `appearance.arrowShape`
+chooses a line shaft or a straight outline silhouette; existing curves must be
+straightened before switching to outline.
 `appearance.strokeScale` changes stroke weight; an outline's `geometry.width`
 changes its shape without changing weight. `placement.rotation` is a clockwise
 angle in degrees: 0° points right and 90° points down. For a bent line it is the
@@ -256,7 +276,7 @@ Build the versioned bundle and start it with Node 24:
 
 ```powershell
 pnpm release:package
-node output/release/interactive-circuit-maker-v0.5.0/start.mjs
+node output/release/interactive-circuit-maker-v0.6.0/start.mjs
 ```
 
 Open `http://127.0.0.1:4173`. Chromium can install the app from its browser
