@@ -5,7 +5,7 @@ Status: `accepted`
 Primary owner: `packages/model`
 
 The Project contains Documents; each Document owns revisioned electrical,
-geometric, and presentation facts. The current model is strict schema 55 and has
+geometric, and presentation facts. The current model is strict schema 56 and has
 no compatibility shape.
 
 ## Coordinate domains
@@ -97,14 +97,16 @@ conflicting claims block electrical export and the introducing transaction.
 Canonical MOS Instances use `nmos`/`pmos` with D/G/S/B electrical pins. The
 default `textbook-3terminal` variant is presentation-only. B membership is
 explicit first, then materialized from a configured cell-default Net. Without
-either, it remains unresolved; MOS polarity never creates or selects a power
-Net. Existing persisted `supply-default` bindings remain readable for
-compatibility, but current manual authoring does not create them.
+either, it remains unresolved in persisted connectivity; the netlist boundary
+maps an omitted NMOS B to global `0` and an omitted PMOS B to global `VDD`
+without creating Project objects. Existing persisted `supply-default` bindings
+remain readable for compatibility, but current manual authoring does not create
+them.
 Cross-Document composition converts an effective source `cell-default` to an
 instance-owned `instance-override` so target Cell policy cannot retarget the
 copied body.
 Imported/source-bound MOS instances with missing fourth-node evidence remain
-unresolved.
+unresolved in the Project and receive the same non-persisted netlist fallback.
 
 A visible `bulk-dashed` route is an explicit override. The override atomically
 removes the implicit cell-default binding before connecting B to the selected
@@ -203,8 +205,8 @@ ordinary Schematic edits inside one Project structural transaction. The
 Project's `structureRevision` protects this cross-Document boundary and the
 editor records it as one undoable structural commit.
 
-Persistence writes only schema 55. The reader carries every schema in its
-explicit 24→55 upgrade chain forward, then supplies the current model only; no
+Persistence writes only schema 56. The reader carries every schema in its
+explicit 24→56 upgrade chain forward, then supplies the current model only; no
 compatibility shape enters runtime electrical derivation. The 32→33 step
 rejects ownerless equivalence rather than guessing replacement connectivity.
 The 33→34 step converts hidden imported names into non-electrical hints or

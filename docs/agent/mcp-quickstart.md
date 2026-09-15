@@ -15,16 +15,17 @@ examples below are MCP-specific mappings, not a separate operating policy.
 Production and Preview both expose the Agent UI. Their accounts, Projects and
 connector bindings remain separate.
 
-MCP 0.11.0 supports API 3.0, Project schema 55, setup v4 source/config files
-and captured Spec reports. The published 0.10.0 binary predates Spec reports:
-its strict response validator rejects `outputData.specs`. Update that adapter
-to 0.11.0 for Spec-enabled sites; rebuilding the old version does not replace
-its immutable release. See [distribution verification](mcp-install.md).
-Use it with Analog Canvas 0.6.0 or newer. It supports independent arrow ends,
-native component displays and attached Net Labels. The public distribution manifest identifies the pinned
-release artifact and its SHA-256. Updating the website does not update an
-already installed MCP process. Set `ANALOG_CANVAS_API_URL` only when connecting
-to Preview or another non-production endpoint.
+MCP 0.12.0 supports API 3.0, Project schema 56, setup v4 source/config files
+and captured Spec reports. The published 0.11.0 binary supports Spec reports
+but predates schema 56 electrical Wire styles. Update that adapter to 0.12.0
+for schema 56 sites; rebuilding an old version does not replace its immutable
+release. See [distribution verification](mcp-install.md). Use it with Analog
+Canvas 0.6.0 or newer. It supports independent arrow ends, electrical Wire
+line styles, native component displays and attached Net Labels. The public
+distribution manifest identifies the pinned release artifact and its SHA-256.
+Updating the website does not update an already installed MCP process. Set
+`ANALOG_CANVAS_API_URL` only when connecting to Preview or another
+non-production endpoint.
 
 Sessions have a renewable 30-minute idle deadline. Agent operations and manual
 edits renew it; passive heartbeats do not. A saved connector's deadline may be
@@ -36,7 +37,11 @@ Schema 55 arrow objects support independent `styleOverride.arrowStart` and
 `arrowEnd`: `small-arrow`, `medium-arrow`, `large-arrow`, `dot`, `none`, or
 `open-arrow`. Read the `upsert_drafting_object` contract before editing them.
 These fields are arrow-only; legacy `arrowHead`/`arrowHeadAt` remain fallbacks.
-Older 0.9.0 adapters may reject Snapshots containing the new fields.
+Older 0.9.0 adapters may reject Snapshots containing the new fields. Schema 56
+adds electrical Wire `styleOverride.lineStyle`: `solid`, `dashed`, or `dotted`.
+Route Snapshots expose the complete styleOverride (color, arrow and lineStyle),
+so preserve the other settings when editing one. Older 0.11.0 adapters target
+schema 55 and may reject a schema 56 Snapshot.
 
 ## Create and edit
 

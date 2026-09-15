@@ -76,9 +76,11 @@ The journey defaults to the published package on either hosted channel. An
 explicit `ICM_ACCEPTANCE_MCP_SOURCE=built` is available for local development;
 its receipt says `source: built` and is not distribution acceptance.
 
-The published 0.10.0 package predates Spec reports and rejects `outputData.specs`.
-Its immutable asset cannot be replaced. MCP 0.11.0 carries the converged Simulation
-contract and captured Spec support. Each new version is published through Publish
-MCP with its verified Linux tarball hash pinned in the distribution declaration,
-then passes public-package Preview acceptance. Local compilation with an old
-version label is not a distribution update.
+The published 0.10.0 package predates Spec reports and rejects
+`outputData.specs`. MCP 0.11.0 carries the converged Simulation contract and
+captured Spec support but predates Project schema 56 electrical Wire styles.
+Those immutable assets cannot be replaced. MCP 0.12.0 adds schema 56 support
+while retaining the Spec contract. Each new version is published through
+Publish MCP with its verified Linux tarball hash pinned in the distribution
+declaration, then passes public-package Preview acceptance. Local compilation
+with an old version label is not a distribution update.

@@ -1354,7 +1354,7 @@ test("carries a default and manual Value through placement and Q property editin
   );
   await expect(page.getByLabel("Component geometry")).toHaveCount(0);
   const propertyCode = page.getByLabel("Editable Canvas property code");
-  await expect(propertyCode).toContainText(/"at": \[/u);
+  await expect(propertyCode).toContainText(/"coordinate": \[/u);
   await expect(propertyCode).toContainText(/"rotation": 0/u);
   await expect(propertyCode).toContainText(/"mirror": "none"/u);
   await expect(page.locator(".selection-overview")).toHaveCount(0);
@@ -1403,6 +1403,7 @@ test("carries a default and manual Value through placement and Q property editin
     "aria-label",
     "Canvas property code",
   );
+  await expectComponentCodeField(page, "displayName", "R1");
   await expectComponentCodeField(page, "netlistName", "R1");
   await editComponentPropertyCode(page, (code) => {
     code.netlistName = "R7";
@@ -1411,6 +1412,21 @@ test("carries a default and manual Value through placement and Q property editin
   await expect(page.getByTestId("revision")).toHaveText("4");
   await expectComponentCodeField(page, "netlistName", "R7");
   await expectComponentCodeField(page, "parameters.tc", "0.1");
+
+  // Enter confirms the current draft without changing its bytes. Shift+Enter
+  // remains the explicit way to add layout whitespace inside the JSON.
+  const singleLine = JSON.stringify(
+    JSON.parse(await readComponentPropertyCode(page)),
+  );
+  await propertyCode.fill(singleLine);
+  await propertyCode.press("ControlOrMeta+End");
+  await propertyCode.press("ArrowLeft");
+  await propertyCode.press("Enter");
+  expect(await readComponentPropertyCode(page)).toBe(singleLine);
+  await propertyCode.press("Shift+Enter");
+  const multiline = await readComponentPropertyCode(page);
+  expect(multiline).toContain("\n}");
+  expect(JSON.parse(multiline)).toEqual(JSON.parse(singleLine));
 });
 
 test("ordinary source property code switches waveforms without erasing inactive values", async ({
@@ -2065,7 +2081,7 @@ test("shows the complete foldable categorized Library, quick-places a device, an
     page
       .getByTestId("shapes-category-passives")
       .locator('[data-testid^="shapes-chip-"]'),
-  ).toHaveCount(4);
+  ).toHaveCount(5);
   await expect(
     page
       .getByTestId("shapes-category-logic-gates")
@@ -2407,4 +2423,50 @@ test("double-clicking a catalog item applies it immediately", async ({
     "Place Resistor on the canvas",
   );
   await page.keyboard.press("Escape");
+});
+
+test("places and edits a two-terminal capacitor section and exports its vector artwork", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/editor");
+  await chooseComponent(page, "capacitor-section");
+  const canvas = page.getByTestId("schematic-canvas");
+  await canvas.click({ position: { x: 360, y: 240 } });
+  await page.keyboard.press("Escape");
+  const symbol = canvas.locator('[data-symbol-id="capacitor-section"]');
+  await expect(symbol).toBeVisible();
+  const bodyPaths = await symbol
+    .locator("polyline")
+    .evaluateAll((elements) =>
+      elements.map((element) => element.getAttribute("points")),
+    );
+  expect(bodyPaths.length).toBeGreaterThanOrEqual(3);
+  const instanceId = await symbol.getAttribute("data-object-id");
+  expect(instanceId).not.toBeNull();
+  await page.getByTestId(`hit-${instanceId}`).click();
+  await page.keyboard.press("q");
+  const initial = JSON.parse(await readComponentPropertyCode(page));
+  expect(initial.parameters.value).toBe("1p");
+  await editComponentPropertyCode(page, (code) => {
+    code.parameters.value = "2p";
+    code.placement.rotation = 90;
+  });
+  const edited = JSON.parse(await readComponentPropertyCode(page));
+  expect(edited.parameters.value).toBe("2p");
+  expect(edited.placement.rotation).toBe(90);
+  await expect(symbol.locator("g").first()).toHaveAttribute(
+    "transform",
+    /rotate\(90\)/,
+  );
+
+  const svg = (await downloadBytes(page, "File", "Export SVG")).toString(
+    "utf8",
+  );
+  expect(svg).toContain('data-symbol-id="capacitor-section"');
+  for (const points of bodyPaths) expect(svg).toContain(`points="${points}"`);
+  expect(svg).not.toContain("<image");
+  await testInfo.attach("capacitor-section.svg", {
+    body: Buffer.from(svg),
+    contentType: "image/svg+xml",
+  });
 });

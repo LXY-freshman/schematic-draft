@@ -88,14 +88,14 @@ describe("Canvas property assistance", () => {
   });
   it("flips a valid orientation while preserving an invalid color", () => {
     const source = formatComponentPropertyCode(context).replace(
-      '"foreground": "auto"',
-      '"foreground": [256, 0, 0]',
+      '"color": "auto"',
+      '"color": [256, 0, 0]',
     );
     const changed = apply(
       source,
       reflectedPropertyCode(source, context, "left-right"),
     );
-    expect(JSON.parse(changed).appearance.foreground).toEqual([256, 0, 0]);
+    expect(JSON.parse(changed).appearance.color).toEqual([256, 0, 0]);
     expect(JSON.parse(changed).placement).not.toEqual(
       JSON.parse(source).placement,
     );
@@ -104,11 +104,11 @@ describe("Canvas property assistance", () => {
   it("addresses all available fields by syntax path and preserves unrelated draft bytes", () => {
     const source = formatComponentPropertyCode(context);
     expect(propertyCodeSpans(source).map((span) => span.field.path)).toEqual([
-      "placement.at",
+      "placement.coordinate",
       "placement.rotation",
       "placement.mirror",
       "appearance",
-      "appearance.foreground",
+      "appearance.color",
       "display.visualAnnotation",
       "display.value",
     ]);
@@ -216,7 +216,7 @@ describe("Canvas property assistance", () => {
           const changed = JSON.parse(
             apply(source, reflectedPropertyCode(source, context, direction)),
           );
-          expect(changed.placement.at).toEqual([210, 140]);
+          expect(changed.placement.coordinate).toEqual([210, 140]);
           expect(changed.placement.rotation).toBe(code.placement.rotation);
           const before = transformPoint(
             { x: 10, y: 20 },

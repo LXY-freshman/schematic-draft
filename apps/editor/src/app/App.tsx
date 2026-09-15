@@ -1,3 +1,7 @@
+import { InstanceCodePanel } from "../features/properties/instance-code-panel";
+import { NetlistCodePanel } from "../features/netlist-export/netlist-code-panel";
+import { NetlistProfileCode } from "../features/netlist-export/netlist-profile-code";
+import { useNetlistExportPreferences } from "../features/netlist-export/netlist-export-preferences";
 import {
   DEFAULT_ARROW_PRESET,
   type ArrowPreset,
@@ -45,9 +49,15 @@ import {
   resolveDocumentStyleProfile,
   summarizeProjectCells,
   resolveRouteAttachment,
+  resolveAnnotationText,
 } from "@icm/derived";
 import type { HierarchyFrame } from "@icm/derived";
-import { createEmptyProject, createEmptyDocument, createId } from "@icm/model";
+import {
+  createEmptyProject,
+  createEmptyDocument,
+  createId,
+  flattenRichText,
+} from "@icm/model";
 import {
   resolveReviewedExternalBinding,
   reviewedExternalModelSuggestions,
@@ -723,6 +733,16 @@ export function App({
     command: string;
   } | null>(null);
   const [netlistPreflightOpen, setNetlistPreflightOpen] = useState(false);
+  const [codePanel, setCodePanel] = useState<
+    "netlist" | "configuration" | "instances" | null
+  >(null);
+  const [netlistFormat, setNetlistFormat] = useState<"spice" | "spectre">(
+    "spice",
+  );
+  const [netlistNamingProfile, setNetlistNamingProfile] = useState<
+    "native" | "cadence-bang"
+  >("native");
+  const netlistPreferences = useNetlistExportPreferences();
   const [documentSettingsOpen, setDocumentSettingsOpen] = useState(false);
   const [projectNameDraft, setProjectNameDraft] = useState<string | null>(null);
   const [publishGalleryOpen, setPublishGalleryOpen] = useState(false);
@@ -812,7 +832,6 @@ export function App({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- evaluated once per dialog open
   }, [publishGalleryOpen]);
-  const [instanceTableOpen, setInstanceTableOpen] = useState(false);
   const [agentFileCandidate, setAgentFileCandidate] =
     useState<AgentFileCandidateSummary | null>(null);
   const browserAgentFileHost = useMemo(
@@ -2125,6 +2144,12 @@ export function App({
   const selectedInstanceLabel = selectedInstance
     ? instanceLabelAnnotationFor(document, selectedInstance.id)
     : undefined;
+  const selectedDisplayName =
+    selectedInstanceLabel?.kind === "instance-label"
+      ? flattenRichText(
+          resolveAnnotationText(document, selectedInstanceLabel),
+        ).trim() || null
+      : null;
   const selectedInstanceValue = selectedInstance
     ? instanceValueAnnotation(document, selectedInstance.id)
     : null;
@@ -3137,7 +3162,6 @@ export function App({
   const {
     switchDocument,
     selectDocumentFromHierarchy,
-    openInstanceFromTable,
     jumpToCaller,
     navigateToLocator,
     navigateToNetlistDiagnostic,
@@ -3174,7 +3198,6 @@ export function App({
     selectedHighlightIsActive,
     closeSearch,
     setSelectionOpen,
-    setInstanceTableOpen,
     setCellManagerOpen,
     selectedInstance,
     setStatus,
@@ -3205,6 +3228,7 @@ export function App({
   }, [document, visualSelection]);
 
   function openProperties(): void {
+    setCodePanel(null);
     setImportReviewOpen(false);
     setSelectionOpen(true);
     // Focus the header, not the first field: Q stays a pure toggle and
@@ -3215,6 +3239,7 @@ export function App({
   }
 
   function closeProperties(): void {
+    setCodePanel(null);
     exitCellSymbolLayout();
     setSelectionOpen(false);
     setImportReviewOpen(false);
@@ -3919,9 +3944,17 @@ export function App({
       // electrical verdict belongs to.
       electricalWarningsPresent: () =>
         requestElectricalDiagnostics().length > 0,
+      netlistProfile: netlistPreferences.profile,
+      netlistConfigurationError: netlistPreferences.error,
       guardDirtyReplacement,
       replaceActiveProject,
-      setNetlistPreflightOpen,
+      showNetlist: (format, namingProfile) => {
+        setNetlistFormat(format);
+        setNetlistNamingProfile(namingProfile);
+        setCodePanel("netlist");
+        setSelectionOpen(true);
+        if (compactLayout) setCompactLibraryPanelOpen(false);
+      },
       setImportReport,
       setImportReviewOpen,
       setSelectionOpen,
@@ -4580,7 +4613,6 @@ export function App({
           onExportProject: exportProjectFile,
           onExportSvg: exportSvg,
           onExportRaster: (format) => void exportRaster(format),
-          onExportNetlist: exportDesignNetlist,
           onRevert: revertToSavedProjectBaseline,
           onOpenRecovery: openRecoveryDialog,
         }}
@@ -4681,14 +4713,26 @@ export function App({
               })
             : []
         }
-        instanceTableOpen={instanceTableOpen}
+        instanceCodeOpen={codePanel === "instances" && selectionOpen}
         netlistPreflightOpen={netlistPreflightOpen}
         checkAndSave={{
           enabled: !saveBusy && !projectCheck.busy,
           execute: () => void projectCheck.checkAndSave(),
         }}
-        onOpenInstanceTable={() => setInstanceTableOpen(true)}
+        onOpenInstanceCode={() => {
+          setCodePanel("instances");
+          setSelectionOpen(true);
+          if (compactLayout) setCompactLibraryPanelOpen(false);
+        }}
+        netlistProfileId={netlistPreferences.profile.id}
+        netlistFormat={netlistFormat}
+        onOpenNetlistConfiguration={() => {
+          setCodePanel("configuration");
+          setSelectionOpen(true);
+          if (compactLayout) setCompactLibraryPanelOpen(false);
+        }}
         onOpenNetlistPreflight={() => setNetlistPreflightOpen(true)}
+        onExportNetlist={exportDesignNetlist}
         agentAction={
           publicAgentUiEnabled
             ? {
@@ -4887,27 +4931,6 @@ export function App({
               }
             : null
         }
-        instanceTable={
-          instanceTableOpen
-            ? {
-                open: instanceTableOpen,
-                project,
-                connectivityIndex: projectConnectivityIndex,
-                activeDocumentId: document.id,
-                onClose: () => setInstanceTableOpen(false),
-                onOpenInstance: openInstanceFromTable,
-                onApply: (transactionId, edits) => {
-                  const committed = commitStructure(transactionId, edits);
-                  if (committed) {
-                    setStatus(
-                      `Updated ${edits.length} Cell${edits.length === 1 ? "" : "s"}`,
-                    );
-                  }
-                  return committed;
-                },
-              }
-            : null
-        }
         insertComponent={
           insertDialogOpen
             ? {
@@ -5041,6 +5064,7 @@ export function App({
             ? {
                 open: netlistPreflightOpen,
                 project,
+                profile: netlistPreferences.profile,
                 // The dialog only renders while open, so this IS the
                 // explicit check the author asked for.
                 electricalDiagnostics: requestElectricalDiagnostics(),
@@ -5048,7 +5072,7 @@ export function App({
                 onNavigate: navigateToNetlistDiagnostic,
                 onNavigateElectrical: jumpToProjectDiagnostic,
                 onExport: (format, namingProfile) =>
-                  exportDesignNetlist(format, true, namingProfile),
+                  exportDesignNetlist(format, namingProfile),
               }
             : null
         }
@@ -5528,9 +5552,45 @@ export function App({
           properties={
             <EditorPropertiesDock
               open={selectionOpen}
+              configuration={
+                codePanel === "configuration" ? (
+                  <NetlistProfileCode
+                    text={netlistPreferences.text}
+                    error={netlistPreferences.error}
+                    onChange={netlistPreferences.changeText}
+                  />
+                ) : codePanel === "netlist" ? (
+                  <NetlistCodePanel
+                    project={project}
+                    format={netlistFormat}
+                    namingProfile={netlistNamingProfile}
+                    profile={netlistPreferences.profile}
+                    configurationError={netlistPreferences.error}
+                  />
+                ) : codePanel === "instances" ? (
+                  <InstanceCodePanel
+                    key={projectSessionId}
+                    project={project}
+                    onApply={(edits) => {
+                      const committed = commitStructure(
+                        "edit-instance-code",
+                        edits,
+                      );
+                      if (committed)
+                        setStatus(
+                          `Updated instance code in ${edits.length} Cell${edits.length === 1 ? "" : "s"}`,
+                        );
+                      return committed;
+                    }}
+                  />
+                ) : undefined
+              }
               shelfRef={selectionShelfRef}
               onToggle={() => {
-                if (selectionOpen) exitCellSymbolLayout();
+                if (selectionOpen) {
+                  exitCellSymbolLayout();
+                  setCodePanel(null);
+                }
                 // Narrow layouts have room for one side panel. Whichever the user
                 // just asked for wins.
                 else if (compactLayout) setCompactLibraryPanelOpen(false);
@@ -5700,6 +5760,7 @@ export function App({
                       code: {
                         focusRequest: propertyCodeFocusRequest,
                         instance: selectedInstance,
+                        displayName: selectedDisplayName,
                         defaultForeground: styleProfile.foreground,
                         revision: document.revision,
                         referenceVisible:
@@ -5751,11 +5812,11 @@ export function App({
                                 placement: {
                                   position: {
                                     x: snapCoordinate(
-                                      value.placement.at[0],
+                                      value.placement.coordinate[0],
                                       document.presentation.grid,
                                     ),
                                     y: snapCoordinate(
-                                      value.placement.at[1],
+                                      value.placement.coordinate[1],
                                       document.presentation.grid,
                                     ),
                                   },
@@ -6291,6 +6352,7 @@ export function App({
                 netLabel: netLabelDraft,
                 color: selectedRoute?.styleOverride?.color,
                 arrow: selectedRoute?.styleOverride?.arrow,
+                lineStyle: selectedRoute?.styleOverride?.lineStyle,
                 defaultColor: styleProfile.foreground,
                 highlightActive: selectedHighlightIsActive,
                 onNetLabelChange: updateNetLabelDraft,
@@ -6343,6 +6405,26 @@ export function App({
                         : `Removed wire arrow from ${selectedRoute.id}`,
                     );
                   }
+                },
+                onLineStyleChange: (lineStyle) => {
+                  if (!selectedRoute) return;
+                  const styleOverride = {
+                    ...(selectedRoute.styleOverride ?? {}),
+                  };
+                  if (lineStyle === "solid") delete styleOverride.lineStyle;
+                  else styleOverride.lineStyle = lineStyle;
+                  const result = transact([
+                    {
+                      kind: "set_route_style_override",
+                      routeId: selectedRoute.id,
+                      styleOverride:
+                        Object.keys(styleOverride).length > 0
+                          ? styleOverride
+                          : null,
+                    },
+                  ]);
+                  if (result.ok)
+                    setStatus(`Updated wire line style to ${lineStyle}`);
                 },
                 onDeleteNetLabel: deleteSelectedRouteNetLabel,
                 onAddCurrentArrow: addCurrentArrow,

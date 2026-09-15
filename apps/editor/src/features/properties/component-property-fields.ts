@@ -39,11 +39,18 @@ export interface CanvasPropertyField {
 
 export const CANVAS_PROPERTY_FIELDS: readonly CanvasPropertyField[] = [
   {
-    path: "placement.at",
-    label: "Position",
+    path: "placement.coordinate",
+    label: "Coordinate",
     kind: "coordinate",
     description: "",
     help: "Canvas coordinates [x, y]. Valid changes update immediately and snap to the grid.",
+  },
+  {
+    path: "displayName",
+    label: "Display name",
+    kind: "text",
+    description: "",
+    help: "Visual name drawn beside the component. It is independent from the exported netlist name.",
   },
   {
     path: "placement.rotation",
@@ -80,11 +87,11 @@ export const CANVAS_PROPERTY_FIELDS: readonly CanvasPropertyField[] = [
     description: "",
   },
   {
-    path: "appearance.foreground",
+    path: "appearance.color",
     label: "Line",
     kind: "color",
     description: "",
-    help: "Use the swatch to open presets and a custom color picker. RGB channels are 0–255; hex is accepted. Global inherits document ink.",
+    help: "Color for the component lines and text. Use the swatch for presets or a custom color. RGB channels are 0–255; hex is accepted. Auto inherits document ink.",
   },
   {
     path: "appearance.internalMark",
