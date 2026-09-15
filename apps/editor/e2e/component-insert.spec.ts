@@ -704,13 +704,17 @@ test("groups drafting tools and editable polarity labels under Annotations", asy
 
   await annotations.getByTestId("shapes-chip-annotation-polarity-both").click();
   const canvas = page.getByTestId("schematic-canvas");
-  await canvas.hover({ position: { x: 460, y: 260 } });
-  const preview = page.getByTestId("component-placement-preview");
+  // The empty-canvas Quick Start card occupies the upper-right area until the
+  // first object lands. Start below it so this exercises the canvas rather
+  // than asking a covered coordinate to produce a placement preview.
+  await canvas.hover({ position: { x: 460, y: 520 } });
+  const preview = page.getByTestId("text-placement-preview");
   await expect(preview).toBeVisible();
   await page.keyboard.press("r");
-  await expect(preview).toHaveAttribute("transform", /rotate\(90\)/u);
+  await expect(preview).toHaveAttribute("transform", /^translate\(/u);
+  await expect(preview).not.toHaveAttribute("transform", /rotate/u);
 
-  await canvas.click({ position: { x: 460, y: 260 } });
+  await canvas.click({ position: { x: 460, y: 520 } });
   const editor = page.getByRole("textbox", { name: "Canvas text editor" });
   await expect(editor).toBeVisible();
   await expect(editor).toHaveText("Vx");
@@ -730,7 +734,7 @@ test("groups drafting tools and editable polarity labels under Annotations", asy
   await page.getByRole("button", { name: "Apply text changes" }).click();
 
   await expect(polarity).toBeVisible();
-  await expect(polarity).toHaveAttribute("transform", /rotate\(90 /u);
+  await expect(polarity).not.toHaveAttribute("transform", /rotate/u);
   await expect(
     polarity.locator('[data-role^="polarity-positive"]'),
   ).toHaveCount(2);
@@ -888,7 +892,7 @@ test("groups drafting tools and editable polarity labels under Annotations", asy
   });
   await expect(ellipsis).toBeVisible();
   await expect(ellipsis).toHaveText("...");
-  await expect(ellipsis).toHaveAttribute("transform", /rotate\(90\b/u);
+  await expect(ellipsis).not.toHaveAttribute("transform", /rotate/u);
   await expect(
     canvas.locator('[data-testid^="drafting-hit-text-"]'),
   ).toHaveClass(/hit-target annotation-text-hit selected/u);
@@ -898,6 +902,9 @@ test("groups drafting tools and editable polarity labels under Annotations", asy
   await expect
     .poll(() => recoveryProjectTexts(page))
     .toContain('"value": "..."');
+  await expect
+    .poll(() => recoveryProjectTexts(page))
+    .toContain('"rotation": 90');
 });
 
 test("places a vertical Power Rail from I and renames it on the canvas", async ({
@@ -2113,7 +2120,10 @@ test("shows the complete foldable categorized Library, quick-places a device, an
     page
       .getByTestId("shapes-category-passives")
       .locator('[data-testid^="shapes-chip-"]'),
-  ).toHaveCount(5);
+  ).toHaveCount(4);
+  await expect(page.getByTestId("shapes-chip-capacitor-section")).toHaveCount(
+    0,
+  );
   await expect(
     page
       .getByTestId("shapes-category-logic-gates")
@@ -2456,50 +2466,4 @@ test("double-clicking a catalog item applies it immediately", async ({
     "Place Resistor on the canvas",
   );
   await page.keyboard.press("Escape");
-});
-
-test("places and edits a two-terminal capacitor section and exports its vector artwork", async ({
-  page,
-}, testInfo) => {
-  await page.goto("/editor");
-  await chooseComponent(page, "capacitor-section");
-  const canvas = page.getByTestId("schematic-canvas");
-  await canvas.click({ position: { x: 360, y: 240 } });
-  await page.keyboard.press("Escape");
-  const symbol = canvas.locator('[data-symbol-id="capacitor-section"]');
-  await expect(symbol).toBeVisible();
-  const bodyPaths = await symbol
-    .locator("polyline")
-    .evaluateAll((elements) =>
-      elements.map((element) => element.getAttribute("points")),
-    );
-  expect(bodyPaths.length).toBeGreaterThanOrEqual(3);
-  const instanceId = await symbol.getAttribute("data-object-id");
-  expect(instanceId).not.toBeNull();
-  await page.getByTestId(`hit-${instanceId}`).click();
-  await page.keyboard.press("q");
-  const initial = JSON.parse(await readComponentPropertyCode(page));
-  expect(initial.parameters.value).toBe("1p");
-  await editComponentPropertyCode(page, (code) => {
-    code.parameters.value = "2p";
-    code.placement.rotation = 90;
-  });
-  const edited = JSON.parse(await readComponentPropertyCode(page));
-  expect(edited.parameters.value).toBe("2p");
-  expect(edited.placement.rotation).toBe(90);
-  await expect(symbol.locator("g").first()).toHaveAttribute(
-    "transform",
-    /rotate\(90\)/,
-  );
-
-  const svg = (await downloadBytes(page, "File", "Export SVG")).toString(
-    "utf8",
-  );
-  expect(svg).toContain('data-symbol-id="capacitor-section"');
-  for (const points of bodyPaths) expect(svg).toContain(`points="${points}"`);
-  expect(svg).not.toContain("<image");
-  await testInfo.attach("capacitor-section.svg", {
-    body: Buffer.from(svg),
-    contentType: "image/svg+xml",
-  });
 });

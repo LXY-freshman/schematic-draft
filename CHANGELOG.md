@@ -3,6 +3,34 @@
 Notable changes to Analog Canvas. Entries describe what changed for the person
 using the product, not the commits that got there.
 
+## 0.9.0 (Preview candidate)
+
+### Netlist and device controls
+
+- Keep SKY130 SCS output in native Spectre syntax without an extra SPICE
+  language line, and arrange the compact Format, Process, device-target, copy,
+  and Default controls around the live code editor.
+- Choose reviewed NMOS, PMOS, resistor, capacitor, and inductor targets for
+  SKY130, TSMC 28, and TSMC 180. The editor grows with short netlists, retains
+  line numbers, and scrolls once it reaches its useful height.
+
+### Drawing and presentation
+
+- Keep annotation text, fractions, formulas, and polarity symbols upright when
+  their attached drawing rotates; attachment positions continue to rotate with
+  the drawing.
+- Render transistor W/L fractions with the same typeface and a tighter bar that
+  follows the actual numerator and denominator width.
+- Remove the unintended Capacitor Section symbol from the component library.
+
+### Site operation
+
+- Keep first-party analytics pages, routes, styles, client reporting, and
+  Durable Object handling in one module while preserving the existing data
+  namespace and stored counters.
+
+Project schema 56 is unchanged. Existing Projects are not rewritten when opened.
+
 ## 0.8.0 (Preview candidate)
 
 ### Project authoring
@@ -22,8 +50,8 @@ using the product, not the commits that got there.
 - Choose Format and Process independently in the live Netlist panel, edit the
   selected NMOS and PMOS targets directly, and restore every cached preset with
   one Default action. Copy uses a compact icon and never downloads a file.
-- Emit native Spectre circuit bodies for SKY130 SCS exports while loading its
-  SPICE model library in the required temporary language section.
+- Keep SKY130 SCS exports entirely in Spectre syntax, including a native
+  `include` declaration for the configured model library.
 - Put `VDD VSS` first in generated Cell interfaces and hierarchical calls,
   including blank circuits without drawn supply symbols. Unconnected MOS bulk
   terminals use those module supplies, and generated supplies stay out of the
