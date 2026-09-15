@@ -132,6 +132,8 @@ import {
   type SpiceImportReport,
 } from "../features/editor-shell/editor-file-commands";
 import { EditorStatusbar } from "../features/editor-shell/editor-statusbar";
+import { documentSettingsCodeValue } from "../features/editor-shell/document-settings-code";
+import { normalizedStyleOverrides } from "../features/editor-shell/style-knobs";
 import {
   deriveSimulationProbeOptions,
   simulationProbeHierarchyPath,
@@ -178,7 +180,16 @@ import {
 import { EditorDialogLayer } from "./editor-dialog-layer";
 import { EditorAppChrome } from "./editor-app-chrome";
 import { EditorRightDock } from "./editor-right-dock";
+import {
+  EditorProjectDock,
+  type EditorProjectPanelMode,
+} from "./editor-project-dock";
 import { EditorPropertiesDock } from "./editor-properties-dock";
+import { ProjectCodePanel } from "../features/project-code/project-code-panel";
+import {
+  formatProjectCode,
+  planProjectCodeCommit,
+} from "../features/project-code/project-code";
 import { LazySpiceSimulationSurface } from "./lazy-editor-dialogs";
 import { recoverSourceDrafts } from "../features/simulation/source-draft-cache";
 import type { NewTestbenchRequest } from "../features/simulation/new-testbench-dialog";
@@ -330,7 +341,6 @@ import { planSelectionMove } from "../features/selection/selection-move-plan";
 import {
   annotationAnchor,
   annotationHitBox,
-  effectiveRouteAttachment,
   instanceValueAnnotation,
   isRoutedMarker,
   netLabelPlacementTargetAtPoint,
@@ -569,6 +579,7 @@ export function App({
     canRedo,
     openDocument,
     replaceProject,
+    commitProjectStructure,
     dispatchProjectTransaction,
     transact: transactDocument,
     controller: editorDocumentController,
@@ -674,8 +685,7 @@ export function App({
       // Storage may be unavailable; the choice still applies to this session.
     }
   };
-  const [arrowPreset, setArrowPresetState] =
-    useState<ArrowPreset>(DEFAULT_ARROW_PRESET);
+  const arrowPreset: ArrowPreset = DEFAULT_ARROW_PRESET;
   const [drawAngleMode, setDrawAngleModeState] = useState<DrawAngleMode>(() => {
     if (typeof window === "undefined") return "free";
     const stored = window.localStorage.getItem("icm.draw-angle.v1");
@@ -749,12 +759,9 @@ export function App({
     command: string;
   } | null>(null);
   const [netlistPreflightOpen, setNetlistPreflightOpen] = useState(false);
-  const [codePanel, setCodePanel] = useState<
-    "netlist" | "configuration" | "instances" | null
-  >(null);
-  const [netlistFormat, setNetlistFormat] = useState<"spice" | "spectre">(
-    "spice",
-  );
+  const [projectPanel, setProjectPanel] =
+    useState<EditorProjectPanelMode | null>(null);
+  const propertiesOpenBeforeProjectPanelRef = useRef(false);
   const [netlistNamingProfile, setNetlistNamingProfile] = useState<
     "native" | "cadence-bang"
   >("native");
@@ -1135,10 +1142,8 @@ export function App({
     pendingSymbolId,
     pendingComponentPlacement,
     wireSource,
-    wireSourceRevision,
     wirePreviewPoint,
     wirePreviewTarget,
-    wireWaypoints,
     wireDraftSteps,
     wireRoutingMode,
     wireCornerOrder,
@@ -1181,6 +1186,24 @@ export function App({
     beginSelectionMove: beginSelectionMoveInteraction,
     cancelInteraction,
   } = useInteractionState<SchematicClipboard>();
+  const readCurrentWireSession = () => {
+    const current = getCurrentInteractionState();
+    return current.kind === "wire"
+      ? {
+          source: current.source,
+          sourceRevision: current.sourceRevision,
+          steps: current.steps,
+          routingMode: current.routingMode,
+          cornerOrder: current.cornerOrder,
+        }
+      : {
+          source: null,
+          sourceRevision: null,
+          steps: [],
+          routingMode: "orthogonal" as const,
+          cornerOrder: "auto" as const,
+        };
+  };
   const { commitStructure, transact, transactConnectivity } =
     createEditorTransactionCommands({
       project,
@@ -1355,7 +1378,6 @@ export function App({
   const selectionShelfRef = useRef<HTMLButtonElement>(null);
   const instanceValueInputRef = useRef<HTMLInputElement>(null);
   const [propertyCodeFocusRequest, setPropertyCodeFocusRequest] = useState(0);
-  const netLabelPropertyInputRef = useRef<HTMLInputElement>(null);
   const netLabelEditorInputRef = useRef<HTMLInputElement>(null);
   const documentViewBoxes = useRef(new Map<string, GridRect>());
   const [projectedMovePreviewDocument, setProjectedMovePreviewDocument] =
@@ -2037,7 +2059,6 @@ export function App({
     updateSelectedModelTarget,
     updateSelectedReference,
     deleteSelectedAnnotation,
-    reverseSelectedCurrentArrow,
   } = createSelectionPropertyCommands({
     project,
     document,
@@ -2059,6 +2080,7 @@ export function App({
   const {
     restoreTextReference,
     addAdditionalParameter,
+    applyRouteProperties,
     additionalParameterDraft,
     additionalParameterDraftChanges,
     applyAdditionalParameters,
@@ -2074,12 +2096,10 @@ export function App({
     commitTextEditing,
     clearTextEditing,
     cancelAdditionalParameters,
-    deleteSelectedRouteNetLabel,
     deleteTextEditing,
     discardInstancePropertyDraft,
     hasInstancePropertyDraftChanges,
     instancePropertyDraft,
-    netLabelDraft,
     netLabelPlacement,
     placeNetLabel,
     removeAdditionalParameter,
@@ -2090,7 +2110,6 @@ export function App({
     updateInstancePropertyDraft,
     updateAdditionalParameter,
     updateTextEditing,
-    updateNetLabelDraft,
     updateNetLabelPlacementDraft,
     updateNetLabelPlacementPosition,
   } = usePropertiesEditor({
@@ -2320,12 +2339,7 @@ export function App({
       setSelectedEndpoint,
     },
     session: {
-      wireSource,
-      wireSourceRevision,
-      wireWaypoints,
-      wireDraftSteps,
-      wireRoutingMode,
-      wireCornerOrder,
+      readCurrentWireSession,
       setTool,
       setWireSource,
       setWirePreview,
@@ -2742,6 +2756,7 @@ export function App({
     wireSource && wirePreviewTarget
       ? resolveWireDraftPreview({
           document,
+          resolver,
           source: wireSource,
           target: wirePreviewTarget,
           steps: wireDraftSteps,
@@ -2775,7 +2790,6 @@ export function App({
     setDraftingStacking,
     toggleDraftingLock,
     addPlainText,
-    addCurrentArrow,
   } = createDraftingCommands({
     document,
     annotationGrid,
@@ -2783,15 +2797,8 @@ export function App({
     selection: visualSelection,
     selectedDrafting,
     inspectorSegment: draftingInspectorSegment,
-    selectedRoute,
-    selectedRouteSegmentIndex,
-    routeGeometryRecords,
     transact,
     setStatus,
-    nextId: (prefix) => {
-      uniqueSuffixCounter.current += 1;
-      return `${prefix}-${uniqueSuffixCounter.current}`;
-    },
     beginTextPlacement: () =>
       startInsertFromHook({
         kind: "quick",
@@ -2804,7 +2811,6 @@ export function App({
           editAfterPlacement: true,
         },
       }),
-    selectAnnotation: (id) => selectOnly("annotation", [id]),
   });
   const {
     snapPoint: snapDraftingPoint,
@@ -2925,7 +2931,6 @@ export function App({
     },
     session: {
       wireSource,
-      wireWaypoints,
       wireDraftSteps,
       wireRoutingMode,
       wireCornerOrder,
@@ -2941,6 +2946,7 @@ export function App({
       setWireDraftSteps,
       setWireRoutingMode,
       setWireCornerOrder,
+      readCurrentWireSession,
     },
     selection: {
       selectedInstanceIds: selectedIds,
@@ -3268,7 +3274,7 @@ export function App({
   }, [document, visualSelection]);
 
   function openProperties(): void {
-    setCodePanel(null);
+    setProjectPanel(null);
     setImportReviewOpen(false);
     setSelectionOpen(true);
     // Focus the header, not the first field: Q stays a pure toggle and
@@ -3279,10 +3285,33 @@ export function App({
   }
 
   function closeProperties(): void {
-    setCodePanel(null);
     exitCellSymbolLayout();
     setSelectionOpen(false);
     setImportReviewOpen(false);
+  }
+
+  function showProjectPanel(mode: EditorProjectPanelMode): void {
+    exitCellSymbolLayout();
+    if (projectPanel === null) {
+      propertiesOpenBeforeProjectPanelRef.current = selectionOpen;
+    }
+    setProjectPanel(mode);
+    setSelectionOpen(false);
+    setImportReviewOpen(false);
+    if (compactLayout) setCompactLibraryPanelOpen(false);
+  }
+
+  function closeProjectPanel(): void {
+    setProjectPanel(null);
+    setSelectionOpen(propertiesOpenBeforeProjectPanelRef.current);
+  }
+
+  function toggleProjectPanel(mode: "netlist" | "project-code"): void {
+    if (projectPanel === mode) {
+      closeProjectPanel();
+      return;
+    }
+    showProjectPanel(mode);
   }
 
   function selectAllObjects(): void {
@@ -3596,21 +3625,6 @@ export function App({
     const command = pendingCellReset?.command ?? "Cell reset";
     setPendingCellReset(null);
     setStatus(command + " cancelled");
-  }
-
-  function updateMosBulkDefault(
-    kind: "nmos" | "pmos",
-    netId: string | null,
-  ): void {
-    const result = transact([
-      ...planMosBulkDefaultUpdate(document, kind, netId),
-    ]);
-    if (!result.ok) return;
-    setStatus(
-      `${kind === "nmos" ? "NMOS" : "PMOS"} bulk default ${
-        netId ? "updated" : "cleared"
-      }`,
-    );
   }
 
   function nextRoutingSuffix(): number {
@@ -3989,11 +4003,9 @@ export function App({
       guardDirtyReplacement,
       replaceActiveProject,
       showNetlist: (format, namingProfile) => {
-        setNetlistFormat(format);
+        netlistPreferences.selectFormat(format);
         setNetlistNamingProfile(namingProfile);
-        setCodePanel("netlist");
-        setSelectionOpen(true);
-        if (compactLayout) setCompactLibraryPanelOpen(false);
+        showProjectPanel("netlist");
       },
       setImportReport,
       setImportReviewOpen,
@@ -4147,9 +4159,6 @@ export function App({
         isTyping: isTypingTarget(event.target),
         hasUnsavedWork: hasUnsafeWork(),
         interactionMode: currentInteraction.kind,
-        hasRoutedMarkerSelection: Boolean(
-          selectedAnnotation && isRoutedMarker(selectedAnnotation),
-        ),
         canRotate: editorCommands.state({ id: "transform.rotate" }).enabled,
         canMirror: editorCommands.state({
           id: "transform.mirror",
@@ -4195,9 +4204,6 @@ export function App({
           return;
         case "open":
           projectInputRef.current?.click();
-          return;
-        case "reverse-current-marker":
-          reverseSelectedCurrentArrow();
           return;
         case "edit-net-label":
           activateTool("pointer");
@@ -4666,6 +4672,12 @@ export function App({
         searchOpen={searchOpen}
         selectionFilterOpen={selectionFilterOpen}
         onManageCells={() => setCellManagerOpen(true)}
+        onInsertComponent={() =>
+          editorCommands.execute({
+            id: "insert.start",
+            launch: fullInsertLaunch(),
+          })
+        }
         placeProjectCell={{
           enabled: cellInsertCandidates.length > 0,
           execute: placeCellInstance,
@@ -4760,23 +4772,19 @@ export function App({
               })
             : []
         }
-        instanceCodeOpen={codePanel === "instances" && selectionOpen}
+        instanceCodeOpen={projectPanel === "instances"}
         netlistPreflightOpen={netlistPreflightOpen}
         checkAndSave={{
           enabled: !saveBusy && !projectCheck.busy,
           execute: () => void projectCheck.checkAndSave(),
         }}
         onOpenInstanceCode={() => {
-          setCodePanel("instances");
-          setSelectionOpen(true);
-          if (compactLayout) setCompactLibraryPanelOpen(false);
+          showProjectPanel("instances");
         }}
         netlistProfileId={netlistPreferences.profile.id}
-        netlistFormat={netlistFormat}
+        netlistFormat={netlistPreferences.format}
         onOpenNetlistConfiguration={() => {
-          setCodePanel("configuration");
-          setSelectionOpen(true);
-          if (compactLayout) setCompactLibraryPanelOpen(false);
+          showProjectPanel("netlist-configuration");
         }}
         onOpenNetlistPreflight={() => setNetlistPreflightOpen(true)}
         onExportNetlist={exportDesignNetlist}
@@ -4807,18 +4815,14 @@ export function App({
         helpOpen={helpOpen}
         onOpenHelp={() => setHelpOpen(true)}
         drawingToolbar={{
-          arrowPreset,
-          onArrowPresetChange: (preset) => {
-            clearDraftingCreate();
-            setArrowPresetState(preset);
-            setStatus(
-              preset.family === "outline"
-                ? "Outline arrow: click to place, or drag to size (Esc cancels)"
-                : "Arrow: click the start point",
-            );
-          },
           leftPanelMode,
           libraryPanelOpen: visibleLibraryPanelOpen,
+          projectPanel:
+            projectPanel === "project-code"
+              ? "project-code"
+              : projectPanel
+                ? "netlist"
+                : null,
           leftPanelsDisabled: false,
           tool,
           documentSettingsOpen,
@@ -4832,11 +4836,8 @@ export function App({
           },
           onToggleExamples: toggleExamplesPanel,
           onToggleLibrary: toggleLibraryPanel,
-          onInsert: () =>
-            editorCommands.execute({
-              id: "insert.start",
-              launch: fullInsertLaunch(),
-            }),
+          onToggleNetlist: () => toggleProjectPanel("netlist"),
+          onToggleProjectCode: () => toggleProjectPanel("project-code"),
           onActivateTool: (nextTool) =>
             editorCommands.execute({
               id: "tool.activate",
@@ -4845,6 +4846,7 @@ export function App({
           onAddText: () => editorCommands.execute({ id: "drafting.add-text" }),
           onOpenDocumentSettings: () => {
             setDocumentSettingsOpen((open) => !open);
+            setProjectPanel(null);
             setSelectionOpen(true);
           },
           ...(timingUiEnabled
@@ -5112,14 +5114,15 @@ export function App({
                 open: netlistPreflightOpen,
                 project,
                 profile: netlistPreferences.profile,
+                format: netlistPreferences.format,
                 // The dialog only renders while open, so this IS the
                 // explicit check the author asked for.
                 electricalDiagnostics: requestElectricalDiagnostics(),
                 onClose: () => setNetlistPreflightOpen(false),
                 onNavigate: navigateToNetlistDiagnostic,
                 onNavigateElectrical: jumpToProjectDiagnostic,
-                onExport: (format, namingProfile) =>
-                  exportDesignNetlist(format, namingProfile),
+                onExport: (namingProfile) =>
+                  exportDesignNetlist(netlistPreferences.format, namingProfile),
               }
             : null
         }
@@ -5286,7 +5289,8 @@ export function App({
           } as CSSProperties
         }
       >
-        {selectionOpen && !analogSimulationMaximized ? (
+        {(selectionOpen || projectPanel !== null) &&
+        !analogSimulationMaximized ? (
           <div
             className="properties-resize-handle"
             role="separator"
@@ -5596,26 +5600,34 @@ export function App({
               </Suspense>
             ) : null
           }
-          properties={
-            <EditorPropertiesDock
-              open={selectionOpen}
-              configuration={
-                codePanel === "configuration" ? (
+          project={
+            projectPanel ? (
+              <EditorProjectDock onClose={closeProjectPanel}>
+                {projectPanel === "netlist-configuration" ? (
                   <NetlistProfileCode
                     text={netlistPreferences.text}
                     error={netlistPreferences.error}
                     onChange={netlistPreferences.changeText}
                   />
-                ) : codePanel === "netlist" ? (
+                ) : projectPanel === "netlist" ? (
                   <NetlistCodePanel
                     project={project}
-                    format={netlistFormat}
+                    format={netlistPreferences.format}
                     namingProfile={netlistNamingProfile}
                     profile={netlistPreferences.profile}
                     onProfileChange={netlistPreferences.selectProfile}
+                    onFormatChange={netlistPreferences.selectFormat}
+                    onMosTargetChange={netlistPreferences.setMosTarget}
+                    onReset={netlistPreferences.reset}
+                    onCopy={() =>
+                      exportDesignNetlist(
+                        netlistPreferences.format,
+                        netlistNamingProfile,
+                      )
+                    }
                     configurationError={netlistPreferences.error}
                   />
-                ) : codePanel === "instances" ? (
+                ) : projectPanel === "instances" ? (
                   <InstanceCodePanel
                     key={projectSessionId}
                     project={project}
@@ -5631,13 +5643,63 @@ export function App({
                       return committed;
                     }}
                   />
-                ) : undefined
-              }
+                ) : (
+                  <ProjectCodePanel
+                    project={project}
+                    onApply={(source, baseline) => {
+                      if (formatProjectCode(project) !== baseline) {
+                        return {
+                          ok: false,
+                          message:
+                            "The canvas or Agent changed this Project while you were editing. Reload the live code before applying.",
+                        };
+                      }
+                      const plan = planProjectCodeCommit(
+                        project,
+                        source,
+                        document.id,
+                      );
+                      if (!plan.ok) return plan;
+                      if (!plan.changed) {
+                        setStatus("Project Code is already up to date");
+                        return { ok: true };
+                      }
+                      try {
+                        resetInteractionState();
+                        const nextDocument = commitProjectStructure(
+                          plan.project,
+                          plan.activeDocumentId,
+                        );
+                        documentViewBoxes.current = new Map();
+                        setDocumentStack([]);
+                        setViewBox(
+                          DEFAULT_VIEWBOX,
+                          nextDocument.presentation.grid,
+                        );
+                        setStatus("Applied complete Project Code");
+                        return { ok: true };
+                      } catch (error) {
+                        return {
+                          ok: false,
+                          message:
+                            error instanceof Error
+                              ? error.message
+                              : "Could not apply Project Code",
+                        };
+                      }
+                    }}
+                  />
+                )}
+              </EditorProjectDock>
+            ) : null
+          }
+          properties={
+            <EditorPropertiesDock
+              open={selectionOpen}
               shelfRef={selectionShelfRef}
               onToggle={() => {
                 if (selectionOpen) {
                   exitCellSymbolLayout();
-                  setCodePanel(null);
                 }
                 // Narrow layouts have room for one side panel. Whichever the user
                 // just asked for wins.
@@ -5663,24 +5725,72 @@ export function App({
                 documentSettingsOpen
                   ? {
                       document,
-                      onApplyStyle: (styleOverrides) => {
-                        const result = transact([
-                          {
+                      canvas: {
+                        showGrid: gridDotsVisible,
+                        annotationGrid,
+                        drawAngle: drawAngleMode,
+                        scrollBehavior: wheelBehavior,
+                      },
+                      onApply: (value) => {
+                        const current = documentSettingsCodeValue(document, {
+                          showGrid: gridDotsVisible,
+                          annotationGrid,
+                          drawAngle: drawAngleMode,
+                          scrollBehavior: wheelBehavior,
+                        });
+                        const edits: SchematicEdit[] = [];
+                        if (
+                          JSON.stringify(value.appearance) !==
+                          JSON.stringify(current.appearance)
+                        ) {
+                          edits.push({
                             kind: "set_presentation_style",
                             styleProfileId:
                               document.presentation.styleProfileId,
-                            styleOverrides,
-                          },
-                        ]);
-                        if (result.ok) {
-                          setStatus(
-                            styleOverrides
-                              ? "Updated document style"
-                              : "Reset document style to profile defaults",
-                          );
+                            styleOverrides: normalizedStyleOverrides(
+                              value.appearance,
+                            ),
+                          });
                         }
+                        if (
+                          value.bulkDefaults.nmosNet !==
+                          current.bulkDefaults.nmosNet
+                        )
+                          edits.push(
+                            ...planMosBulkDefaultUpdate(
+                              document,
+                              "nmos",
+                              value.bulkDefaults.nmosNet,
+                            ),
+                          );
+                        if (
+                          value.bulkDefaults.pmosNet !==
+                          current.bulkDefaults.pmosNet
+                        )
+                          edits.push(
+                            ...planMosBulkDefaultUpdate(
+                              document,
+                              "pmos",
+                              value.bulkDefaults.pmosNet,
+                            ),
+                          );
+                        if (edits.length > 0 && !transact(edits).ok) {
+                          return {
+                            ok: false as const,
+                            message: "Style code was rejected",
+                          };
+                        }
+                        if (value.canvas.showGrid !== gridDotsVisible)
+                          setGridDotsVisible(value.canvas.showGrid);
+                        if (value.canvas.annotationGrid !== annotationGrid)
+                          setAnnotationGrid(value.canvas.annotationGrid);
+                        if (value.canvas.drawAngle !== drawAngleMode)
+                          setDrawAngleMode(value.canvas.drawAngle);
+                        if (value.canvas.scrollBehavior !== wheelBehavior)
+                          setWheelBehavior(value.canvas.scrollBehavior);
+                        setStatus("Updated Style code");
+                        return { ok: true as const };
                       },
-                      onChangeBulkDefault: updateMosBulkDefault,
                     }
                   : null
               }
@@ -6351,6 +6461,7 @@ export function App({
                   : null
               }
               netName={
+                selectedRouteId === null &&
                 selectedNetNameAnnotation &&
                 selectedNetNameClaim?.kind === "name-claim"
                   ? {
@@ -6408,87 +6519,13 @@ export function App({
               }}
               routeActions={{
                 active: selectedRouteId !== null,
+                document,
+                route: selectedRoute ?? null,
+                netLabel: selectedRouteNetLabel ?? null,
                 bulkOwnerLabel: selectedMosBulkOwnerLabel,
-                netLabelInputRef: netLabelPropertyInputRef,
-                netLabel: netLabelDraft,
-                color: selectedRoute?.styleOverride?.color,
-                arrow: selectedRoute?.styleOverride?.arrow,
-                lineStyle: selectedRoute?.styleOverride?.lineStyle,
                 defaultColor: styleProfile.foreground,
                 highlightActive: selectedHighlightIsActive,
-                onNetLabelChange: updateNetLabelDraft,
-                onColorChange: (color) => {
-                  if (!selectedRoute) return;
-                  const styleOverride = {
-                    ...(selectedRoute.styleOverride ?? {}),
-                  };
-                  if (color) styleOverride.color = color;
-                  else delete styleOverride.color;
-                  const result = transact([
-                    {
-                      kind: "set_route_style_override",
-                      routeId: selectedRoute.id,
-                      styleOverride:
-                        Object.keys(styleOverride).length > 0
-                          ? styleOverride
-                          : null,
-                    },
-                  ]);
-                  if (result.ok) {
-                    setStatus(
-                      color
-                        ? `Updated wire color for ${selectedRoute.id}`
-                        : `Reset wire color for ${selectedRoute.id}`,
-                    );
-                  }
-                },
-                onArrowChange: (arrow) => {
-                  if (!selectedRoute) return;
-                  const styleOverride = {
-                    ...(selectedRoute.styleOverride ?? {}),
-                  };
-                  if (arrow) styleOverride.arrow = arrow;
-                  else delete styleOverride.arrow;
-                  const result = transact([
-                    {
-                      kind: "set_route_style_override",
-                      routeId: selectedRoute.id,
-                      styleOverride:
-                        Object.keys(styleOverride).length > 0
-                          ? styleOverride
-                          : null,
-                    },
-                  ]);
-                  if (result.ok) {
-                    setStatus(
-                      arrow
-                        ? `Placed wire arrow at ${arrow} for ${selectedRoute.id}`
-                        : `Removed wire arrow from ${selectedRoute.id}`,
-                    );
-                  }
-                },
-                onLineStyleChange: (lineStyle) => {
-                  if (!selectedRoute) return;
-                  const styleOverride = {
-                    ...(selectedRoute.styleOverride ?? {}),
-                  };
-                  if (lineStyle === "solid") delete styleOverride.lineStyle;
-                  else styleOverride.lineStyle = lineStyle;
-                  const result = transact([
-                    {
-                      kind: "set_route_style_override",
-                      routeId: selectedRoute.id,
-                      styleOverride:
-                        Object.keys(styleOverride).length > 0
-                          ? styleOverride
-                          : null,
-                    },
-                  ]);
-                  if (result.ok)
-                    setStatus(`Updated wire line style to ${lineStyle}`);
-                },
-                onDeleteNetLabel: deleteSelectedRouteNetLabel,
-                onAddCurrentArrow: addCurrentArrow,
+                onApply: applyRouteProperties,
                 onToggleHighlight: toggleHighlightedNet,
                 onDeleteWire: deleteSelectedRouteConnection,
               }}
@@ -6513,7 +6550,6 @@ export function App({
                       ? "net-label"
                       : null,
                 highlightActive: selectedHighlightIsActive,
-                onReverseCurrentArrow: reverseSelectedCurrentArrow,
                 onDeleteCurrentArrow: deleteSelectedAnnotation,
                 onToggleHighlight: toggleHighlightedNet,
               }}
@@ -6723,6 +6759,7 @@ export function App({
             mirror: componentPlacementMirror,
           }}
           wiring={{
+            viewBox,
             netLabelPlacement,
             netLabelEditorInputRef,
             onNetLabelDraftChange: updateNetLabelPlacementDraft,
@@ -7055,11 +7092,6 @@ export function App({
             },
             onTextDelete: deleteTextEditing,
             onRestoreReference: restoreTextReference,
-            ...(editingAnnotation &&
-            isRoutedMarker(editingAnnotation) &&
-            effectiveRouteAttachment(editingAnnotation)
-              ? { onReverseCurrentArrow: reverseSelectedCurrentArrow }
-              : {}),
           }}
         />
         {canvasContextMenu ? (
@@ -7160,13 +7192,6 @@ export function App({
         wireRoutingMode={wireRoutingMode}
         wireCornerOrder={wireCornerOrder}
         recoveryLabel={isDirtyWork() ? recoveryStateLabel(recoveryState) : null}
-        gridDotsVisible={gridDotsVisible}
-        annotationGrid={annotationGrid}
-        onAnnotationGridChange={setAnnotationGrid}
-        drawAngleMode={drawAngleMode}
-        onDrawAngleModeChange={setDrawAngleMode}
-        wheelBehavior={wheelBehavior}
-        onWheelBehaviorChange={setWheelBehavior}
         zoomPercent={zoomPercent}
         selectionFilterSummary={selectionFilterSummary(selectionFilter)}
         onOpenSelectionFilter={() =>
@@ -7181,14 +7206,6 @@ export function App({
         onToggleWireOptions={() => setWireOptionsOpen((open) => !open)}
         onWireRoutingModeChange={setWireRoutingMode}
         onWireCornerOrderChange={setWireCornerOrder}
-        onToggleGridDots={() =>
-          setGridDotsVisible((visible) => {
-            setStatus(
-              visible ? "Background dots hidden" : "Background dots shown",
-            );
-            return !visible;
-          })
-        }
         onOpenAnalytics={() => {
           void guardDirtyReplacement("Open Analytics", () => {
             allowNextBrowserUnload();

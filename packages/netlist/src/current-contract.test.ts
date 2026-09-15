@@ -196,9 +196,9 @@ describe("current formal cell interface", () => {
       result.diagnostics.filter((item) => item.severity === "error"),
     ).toEqual([]);
     const spice = printSpiceNetlist(result.ir!);
-    expect(spice).toContain("M2 net0 NC0001 net1 0");
-    expect(spice).toContain("M7 net0 net0 NC0002 0");
-    expect(spice).toContain("M9 net1 NC0005 NC0006 0");
+    expect(spice).toContain("M2 net0 NC0001 net1 VSS");
+    expect(spice).toContain("M7 net0 net0 NC0002 VSS");
+    expect(spice).toContain("M9 net1 NC0005 NC0006 VSS");
     expect(spice).not.toMatch(/M[79]_[DG]/u);
   });
 
@@ -260,12 +260,24 @@ describe("current formal cell interface", () => {
     const result = analyzeDesignNetlist(project);
     expect(result.diagnostics).toEqual([]);
     expect(result.ir?.cells[0]?.ports).toEqual([
+      {
+        id: deriveStableId("default-cell-supply", document.id, "VDD"),
+        name: "VDD",
+        netName: "VDD",
+      },
+      {
+        id: deriveStableId("default-cell-supply", document.id, "VSS"),
+        name: "VSS",
+        netName: "VSS",
+      },
       { id: "net-in", name: "VIN", netName: "VIN" },
       { id: "net-out", name: "VOUT", netName: "VOUT" },
     ]);
     expect(result.ir?.cells[0]?.nets.map((net) => net.name)).toEqual([
       "VIN",
       "VOUT",
+      "VDD",
+      "VSS",
     ]);
   });
 
@@ -334,6 +346,8 @@ describe("current formal cell interface", () => {
       }),
     ]);
     expect(result.ir?.cells[0]?.ports).toEqual([
+      expect.objectContaining({ name: "VDD", netName: "VDD" }),
+      expect.objectContaining({ name: "VSS", netName: "VSS" }),
       {
         id: "net-vin-a",
         name: "VIN",
@@ -346,9 +360,11 @@ describe("current formal cell interface", () => {
     ]);
     expect(result.ir?.cells[0]?.nets).toEqual([
       { id: "net-vin-a", name: "VIN", scope: "local" },
+      expect.objectContaining({ name: "VDD", scope: "local" }),
+      expect.objectContaining({ name: "VSS", scope: "local" }),
     ]);
     expect(printSpiceNetlist(result.ir!)).toContain(
-      ".subckt same_name_ports VIN\nR1 VIN VIN 1k",
+      ".subckt same_name_ports VDD VSS VIN\nR1 VIN VIN 1k",
     );
     expect(project).toEqual(before);
   });
@@ -385,6 +401,8 @@ describe("current formal cell interface", () => {
     expect(result.diagnostics).toEqual([]);
     expect(result.ir?.cells[0]?.nets).toEqual([
       { id: "net-a", name: "BIAS", scope: "local" },
+      expect.objectContaining({ name: "VDD", scope: "local" }),
+      expect.objectContaining({ name: "VSS", scope: "local" }),
     ]);
     expect(result.ir?.cells[0]?.instances[0]?.nodes).toEqual([
       { pinName: "1", netName: "BIAS" },
@@ -801,6 +819,8 @@ describe("current formal cell interface", () => {
     expect(result.ir?.globals).toEqual(["BIAS"]);
     expect(result.ir?.cells[0]?.nets).toEqual([
       { id: "net-global", name: "BIAS", scope: "global" },
+      expect.objectContaining({ name: "VDD", scope: "local" }),
+      expect.objectContaining({ name: "VSS", scope: "local" }),
     ]);
   });
 
@@ -1064,6 +1084,10 @@ describe("current formal cell interface", () => {
       scope: "global",
     });
     expect(result.ir?.globals).toEqual(["VDD"]);
+    expect(result.ir?.cells[0]?.ports).toEqual([
+      expect.objectContaining({ name: "VSS", netName: "VSS" }),
+    ]);
+    expect(printSpiceNetlist(result.ir!)).toContain(".subckt dut VSS");
   });
 
   it("exports formal VDD Power as a local Cell Pin and reuses it for an implicit PMOS bulk", () => {
@@ -1108,6 +1132,11 @@ describe("current formal cell interface", () => {
     expect(result.ir?.globals).toEqual([]);
     expect(result.ir?.cells[0]?.ports).toEqual([
       { id: "net-vdd", name: "VDD", netName: "VDD" },
+      {
+        id: deriveStableId("default-cell-supply", document.id, "VSS"),
+        name: "VSS",
+        netName: "VSS",
+      },
     ]);
     expect(result.ir?.cells[0]?.instances[0]?.nodes[3]).toEqual({
       pinName: "B",
@@ -1475,11 +1504,11 @@ describe("current formal cell interface", () => {
       const result = analyzeDesignNetlist(project, { format });
 
       expect(result.diagnostics).toEqual([]);
-      expect(result.ir?.globals).toEqual(["0", "VDD"]);
+      expect(result.ir?.globals).toEqual([]);
       expect(
         result.ir?.cells[0]!.instances.map((instance) => instance.nodes[3]),
       ).toEqual([
-        { pinName: "B", netName: "0" },
+        { pinName: "B", netName: "VSS" },
         { pinName: "B", netName: "VDD" },
         { pinName: "B", netName: "VSSB" },
         { pinName: "B", netName: "VBP" },
@@ -1487,15 +1516,17 @@ describe("current formal cell interface", () => {
       const text = printDesignNetlist(format, result.ir!).text;
       expect(text).toMatch(
         format === "spice"
-          ? /M1 M1_D M1_G M1_S 0 NMOS_MODEL/u
-          : /M1 \(M1_D M1_G M1_S 0\) NMOS_MODEL/u,
+          ? /M1 M1_D M1_G M1_S VSS NMOS_MODEL/u
+          : /M1 \(M1_D M1_G M1_S VSS\) NMOS_MODEL/u,
       );
       expect(text).toMatch(
         format === "spice"
           ? /M2 M2_D M2_G M2_S VDD PMOS_MODEL/u
           : /M2 \(M2_D M2_G M2_S VDD\) PMOS_MODEL/u,
       );
-      expect(text).toContain(format === "spice" ? ".global VDD" : "global VDD");
+      expect(text).toContain(
+        format === "spice" ? ".subckt dut VDD VSS" : "subckt dut (VDD VSS)",
+      );
     },
   );
 });

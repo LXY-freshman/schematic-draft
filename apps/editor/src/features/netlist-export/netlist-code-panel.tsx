@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import type { CircuitProject } from "@icm/model";
 import {
   createDesignNetlistExport,
@@ -10,6 +10,10 @@ import {
   type NetlistProfileId,
 } from "@icm/netlist";
 
+const ProjectTextEditor = lazy(
+  () => import("../project-code/project-text-editor"),
+);
+
 /** Live structural output. Diagnostics belong outside the copyable code. */
 export function NetlistCodePanel({
   project,
@@ -17,6 +21,10 @@ export function NetlistCodePanel({
   namingProfile,
   profile,
   onProfileChange,
+  onFormatChange,
+  onMosTargetChange,
+  onCopy,
+  onReset,
   configurationError,
 }: {
   project: CircuitProject;
@@ -24,6 +32,10 @@ export function NetlistCodePanel({
   namingProfile: NetlistNamingProfile;
   profile: NetlistExportProfile;
   onProfileChange(profile: NetlistProfileId): void;
+  onFormatChange(format: NetlistFormat): void;
+  onMosTargetChange(family: "nmos" | "pmos", target: string): void;
+  onCopy(): void;
+  onReset(): void;
   configurationError: string | null;
 }) {
   const result = useMemo(
@@ -43,32 +55,93 @@ export function NetlistCodePanel({
       ? (result.diagnostics.find((item) => item.severity === "error")
           ?.message ?? "Resolve the Check Report findings before copying")
       : null;
+  const source = result?.status === "ready" ? result.file.text : "";
   return (
     <section className="netlist-profile-code" aria-label="Live netlist">
-      <header className="netlist-code-header">
-        <h2>Netlist</h2>
-        <select
-          aria-label="Netlist preset"
-          value={profile.id}
-          onChange={(event) =>
-            onProfileChange(event.currentTarget.value as NetlistProfileId)
-          }
+      <div className="netlist-code-controls">
+        <label>
+          Format
+          <select
+            aria-label="Netlist format"
+            value={format}
+            onChange={(event) =>
+              onFormatChange(event.currentTarget.value as NetlistFormat)
+            }
+          >
+            <option value="spice">SPICE</option>
+            <option value="spectre">SCS</option>
+          </select>
+        </label>
+        <label>
+          Process
+          <select
+            aria-label="Netlist process"
+            value={profile.id}
+            onChange={(event) =>
+              onProfileChange(event.currentTarget.value as NetlistProfileId)
+            }
+          >
+            {NETLIST_PROFILE_IDS.map((id) => (
+              <option key={id} value={id}>
+                {NETLIST_PROFILE_LABELS[id]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          className="netlist-code-copy"
+          data-testid="copy-netlist-panel"
+          aria-label="Copy netlist"
+          title="Copy netlist"
+          onClick={onCopy}
         >
-          {NETLIST_PROFILE_IDS.map((id) => (
-            <option key={id} value={id}>
-              {NETLIST_PROFILE_LABELS[id]} ·{" "}
-              {format === "spice" ? "SPICE" : "SCS"}
-            </option>
-          ))}
-        </select>
-      </header>
-      <textarea
-        aria-label="Netlist code"
-        value={result?.status === "ready" ? result.file.text : ""}
-        readOnly
-        spellCheck={false}
-        wrap="off"
-      />
+          <svg viewBox="0 0 20 20" aria-hidden="true">
+            <path
+              d="M7 7h10v10H7z M13 7V3H3v10h4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      </div>
+      <Suspense
+        fallback={
+          <textarea
+            aria-label="Loading Netlist code editor"
+            value={source}
+            readOnly
+          />
+        }
+      >
+        <ProjectTextEditor
+          ariaLabel="Netlist code"
+          language="netlist"
+          value={source}
+          readOnly
+          invalid={!!error}
+        />
+      </Suspense>
+      <div className="netlist-device-mapping" aria-label="MOS device mapping">
+        {(["nmos", "pmos"] as const).map((family) => (
+          <label key={family}>
+            <span>{family.toUpperCase()}</span>
+            <input
+              aria-label={`${family.toUpperCase()} netlist target`}
+              value={profile.devices[family].target}
+              onChange={(event) =>
+                onMosTargetChange(family, event.currentTarget.value.trim())
+              }
+              spellCheck={false}
+              autoCapitalize="off"
+              autoCorrect="off"
+            />
+          </label>
+        ))}
+      </div>
       {error ? (
         <p role="alert">{error}</p>
       ) : result?.status === "ready" && result.placeholders.length ? (
@@ -77,6 +150,11 @@ export function NetlistCodePanel({
           Report.
         </p>
       ) : null}
+      <div className="netlist-default-action">
+        <button type="button" onClick={onReset}>
+          Default
+        </button>
+      </div>
     </section>
   );
 }

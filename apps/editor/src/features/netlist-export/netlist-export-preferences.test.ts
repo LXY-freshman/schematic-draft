@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  createDefaultNetlistExportPreferences,
   readNetlistExportPreferences,
+  selectNetlistExportFormat,
   selectNetlistExportProfile,
+  setNetlistExportMosTarget,
 } from "./netlist-export-preferences.js";
 
 describe("netlist export preferences", () => {
   it("restores independent edited presets and the selected preset", () => {
     const preferences = readNetlistExportPreferences(null);
     preferences.selected = "custom";
+    preferences.format = "spectre";
     preferences.profiles.custom.devices.resistor.parameters.value = "3k";
     expect(readNetlistExportPreferences(JSON.stringify(preferences))).toEqual(
       preferences,
@@ -40,6 +44,7 @@ describe("netlist export preferences", () => {
     const restored = readNetlistExportPreferences(JSON.stringify(legacy));
 
     expect(restored.selected).toBe("custom");
+    expect(restored.format).toBe("spice");
     expect(restored.profiles.custom.devices.resistor.parameters.value).toBe(
       "7k",
     );
@@ -57,6 +62,43 @@ describe("netlist export preferences", () => {
     expect(selected.profiles.custom.devices.capacitor.parameters.value).toBe(
       "8p",
     );
+  });
+
+  it("selects the output format independently from the process", () => {
+    const preferences = readNetlistExportPreferences(null);
+    const selected = selectNetlistExportFormat(preferences, "spectre");
+
+    expect(selected.format).toBe("spectre");
+    expect(selected.selected).toBe("abstract");
+    expect(selected.profiles).toBe(preferences.profiles);
+  });
+  it("edits MOS targets only in the selected process", () => {
+    const preferences = readNetlistExportPreferences(null);
+    preferences.selected = "tsmc28";
+
+    const nmos = setNetlistExportMosTarget(preferences, "nmos", "custom_nch");
+    const pmos = setNetlistExportMosTarget(nmos, "pmos", "custom_pch");
+
+    expect(pmos.profiles.tsmc28.devices.nmos.target).toBe("custom_nch");
+    expect(pmos.profiles.tsmc28.devices.pmos.target).toBe("custom_pch");
+    expect(pmos.profiles.abstract.devices.nmos.target).toBe("NMOS");
+    expect(pmos.profiles.abstract.devices.pmos.target).toBe("PMOS");
+    expect(preferences.profiles.tsmc28.devices.nmos.target).toBe(
+      "nch_ulvt_mac",
+    );
+  });
+  it("rebuilds every preset when restoring defaults", () => {
+    const preferences = readNetlistExportPreferences(null);
+    preferences.selected = "tsmc28";
+    preferences.format = "spectre";
+    preferences.profiles.tsmc28.devices.nmos.target = "custom_nch";
+
+    const restored = createDefaultNetlistExportPreferences();
+
+    expect(restored).toEqual(readNetlistExportPreferences(null));
+    expect(restored.selected).toBe("abstract");
+    expect(restored.format).toBe("spice");
+    expect(restored.profiles.tsmc28.devices.nmos.target).toBe("nch_ulvt_mac");
   });
   it.each(["{", "null", "[]", '{"selected":"custom","profiles":{}}'])(
     "recovers malformed preferences: %s",

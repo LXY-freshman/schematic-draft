@@ -117,7 +117,7 @@ is defined.
   Double-click a note or visual annotation to edit its fractions again.
   Both parts stay centered under the same axis, and the bar follows the wider part.
   Use **ƒx** for a complete mathematical formula such as `\frac{1}{g_{mN}} + R_1`.
-- Press `R` to rotate, `F` to fit, `X` to reverse a selected current arrow,
+- Press `R` to rotate, `F` to fit,
   `Ctrl+Z` to undo, and `Ctrl+Y` or `Ctrl+Shift+Z` to redo. Shortcuts do not
   fire while typing in a field.
 - Use `Ctrl`+mouse wheel to zoom around the cursor and middle-button drag to
@@ -344,7 +344,7 @@ Build the versioned bundle and start it with Node 24:
 
 ```powershell
 pnpm release:package
-node output/release/interactive-circuit-maker-v0.7.0/start.mjs
+node output/release/interactive-circuit-maker-v0.8.0/start.mjs
 ```
 
 Open `http://127.0.0.1:4173`. Chromium can install the app from its browser

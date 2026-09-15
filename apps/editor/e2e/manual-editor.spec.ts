@@ -18,7 +18,9 @@ import {
   downloadBytes,
   copyNetlistText,
   editComponentPropertyCode,
+  editDocumentStyleCode,
   readComponentPropertyCode,
+  readDocumentStyleCode,
   setComponentParameter,
   setComponentCodeField,
   expectComponentCodeField,
@@ -929,7 +931,7 @@ test("opens netlist preflight and navigates its canonical finding", async ({
     .getByRole("button", { name: /MISSING_PIN_NET/u })
     .first()
     .click();
-  await expect(page.getByTestId("active-document-name")).toHaveText("Main");
+  await expect(page.getByTestId("active-document-name")).toHaveText("dut");
   await expect(page.getByTestId("status")).toContainText("Preflight:");
   await expect(dialog).toBeVisible();
 
@@ -946,11 +948,18 @@ test("previews a validated structural netlist in both export dialects", async ({
   page,
 }) => {
   await page.goto("/editor");
+  await page.getByTestId("netlist-panel-toggle").click();
+  const netlistPanel = page.getByRole("region", {
+    name: "Live netlist",
+    exact: true,
+  });
   await clickCommand(page, "Netlist", "Check Report…");
   const dialog = page.getByRole("dialog", { name: "Check Report" });
   const preview = dialog.getByTestId("netlist-preview");
-  await expect(preview).toContainText(".subckt Main");
-  await dialog.getByLabel("Netlist export format").selectOption("spectre");
+  await expect(preview).toContainText(".subckt dut");
+  await dialog.getByTestId("check-report-close").click();
+  await netlistPanel.getByLabel("Netlist format").selectOption("spectre");
+  await clickCommand(page, "Netlist", "Check Report…");
   await expect(preview).toContainText("simulator lang=spectre");
 });
 
@@ -1064,15 +1073,33 @@ async function dragRouteSegment(
   routeId: string,
   delta: { x: number; y: number },
   position = 0.5,
-  segmentIndex = 0,
+  segmentIndex?: number,
   duringDrag?: () => Promise<void>,
 ): Promise<void> {
   const route = page.getByTestId(`route-hit-${routeId}`);
   const point = await route.evaluate(
     (element, options) => {
       const polyline = element as SVGPolylineElement;
-      const from = polyline.points.getItem(options.segmentIndex);
-      const to = polyline.points.getItem(options.segmentIndex + 1);
+      let index = options.segmentIndex;
+      if (index === undefined) {
+        index = 0;
+        let longest = -1;
+        for (
+          let candidate = 0;
+          candidate < polyline.points.numberOfItems - 1;
+          candidate += 1
+        ) {
+          const from = polyline.points.getItem(candidate);
+          const to = polyline.points.getItem(candidate + 1);
+          const length = Math.hypot(to.x - from.x, to.y - from.y);
+          if (length > longest) {
+            longest = length;
+            index = candidate;
+          }
+        }
+      }
+      const from = polyline.points.getItem(index);
+      const to = polyline.points.getItem(index + 1);
       const matrix = polyline.getScreenCTM();
       if (!from || !to || !matrix) return null;
       return new DOMPoint(
@@ -2286,6 +2313,88 @@ test("connects one MOS Gate to Drain without false contact ambiguity", async ({
   ).toHaveCount(0);
 });
 
+test("commits two endpoint presses even before React publishes the first one", async ({
+  page,
+}) => {
+  await page.goto("/editor");
+  await placeComponent(page, "resistor", { x: 340, y: 220 });
+  await placeComponent(page, "resistor", { x: 660, y: 220 });
+  await clickDrawTool(page, "wire");
+
+  // Both presses run in one browser task. The interaction reducer has already
+  // accepted the first endpoint, but React has no chance to render that source
+  // into the second handler's closure. The handler must read the synchronous
+  // interaction state or this silently replaces the source with R2.
+  await page.evaluate(() => {
+    for (const id of ["terminal-R1-2", "terminal-R2-1"]) {
+      const endpoint = document.querySelector(`[data-testid="${id}"]`);
+      if (!endpoint) throw new Error(`Missing ${id}`);
+      endpoint.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          button: 0,
+          pointerId: 1,
+        }),
+      );
+    }
+  });
+
+  await expect(page.getByTestId("status")).toContainText("Committed route");
+  await expect(page.locator('[data-layer="routes"] polyline')).toHaveCount(1);
+});
+
+test("automatic endpoint wiring chooses a clear orthogonal corner", async ({
+  page,
+}) => {
+  await page.goto("/editor");
+  await placeComponent(page, "nmos", { x: 200, y: 200 });
+  await placeComponent(page, "nmos", { x: 600, y: 400 });
+  await placeComponent(page, "resistor", { x: 400, y: 200 });
+  await clickDrawTool(page, "wire");
+  await page.getByTestId("terminal-M1-G").click();
+  await page.getByTestId("terminal-M2-G").hover();
+
+  const preview = await page.getByTestId("wire-preview").evaluate((element) =>
+    Array.from((element as SVGPolylineElement).points).map(({ x, y }) => ({
+      x,
+      y,
+    })),
+  );
+  expect(preview.length).toBeGreaterThanOrEqual(3);
+  expect(preview[1]!.x).toBeLessThan(preview[0]!.x);
+  expect(preview[1]!.y).toBe(preview[0]!.y);
+
+  await page.getByTestId("terminal-M2-G").click();
+  await expect(page.getByTestId("status")).toContainText("Committed route");
+  expect(await readRoutePoints(page, "route-ui-1")).toEqual(preview);
+});
+
+test("automatic endpoint wiring enters a MOS bottom pin from below", async ({
+  page,
+}) => {
+  await page.goto("/editor");
+  await placeComponent(page, "nmos", { x: 200, y: 400 });
+  await placeComponent(page, "nmos", { x: 600, y: 200 });
+  await clickDrawTool(page, "wire");
+  await page.getByTestId("terminal-M1-G").click();
+  await page.getByTestId("terminal-M2-S").hover();
+
+  const preview = await page.getByTestId("wire-preview").evaluate((element) =>
+    Array.from((element as SVGPolylineElement).points).map(({ x, y }) => ({
+      x,
+      y,
+    })),
+  );
+  const target = preview.at(-1)!;
+  const beforeTarget = preview.at(-2)!;
+  expect(beforeTarget.x).toBe(target.x);
+  expect(beforeTarget.y).toBeGreaterThan(target.y);
+
+  await page.getByTestId("terminal-M2-S").click();
+  await expect(page.getByTestId("status")).toContainText("Committed route");
+  expect(await readRoutePoints(page, "route-ui-1")).toEqual(preview);
+});
+
 test("keeps three collinear MOS Gates connected without a junction dot", async ({
   page,
 }) => {
@@ -2303,7 +2412,10 @@ test("keeps three collinear MOS Gates connected without a junction dot", async (
   await page.getByTestId("terminal-M2-G").click();
   await page.getByTestId("terminal-M3-G").click();
   await expect(page.getByTestId("status")).toContainText("Committed route");
-  await expect(page.locator('[data-layer="routes"] polyline')).toHaveCount(2);
+  // Both wires must approach M2.G from its outward side. Their shared escape
+  // stub is normalized into a third Route while remaining one electrical Net.
+  await expect(page.locator('[data-layer="routes"] polyline')).toHaveCount(3);
+  await expect(page.getByTestId("net-count")).toHaveText("1");
   await expect(
     page.locator('[data-layer="junctions"] [data-node-kind="contact"]'),
   ).toHaveCount(0);
@@ -2409,30 +2521,24 @@ test("colors an electrical wire and restores the Razavi default with Auto", asyn
   const wire = page.locator(
     '[data-layer="routes"] [data-object-id="route-ui-1"]',
   );
-  await expect(page.getByLabel("Wire color hex value")).toHaveText("Automatic");
-  const presets = page.getByLabel("Wire color presets");
-  await expect
-    .poll(async () => (await presets.boundingBox())?.width ?? 0)
-    .toBeGreaterThan(200);
-  const swatchWidths = await presets
-    .locator(".component-color-swatch span")
-    .evaluateAll((swatches) =>
-      swatches.map((swatch) => swatch.getBoundingClientRect().width),
-    );
-  expect(swatchWidths).toHaveLength(4);
-  expect(Math.min(...swatchWidths)).toBeGreaterThanOrEqual(16);
-  await page.locator("summary", { hasText: /^RGB$/u }).click();
-  await page.getByLabel("Wire color red").fill("204");
-  await page.getByLabel("Wire color green").fill("34");
+  expect(
+    JSON.parse(await readComponentPropertyCode(page)).appearance.color,
+  ).toBe("auto");
+  await editComponentPropertyCode(page, (code) => {
+    code.appearance.color = [204, 34, 0];
+  });
   await expect(wire).toHaveAttribute("stroke", "#cc2200");
   await expect(page.getByTestId("status")).toContainText(
-    "Updated wire color for route-ui-1",
+    "Updated Route route-ui-1",
   );
 
-  await page.getByTitle("Use the document ink color").click();
+  await editComponentPropertyCode(page, (code) => {
+    code.appearance.color = "auto";
+  });
   await expect(wire).toHaveAttribute("stroke", "#000");
-  await expect(page.getByLabel("Wire color hex value")).toHaveText("Automatic");
-  await expect(page.getByTitle("Use the document ink color")).toBeDisabled();
+  expect(
+    JSON.parse(await readComponentPropertyCode(page)).appearance.color,
+  ).toBe("auto");
 });
 
 test("fills a closed shape and moves it behind or in front of circuit artwork", async ({
@@ -2524,14 +2630,21 @@ test("changes wire line style while preserving color, arrow, export and undo", a
   await page.keyboard.press("Escape");
   await clickRoute(page, "route-ui-1");
   await openSelectionShelf(page);
-  const style = page.getByLabel("Wire line style");
   const conductor = page.locator(
     '[data-layer="routes"] polyline[data-object-id="route-ui-1"]',
   );
-  await expect(style).toHaveValue("solid");
-  await page.getByLabel("Wire direction arrow").selectOption("end");
-  await page.getByRole("button", { name: "Use Red for wire color" }).click();
-  await style.selectOption("dashed");
+  expect(JSON.parse(await readComponentPropertyCode(page)).appearance).toEqual({
+    color: "auto",
+    lineStyle: "solid",
+    directionArrow: "none",
+  });
+  await editComponentPropertyCode(page, (code) => {
+    code.appearance = {
+      color: [220, 38, 38],
+      lineStyle: "dashed",
+      directionArrow: "end",
+    };
+  });
   await expect(conductor).toHaveAttribute("stroke-dasharray", "6 4");
   await expect(conductor).toHaveAttribute("stroke", "#dc2626");
   const arrow = page.locator(
@@ -2539,13 +2652,19 @@ test("changes wire line style while preserving color, arrow, export and undo", a
   );
   await expect(arrow).toHaveAttribute("data-arrow-position", "end");
   await expect(arrow).toHaveAttribute("fill", "#dc2626");
-  await style.selectOption("dotted");
+  await editComponentPropertyCode(page, (code) => {
+    code.appearance.lineStyle = "dotted";
+  });
   await expect(conductor).toHaveAttribute("stroke-dasharray", "2 3");
   await clickCommand(page, "Edit", "Undo");
-  await expect(style).toHaveValue("dashed");
+  expect(
+    JSON.parse(await readComponentPropertyCode(page)).appearance.lineStyle,
+  ).toBe("dashed");
   await expect(conductor).toHaveAttribute("stroke-dasharray", "6 4");
   await clickCommand(page, "Edit", "Redo");
-  await expect(style).toHaveValue("dotted");
+  expect(
+    JSON.parse(await readComponentPropertyCode(page)).appearance.lineStyle,
+  ).toBe("dotted");
   const saved = await downloadBytes(page, "File", "Export Project File…");
   expect(
     JSON.parse(saved.toString("utf8")).documents[0].routes[0].styleOverride,
@@ -2570,9 +2689,13 @@ test("changes wire line style while preserving color, arrow, export and undo", a
   });
   await clickRoute(page, "route-ui-1");
   await openSelectionShelf(page);
-  await expect(style).toHaveValue("dotted");
+  expect(
+    JSON.parse(await readComponentPropertyCode(page)).appearance.lineStyle,
+  ).toBe("dotted");
   await expect(conductor).toHaveAttribute("stroke", "#dc2626");
-  await style.selectOption("solid");
+  await editComponentPropertyCode(page, (code) => {
+    code.appearance.lineStyle = "solid";
+  });
   await expect(conductor).not.toHaveAttribute("stroke-dasharray");
   await expect(arrow).toHaveAttribute("data-arrow-position", "end");
 });
@@ -2590,25 +2713,32 @@ test("places and clears an independent direction arrow on one wire", async ({
 
   await clickRoute(page, "route-ui-1");
   await openSelectionShelf(page);
-  const control = page.getByLabel("Wire direction arrow");
   const arrow = page.locator(
     '[data-layer="routes"] [data-role="route-direction-arrow"]',
   );
 
-  await control.selectOption("middle");
+  await editComponentPropertyCode(page, (code) => {
+    code.appearance.directionArrow = "middle";
+  });
   await expect(arrow).toHaveAttribute("data-arrow-position", "middle");
   await expect(arrow).toHaveAttribute("pointer-events", "none");
   await expect(page.getByTestId("status")).toContainText(
-    "Placed wire arrow at middle",
+    "Updated Route route-ui-1",
   );
 
-  await control.selectOption("end");
+  await editComponentPropertyCode(page, (code) => {
+    code.appearance.directionArrow = "end";
+  });
   await expect(arrow).toHaveCount(1);
   await expect(arrow).toHaveAttribute("data-arrow-position", "end");
 
-  await control.selectOption("none");
+  await editComponentPropertyCode(page, (code) => {
+    code.appearance.directionArrow = "none";
+  });
   await expect(arrow).toHaveCount(0);
-  await expect(page.getByTestId("status")).toContainText("Removed wire arrow");
+  await expect(page.getByTestId("status")).toContainText(
+    "Updated Route route-ui-1",
+  );
 });
 
 test("keeps Wire active for consecutive independent routes until Escape", async ({
@@ -3109,9 +3239,7 @@ test("stretches the pointed segment of a selected attached wire", async ({
   const after = await readRoutePoints(page, "route-ui-1");
   expect(after[0]).toEqual(before[0]);
   expect(after.at(-1)).toEqual(before.at(-1));
-  expect(
-    after.some((point) => !before.some((prior) => prior.y === point.y)),
-  ).toBe(true);
+  expect(after).not.toEqual(before);
 });
 
 test("keeps a BJT base connection as an ordinary solid wire", async ({
@@ -3147,9 +3275,13 @@ test("keeps direct device pin corners on-grid and deletes a selected junction", 
   await page.getByTestId("terminal-R1-1").click();
 
   const terminalRoute = await readRoutePoints(page, "route-ui-1");
-  expect(terminalRoute).toHaveLength(3);
-  expect(terminalRoute[0]!.y).toBe(terminalRoute[1]!.y);
-  expect(terminalRoute[1]!.x).toBe(terminalRoute[2]!.x);
+  expect(terminalRoute.length).toBeGreaterThanOrEqual(3);
+  expect(
+    terminalRoute.slice(0, -1).every((point, index) => {
+      const next = terminalRoute[index + 1]!;
+      return point.x === next.x || point.y === next.y;
+    }),
+  ).toBe(true);
   expect(
     terminalRoute.every(
       (point) => Math.abs(point.x % 10) === 0 && Math.abs(point.y % 10) === 0,
@@ -3323,9 +3455,6 @@ test("moves internal wiring with a selected group and copies the routed subgraph
   await page.getByTestId("terminal-R1-2").click();
   await page.getByTestId("terminal-R2-1").click();
   await page.keyboard.press("Escape");
-  await clickRoute(page, "route-ui-1", 0.5, 0);
-  await openSelectionShelf(page);
-  await page.getByRole("button", { name: "Add current arrow" }).click();
 
   await page.keyboard.press("Control+a");
   await expect(page.getByTestId("selected-internal-route-count")).toHaveText(
@@ -3342,7 +3471,7 @@ test("moves internal wiring with a selected group and copies the routed subgraph
     "route-ui-1",
     { x: 90, y: 70 },
     0.35,
-    0,
+    undefined,
     async () => {
       await expect
         .poll(() => readRoutePoints(page, "route-ui-1"))
@@ -3350,7 +3479,7 @@ test("moves internal wiring with a selected group and copies the routed subgraph
       await expect(page.getByTestId("schematic-canvas")).toHaveClass(
         /semantic-move-preview/u,
       );
-      await expect(page.getByTestId("revision")).toHaveText("4");
+      await expect(page.getByTestId("revision")).toHaveText("3");
       expect(
         await page
           .locator('[data-layer="routes"] [data-object-id="route-ui-1"]')
@@ -3410,97 +3539,22 @@ test("keeps an internal junction with the live group preview", async ({
   const routeTestId = await routeHit.getAttribute("data-testid");
   if (!routeTestId) throw new Error("Internal route has no test id");
   const routeId = routeTestId.replace(/^route-hit-/u, "");
-  await dragRouteSegment(page, routeId, { x: 76, y: 62 }, 0.35, 0, async () => {
-    await expect(page.getByTestId("schematic-canvas")).toHaveClass(
-      /semantic-move-preview/u,
-    );
-    await expect(page.getByTestId("revision")).toHaveText("5");
-  });
+  await dragRouteSegment(
+    page,
+    routeId,
+    { x: 76, y: 62 },
+    0.35,
+    undefined,
+    async () => {
+      await expect(page.getByTestId("schematic-canvas")).toHaveClass(
+        /semantic-move-preview/u,
+      );
+      await expect(page.getByTestId("revision")).toHaveText("5");
+    },
+  );
   const junctionAfter = await junctionHit.boundingBox();
   expect(junctionAfter?.x).not.toBe(junctionBefore?.x);
   expect(junctionAfter?.y).not.toBe(junctionBefore?.y);
-});
-
-test("drags a current marker directly along and around its route", async ({
-  page,
-}) => {
-  await page.goto("/editor");
-  await placeComponent(page, "resistor", { x: 320, y: 220 });
-  await placeComponent(page, "resistor", { x: 520, y: 220 });
-  await clickDrawTool(page, "wire");
-  await page.getByTestId("terminal-R1-2").click();
-  await page.getByTestId("terminal-R2-1").click();
-  await page.keyboard.press("Escape");
-  await clickRoute(page, "route-ui-1", 0.5, 0);
-  await openSelectionShelf(page);
-  await page.getByRole("button", { name: "Add current arrow" }).click();
-
-  const hit = page.getByTestId("annotation-hit-current-1");
-  await expect(hit).toHaveClass(/hit-target/u);
-  await expect(hit).toHaveClass(/selected/u);
-  await expect(
-    page.getByRole("button", { name: "Move closer to wire" }),
-  ).toHaveCount(0);
-  const routeBefore = await readRoutePoints(page, "route-ui-1");
-  const before = await hit.boundingBox();
-  if (!before) throw new Error("Current marker is not measurable");
-  const start = {
-    x: before.x + before.width / 2,
-    y: before.y + before.height / 2,
-  };
-  const paintedMarker = page.locator(
-    '[data-layer="annotations"] [data-object-id="current-1"]',
-  );
-  // A live current-marker preview must not replace the formal SVG scene. A
-  // private marker on the existing node lets this assertion distinguish the
-  // intended local transform from a freshly rendered lookalike node.
-  await paintedMarker.evaluate((element) =>
-    element.setAttribute("data-preview-node", "preserved"),
-  );
-  const paintedBefore = await paintedMarker.boundingBox();
-  await page.mouse.move(start.x, start.y);
-  await page.mouse.down();
-  await page.mouse.move(start.x + 58, start.y + 24, { steps: 4 });
-  await expect
-    .poll(async () => (await paintedMarker.boundingBox())?.x)
-    .not.toBe(paintedBefore?.x);
-  await expect(paintedMarker).toHaveAttribute("data-preview-node", "preserved");
-  await expect(page.getByTestId("revision")).toHaveText("4");
-  await page.mouse.up();
-  const after = await hit.boundingBox();
-  expect(after?.x).not.toBe(before?.x);
-  expect(after?.y).not.toBe(before?.y);
-  expect(await readRoutePoints(page, "route-ui-1")).toEqual(routeBefore);
-  await expect(page.getByTestId("revision")).toHaveText("5");
-
-  await placeComponent(page, "resistor", { x: 420, y: 420 });
-  const markerBeforeSplit = await hit.boundingBox();
-  const projectBeforeSplit = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  );
-  const markerDataBeforeSplit =
-    projectBeforeSplit.documents[0].annotations.find(
-      (annotation: { id: string }) => annotation.id === "current-1",
-    );
-  await clickDrawTool(page, "wire");
-  await clickRoute(page, "route-ui-1", 0.2, 0);
-  await page.getByTestId("terminal-R3-1").click();
-  const markerAfterSplit = await hit.boundingBox();
-  const projectAfterSplit = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  );
-  const markerDataAfterSplit = projectAfterSplit.documents[0].annotations.find(
-    (annotation: { id: string }) => annotation.id === "current-1",
-  );
-  expect(markerDataAfterSplit.position).toEqual(markerDataBeforeSplit.position);
-  expect(markerDataAfterSplit.anchor.routeId).not.toBe("route-ui-1");
-  expect(markerAfterSplit?.x).toBeCloseTo(markerBeforeSplit?.x ?? 0, 0);
-  expect(markerAfterSplit?.y).toBeCloseTo(markerBeforeSplit?.y ?? 0, 0);
-  await expect(page.getByTestId("revision")).toHaveText("7");
 });
 
 test("moves an unselected component in one thresholded drag", async ({
@@ -3621,6 +3675,73 @@ test("moves floating text after it is created", async ({ page }) => {
   expect(after!.y).not.toBe(before!.y);
 });
 
+test("applies Route name, scope, and appearance from one JSON edit", async ({
+  page,
+}) => {
+  await page.goto("/editor");
+  await placeComponent(page, "resistor", { x: 280, y: 180 });
+  await placeComponent(page, "resistor", { x: 480, y: 180 });
+  await clickDrawTool(page, "wire");
+  await page.getByTestId("terminal-R1-2").click();
+  await page.getByTestId("terminal-R2-1").click();
+  await page.keyboard.press("Escape");
+  await clickRoute(page, "route-ui-1", 0.5, 0);
+  await openSelectionShelf(page);
+
+  const properties = page.getByRole("complementary", { name: "Properties" });
+  await expect(properties.getByLabel("Annotation property code")).toBeVisible();
+  await expect(properties.getByLabel("Electrical Net label")).toHaveCount(0);
+  expect(JSON.parse(await readComponentPropertyCode(page))).toEqual({
+    net: { name: "", scope: "local" },
+    appearance: {
+      color: "auto",
+      lineStyle: "solid",
+      directionArrow: "none",
+    },
+  });
+  const revision = Number(await page.getByTestId("revision").textContent());
+  await editComponentPropertyCode(page, (code) => {
+    code.net = { name: "SIGNAL", scope: "global" };
+    code.appearance = {
+      color: [220, 38, 38],
+      lineStyle: "dotted",
+      directionArrow: "end",
+    };
+  });
+  await expect(page.getByTestId("revision")).toHaveText(String(revision + 1));
+  const saved = JSON.parse(
+    (await downloadBytes(page, "File", "Export Project File…")).toString(
+      "utf8",
+    ),
+  );
+  expect(saved.documents[0].routes[0].styleOverride).toEqual({
+    color: "#dc2626",
+    lineStyle: "dotted",
+    arrow: "end",
+  });
+  expect(saved.documents[0].connectivityEvidence).toContainEqual(
+    expect.objectContaining({
+      kind: "name-claim",
+      name: "SIGNAL",
+      scope: "global",
+      owner: {
+        kind: "net-label",
+        annotationId: "net-label-route-ui-1",
+      },
+    }),
+  );
+  await clickCommand(page, "Edit", "Undo");
+  await expect(page.getByTestId("revision")).toHaveText(String(revision + 2));
+  expect(JSON.parse(await readComponentPropertyCode(page))).toEqual({
+    net: { name: "", scope: "local" },
+    appearance: {
+      color: "auto",
+      lineStyle: "solid",
+      directionArrow: "none",
+    },
+  });
+});
+
 test("edits instance, electrical Net, and free text with bounded label handles", async ({
   page,
 }) => {
@@ -3648,9 +3769,9 @@ test("edits instance, electrical Net, and free text with bounded label handles",
 
   await clickRoute(page, "route-ui-1", 0.5, 0);
   await openSelectionShelf(page);
-  await page
-    .getByRole("textbox", { name: "Electrical Net label" })
-    .fill("SIGNAL");
+  await editComponentPropertyCode(page, (code) => {
+    code.net.name = "SIGNAL";
+  });
   await expect(page.locator('[data-layer="annotations"]')).toContainText(
     "SIGNAL",
   );
@@ -3661,13 +3782,14 @@ test("edits instance, electrical Net, and free text with bounded label handles",
   const annotationEditor = page.getByRole("textbox", {
     name: "Canvas text editor",
   });
-  await expect(annotationEditor).toHaveAttribute("contenteditable", "true");
+  await expect(annotationEditor).toHaveAttribute(
+    "data-editor-kind",
+    "net-label",
+  );
   await annotationEditor.fill("Vref");
-  await annotationEditor.press("Control+a");
-  await expect(page.getByRole("button", { name: "Italic" })).toBeVisible();
-  await page.getByRole("button", { name: "Italic" }).click();
-  await page.getByRole("button", { name: "Increase text size" }).click();
-  await page.getByRole("button", { name: "Apply text changes" }).click();
+  await expect(page.getByRole("button", { name: "Italic" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Subscript" })).toHaveCount(0);
+  await annotationEditor.press("Enter");
   await expect(page.locator('[data-layer="annotations"]')).toContainText(
     "Vref",
   );
@@ -3682,11 +3804,13 @@ test("edits instance, electrical Net, and free text with bounded label handles",
   await expect(page.getByTestId("net-count")).toHaveText("2");
   await clickRoute(page, "route-ui-2", 0.5, 0);
   await openSelectionShelf(page);
-  await page
-    .getByRole("textbox", { name: "Electrical Net label" })
-    .fill("Vref");
+  await editComponentPropertyCode(page, (code) => {
+    code.net.name = "Vref";
+  });
   await expect(page.getByTestId("net-count")).toHaveText("2");
-  await expect(page.getByTestId("status")).toHaveText("Saved Net Label Vref");
+  await expect(page.getByTestId("status")).toHaveText(
+    "Updated Route route-ui-2",
+  );
 
   await placeText(page);
   const textInput = page.getByRole("textbox", {
@@ -3708,7 +3832,7 @@ test("edits instance, electrical Net, and free text with bounded label handles",
   expect(afterBox?.x).not.toBe(beforeBox.x);
 });
 
-test("keeps punctuation literal when formatting a bound Net label", async ({
+test("keeps Net names literal in the compact single-line editor", async ({
   page,
 }) => {
   await page.goto("/editor");
@@ -3721,18 +3845,27 @@ test("keeps punctuation literal when formatting a bound Net label", async ({
 
   await clickRoute(page, "route-ui-1", 0.5, 0);
   await openSelectionShelf(page);
-  await page
-    .getByRole("textbox", { name: "Electrical Net label" })
-    .fill("A1_wi");
+  await editComponentPropertyCode(page, (code) => {
+    code.net.name = "A1_wi";
+  });
   const label = page.getByTestId("annotation-hit-net-label-route-ui-1");
   await label.dblclick();
   const editor = page.getByRole("textbox", { name: "Canvas text editor" });
-  await editor.press("ControlOrMeta+A");
-  await page.getByRole("button", { name: "Italic" }).click();
-  await page.getByRole("button", { name: "Apply text changes" }).click();
+  await expect(editor).toHaveAttribute("data-editor-kind", "net-label");
+  await expect(editor).toHaveValue("A1_wi");
+  await expect(page.getByRole("button", { name: "Italic" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Subscript" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Superscript" })).toHaveCount(
+    0,
+  );
+  await expect(
+    page.getByRole("button", { name: "Insert formula" }),
+  ).toHaveCount(0);
+  await editor.fill("A1_wi+");
+  await editor.press("Enter");
 
   await expect(page.locator('[data-layer="annotations"]')).toContainText(
-    "A1_wi",
+    "A1_wi+",
   );
   await expect(page.getByTestId("status")).not.toContainText(
     "Could not update Cell structure",
@@ -4049,6 +4182,12 @@ test("L labels a selected wire or snaps near an unselectable wire", async ({
   await page.keyboard.press("l");
   const editor = page.getByTestId("net-label-editor");
   await expect(editor).toBeVisible();
+  const editorBox = await editor.boundingBox();
+  expect(editorBox?.width).toBeGreaterThan(140);
+  expect(editorBox?.width).toBeLessThan(190);
+  expect(editorBox?.height).toBeGreaterThan(24);
+  expect(editorBox?.height).toBeLessThan(36);
+  await expect(page.getByRole("button", { name: "Italic" })).toHaveCount(0);
   await editor.getByRole("textbox", { name: "Net Label" }).fill("SIGNAL");
   await editor.getByRole("textbox", { name: "Net Label" }).press("Enter");
   const preview = page.getByTestId("net-label-placement-preview");
@@ -5391,13 +5530,15 @@ test("deletes imported Net Labels with non-editor ids", async ({ page }) => {
 
   await clickRoute(page, "route-imported-h");
   await openSelectionShelf(page);
-  await page.getByRole("button", { name: "Delete Net label" }).click();
+  await editComponentPropertyCode(page, (code) => {
+    code.net.name = "";
+  });
   await expect(
     page.getByTestId("annotation-hit-imported-label-horizontal"),
   ).toHaveCount(0);
-  await expect(
-    page.getByRole("textbox", { name: "Electrical Net label" }),
-  ).toHaveValue("");
+  expect(
+    (await readComponentPropertyCode(page)).match(/"name": ""/u),
+  ).not.toBeNull();
 
   // The label was selected alongside the Route. Its deletion must not poison
   // the following atomic Wire deletion or leave a hidden electrical name.
@@ -5426,9 +5567,7 @@ test("deletes imported Net Labels with non-editor ids", async ({ page }) => {
   });
   await clickRoute(page, "route-imported-h");
   await openSelectionShelf(page);
-  await expect(
-    page.getByRole("textbox", { name: "Electrical Net label" }),
-  ).toHaveValue("");
+  expect(JSON.parse(await readComponentPropertyCode(page)).net.name).toBe("");
 });
 
 test("derives crossings and creates junctions only when a wire ends on a route", async ({
@@ -5943,13 +6082,14 @@ test("copies structural SPICE and Spectre netlists while exposing instance autho
 }) => {
   await page.goto("/editor");
   const spice = await copyNetlistText(page, "spice");
-  expect(spice).toContain(".subckt Main");
+  expect(spice).toContain(".subckt dut");
   expect(spice).not.toMatch(/^(?:\*|\/\/)/mu);
   const spectre = await copyNetlistText(page, "spectre");
   expect(spectre).toContain("simulator lang=spectre");
   const primary = page.getByTestId("copy-netlist");
-  await expect(primary).toHaveAccessibleName("Copy Spectre netlist");
-  await expect(primary).toContainText("SCS");
+  await expect(primary).toHaveAccessibleName("Copy netlist");
+  await expect(primary).not.toContainText("Copy");
+  await expect(primary).toHaveAttribute("title", /Spectre \(\.scs\)/u);
   expect(await copyNetlistText(page)).toBe(spectre);
   await expect(page.getByRole("dialog", { name: "Check Report" })).toHaveCount(
     0,
@@ -5958,7 +6098,7 @@ test("copies structural SPICE and Spectre netlists while exposing instance autho
   await placeComponent(page, "nmos", { x: 360, y: 220 });
   await expect(
     page.getByRole("textbox", { name: "Netlist code", exact: true }),
-  ).toHaveValue("");
+  ).toHaveText("");
   await expect(
     page.getByRole("region", { name: "Live netlist" }).getByRole("alert"),
   ).toContainText("not connected");
@@ -5978,6 +6118,95 @@ test("copies structural SPICE and Spectre netlists while exposing instance autho
   await expectComponentCodeField(page, "netlistName", "M1");
   await expectComponentCodeField(page, "netlistTarget", "");
   await expect(properties.getByText(/^Model:/u)).toHaveCount(0);
+});
+
+test("edits the complete Project Code with one undo boundary and protects a stale draft", async ({
+  page,
+}) => {
+  await page.goto("/editor");
+  const original = createEmptyProject("project-code-e2e", "Project Code E2E");
+  await page.getByTestId("project-file").setInputFiles({
+    name: "project-code-e2e.icproj.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(original)),
+  });
+  await page.getByTestId("project-code-toggle").click();
+  const projectCode = page.getByRole("textbox", { name: "Project code" });
+  const apply = page.getByRole("button", { name: "Apply", exact: true });
+  const reload = page.getByRole("button", { name: "Reload", exact: true });
+  await expect(projectCode).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Project Code", exact: true })
+      .getByRole("heading"),
+  ).toHaveCount(0);
+  const projectEditor = page.locator(
+    '.project-source-editor[data-language="json"]',
+  );
+  await expect(projectEditor.locator(".cm-lineNumbers")).toBeVisible();
+  await expect(
+    projectEditor.locator(".cm-gutterElement").filter({ hasText: /^1$/u }),
+  ).toBeVisible();
+  expect(
+    await projectEditor.locator(".cm-content").evaluate((content) => {
+      const colors = [getComputedStyle(content).color];
+      for (const token of content.querySelectorAll("span"))
+        colors.push(getComputedStyle(token).color);
+      return new Set(colors).size;
+    }),
+  ).toBeGreaterThan(1);
+
+  const edited = structuredClone(original);
+  edited.name = "Edited Project";
+  edited.documents[0]!.name = "Edited Main";
+  await projectCode.fill(JSON.stringify(edited, null, 2));
+  await projectCode.press("ControlOrMeta+Enter");
+  await expect(page.getByTestId("project-name-input")).toHaveValue(
+    "Edited Project",
+  );
+  await expect(page.getByTestId("active-document-name")).toHaveText(
+    "Edited Main",
+  );
+  await expect(page.getByTestId("status")).toContainText(
+    "Applied complete Project Code",
+  );
+
+  await page.getByTestId("draw-tool-undo").click();
+  await expect(page.getByTestId("project-name-input")).toHaveValue(
+    original.name,
+  );
+  await expect(page.getByTestId("active-document-name")).toHaveText(
+    original.documents[0]!.name,
+  );
+
+  await projectCode.fill("{");
+  await expect(apply).toBeDisabled();
+  await expect(page.getByRole("alert")).toBeVisible();
+  await reload.click();
+
+  const staleDraft = structuredClone(original);
+  staleDraft.name = "Draft Project";
+  await projectCode.fill(JSON.stringify(staleDraft, null, 2));
+  const projectName = page.getByTestId("project-name-input");
+  await projectName.fill("Canvas changed");
+  await projectName.press("Enter");
+  await expect(page.getByRole("alert")).toContainText("live Project changed");
+  await expect(apply).toBeDisabled();
+  await reload.click();
+  await expect(projectCode).toContainText('"name": "Canvas changed"');
+});
+
+test("shows the component-library tooltip without a native hover delay", async ({
+  page,
+}) => {
+  await page.goto("/editor");
+  const library = page.getByTestId("library-toggle");
+  if ((await library.getAttribute("aria-pressed")) === "true") {
+    await library.click();
+  }
+  await expect(library).not.toHaveAttribute("title");
+  await library.hover();
+  await expect(page.getByRole("tooltip")).toHaveText("Show component library");
 });
 
 test("shows and copies a live MOS netlist when only bulk terminals are omitted", async ({
@@ -6013,18 +6242,65 @@ test("shows and copies a live MOS netlist when only bulk terminals are omitted",
   });
 
   const spice = await copyNetlistText(page, "spice");
-  expect(spice).toMatch(/M1 \S+ \S+ \S+ 0 NMOS/u);
+  expect(spice).toMatch(/M1 \S+ \S+ \S+ VSS NMOS/u);
   expect(spice).toMatch(/M2 \S+ \S+ \S+ VDD PMOS/u);
-  expect(spice).toContain(".global VDD");
+  expect(spice).toContain(".subckt dut VDD VSS");
   const spectre = await copyNetlistText(page, "spectre");
-  expect(spectre).toMatch(/M1 \(\S+ \S+ \S+ 0\) NMOS/u);
+  expect(spectre).toMatch(/M1 \(\S+ \S+ \S+ VSS\) NMOS/u);
   expect(spectre).toMatch(/M2 \(\S+ \S+ \S+ VDD\) PMOS/u);
-  await expect(
-    page.getByRole("region", { name: "Live netlist" }).getByRole("alert"),
-  ).toHaveCount(0);
+  expect(spectre).toContain("subckt dut (VDD VSS)");
+  const panel = page.getByRole("region", {
+    name: "Live netlist",
+    exact: true,
+  });
+  const process = panel.getByRole("combobox", { name: "Netlist process" });
+  await process.selectOption("sky130");
+  const skySpectre = await copyNetlistText(page, "spectre");
+  expect(skySpectre).toMatch(
+    /^simulator lang=spice\n\.lib "sky130\.lib\.spice" tt\nsimulator lang=spectre\n/u,
+  );
+  expect(skySpectre).toMatch(
+    /XM1 \(\S+ \S+ \S+ VSS\) sky130_fd_pr__nfet_01v8 l=0.15 w=1 nf=1 m=1/u,
+  );
+  expect(skySpectre).toMatch(
+    /XM2 \(\S+ \S+ \S+ VDD\) sky130_fd_pr__pfet_01v8 l=0.15 w=1 nf=1 m=1/u,
+  );
+  expect(skySpectre).toContain("subckt dut (VDD VSS)");
+  expect(skySpectre).not.toContain(".subckt");
+  expect(skySpectre).not.toContain(".global");
+  await process.selectOption("abstract");
+  const nmos = panel.getByLabel("NMOS netlist target");
+  const pmos = panel.getByLabel("PMOS netlist target");
+  await expect(nmos).toHaveValue("NMOS");
+  await expect(pmos).toHaveValue("PMOS");
+  await nmos.fill("CUSTOM_NMOS");
+  await pmos.fill("CUSTOM_PMOS");
+  await expect(panel.getByLabel("Netlist code")).toContainText("CUSTOM_NMOS");
+  await expect(panel.getByLabel("Netlist code")).toContainText("CUSTOM_PMOS");
+  await page.reload();
+  await page.getByTestId("netlist-panel-toggle").click();
+  await expect(panel.getByLabel("NMOS netlist target")).toHaveValue(
+    "CUSTOM_NMOS",
+  );
+  await expect(panel.getByLabel("PMOS netlist target")).toHaveValue(
+    "CUSTOM_PMOS",
+  );
+  await expect(panel.getByRole("alert")).toHaveCount(0);
+  await panel.getByRole("button", { name: "Default", exact: true }).click();
+  await expect(panel.getByLabel("Netlist format")).toHaveValue("spice");
+  await expect(panel.getByLabel("Netlist process")).toHaveValue("abstract");
+  await expect(panel.getByLabel("NMOS netlist target")).toHaveValue("NMOS");
+  await expect(panel.getByLabel("PMOS netlist target")).toHaveValue("PMOS");
+  await expect(panel.getByLabel("Netlist code")).toContainText(
+    ".subckt dut VDD VSS",
+  );
+  await page.reload();
+  await page.getByTestId("netlist-panel-toggle").click();
+  await expect(panel.getByLabel("Netlist format")).toHaveValue("spice");
+  await expect(panel.getByLabel("Netlist process")).toHaveValue("abstract");
 });
 
-test("edits all netlist presets as raw JSON in Properties and remembers valid changes", async ({
+test("edits process configuration as raw JSON and remembers process and format independently", async ({
   page,
 }) => {
   await page.goto("/editor");
@@ -6045,12 +6321,12 @@ test("edits all netlist presets as raw JSON in Properties and remembers valid ch
   await code.fill(JSON.stringify(config, null, 2));
   const sky = await copyNetlistText(page, "spice");
   expect(sky).toContain('.lib "/opt/sky130/continuous/sky130.lib.spice" tt');
-  const preset = page.getByRole("combobox", { name: "Netlist preset" });
+  const preset = page.getByRole("combobox", { name: "Netlist process" });
   await expect(preset).toHaveValue("sky130");
   await preset.selectOption("tsmc28");
   await expect(
     page.getByRole("textbox", { name: "Netlist code", exact: true }),
-  ).toHaveValue(/\.lib "toplevel\.scs" TOP_TT/u);
+  ).toContainText('.lib "toplevel.scs" TOP_TT');
   await page.reload();
   const tsmc28 = await copyNetlistText(page, "spectre");
   expect(tsmc28).toContain('include "toplevel.scs" section=TOP_TT');
@@ -6061,7 +6337,9 @@ test("edits all netlist presets as raw JSON in Properties and remembers valid ch
   await code.fill(JSON.stringify(config, null, 2));
   await page.reload();
   await clickCommand(page, "Netlist", "Configuration…");
-  await expect(code).toHaveValue(JSON.stringify(config, null, 2));
+  await expect
+    .poll(async () => JSON.parse(await code.inputValue()))
+    .toEqual(config);
   await code.fill("{");
   await expect(panel.getByRole("alert")).toContainText("Copying is paused");
   await page.getByTestId("copy-netlist").click();
@@ -6111,7 +6389,7 @@ test("copies an incomplete netlist in one click and previews its TODO fields", a
   await config.fill(JSON.stringify(preferences, null, 2));
   const text = await copyNetlistText(page);
   expect(text).not.toMatch(/^(?:\*|\/\/)/mu);
-  expect(text).toContain("R1 NC0001 NC0002 {TODO_Main_R1_value}");
+  expect(text).toContain("R1 NC0001 NC0002 {TODO_dut_R1_value}");
   await expect(page.getByRole("dialog", { name: "Check Report" })).toHaveCount(
     0,
   );
@@ -6120,11 +6398,15 @@ test("copies an incomplete netlist in one click and previews its TODO fields", a
   const report = page.getByRole("dialog", { name: "Check Report" });
   await expect(report).toContainText("Incomplete netlist: 1 TODO field");
   await expect(report.getByTestId("netlist-preview")).toContainText(
-    "R1 NC0001 NC0002 {TODO_Main_R1_value}",
+    "R1 NC0001 NC0002 {TODO_dut_R1_value}",
   );
-  await report.getByLabel("Netlist export format").selectOption("spectre");
+  await report.getByTestId("check-report-close").click();
+  await page
+    .getByRole("combobox", { name: "Netlist format" })
+    .selectOption("spectre");
+  await clickCommand(page, "Netlist", "Check Report…");
   await expect(report.getByTestId("netlist-preview")).toContainText(
-    "R1 (NC0001 NC0002) resistor r=TODO_Main_R1_value",
+    "R1 (NC0001 NC0002) resistor r=TODO_dut_R1_value",
   );
 });
 
@@ -6646,7 +6928,7 @@ test("separates drawing, placement, and Cell body resets with impact preview and
 
   await clickCommand(page, "Edit", "Clear Drawing");
   const clearDialog = page.getByRole("dialog", {
-    name: "Clear Drawing in Main?",
+    name: "Clear Drawing in dut?",
   });
   await expect(clearDialog).toContainText("You can restore them with Undo");
   await expect(clearDialog).toContainText("Affected objects: 1");
@@ -6658,7 +6940,7 @@ test("separates drawing, placement, and Cell body resets with impact preview and
 
   await clickCommand(page, "Edit", "Clear Drawing");
   await page
-    .getByRole("dialog", { name: "Clear Drawing in Main?" })
+    .getByRole("dialog", { name: "Clear Drawing in dut?" })
     .getByRole("button", { name: "Clear Drawing" })
     .click();
   await expect(page.getByTestId("instance-count")).toHaveText("2");
@@ -6666,7 +6948,7 @@ test("separates drawing, placement, and Cell body resets with impact preview and
   await expect(page.locator('[data-layer="routes"] polyline')).toHaveCount(0);
   await expect(page.getByTestId("revision")).toHaveText("4");
   await expect(page.getByTestId("status")).toHaveText(
-    "Clear Drawing completed in Cell Main · Undo restores it",
+    "Clear Drawing completed in Cell dut · Undo restores it",
   );
 
   await page.keyboard.press("Control+z");
@@ -6677,7 +6959,7 @@ test("separates drawing, placement, and Cell body resets with impact preview and
 
   await clickCommand(page, "Edit", "Reset Cell Placement");
   const placementDialog = page.getByRole("dialog", {
-    name: "Reset Cell Placement in Main?",
+    name: "Reset Cell Placement in dut?",
   });
   await expect(placementDialog).toContainText("Affected objects: 3");
   await placementDialog
@@ -6696,7 +6978,7 @@ test("separates drawing, placement, and Cell body resets with impact preview and
 
   await clickCommand(page, "Edit", "Reset Cell Body");
   await page
-    .getByRole("dialog", { name: "Reset Cell Body in Main?" })
+    .getByRole("dialog", { name: "Reset Cell Body in dut?" })
     .getByRole("button", { name: "Reset Cell Body" })
     .click();
   await expect(page.getByTestId("instance-count")).toHaveText("0");
@@ -7303,7 +7585,7 @@ test("directional marquee: window needs full coverage, crossing selects on touch
   ).toBe("");
 });
 
-test("docked Document settings scale fonts document-wide and reset", async ({
+test("docked Style code scales fonts document-wide and resets appearance", async ({
   page,
 }) => {
   await page.goto("/editor");
@@ -7311,31 +7593,42 @@ test("docked Document settings scale fonts document-wide and reset", async ({
   const label = page.locator('[data-kind="instance-label"]').first();
   await expect(label).toHaveAttribute("font-size", "15.116");
 
-  // The knobs rescale what the canvas is drawing, so they dock beside it
-  // instead of covering it with a modal.
+  // Style stays beside the canvas as one copyable JSON surface.
   await clickDrawTool(page, "document-style");
   const settings = page.getByLabel("Document settings");
   await expect(settings).toBeVisible();
   await expect(page.getByTestId("canvas-empty-state")).toHaveCount(0);
   await expect(page.getByTestId("hit-R1")).toBeVisible();
-  const reset = page.getByTestId("document-style-reset");
-  await expect(reset).toBeDisabled();
+  await expect(
+    settings.getByLabel("Editable document Style code"),
+  ).toBeVisible();
+  await expect(settings.locator("select")).toHaveCount(0);
 
-  await settings.getByLabel("Font size").selectOption("1.5");
+  await editDocumentStyleCode(page, (code) => {
+    code.appearance.fontScale = 1.5;
+  });
   await expect(label).toHaveAttribute("font-size", "22.674");
-  await expect(page.getByTestId("status")).toContainText(
-    "Updated document style",
-  );
-  await expect(reset).toBeEnabled();
+  await expect(page.getByTestId("status")).toContainText("Updated Style code");
 
-  // Document-wide MOS bulk defaults belong to the Document, not to whichever
-  // transistor happens to be selected.
-  await expect(settings.getByLabel("Default NMOS bulk Net")).toBeVisible();
-  await expect(settings.getByLabel("Default PMOS bulk Net")).toBeVisible();
+  const styleSource = await readDocumentStyleCode(page);
+  const style = JSON.parse(styleSource);
+  expect(style.bulkDefaults).toEqual({ nmosNet: null, pmosNet: null });
+  expect(style.canvas).toEqual({
+    showGrid: true,
+    annotationGrid: 5,
+    drawAngle: "free",
+    scrollBehavior: "auto",
+  });
+  await settings
+    .getByLabel("Editable document Style code", { exact: true })
+    .press("Enter");
+  expect(await readDocumentStyleCode(page)).toBe(styleSource);
 
-  await reset.click();
+  await settings.getByRole("button", { name: "Defaults", exact: true }).click();
   await expect(label).toHaveAttribute("font-size", "15.116");
-  await expect(reset).toBeDisabled();
+  expect(
+    JSON.parse(await readDocumentStyleCode(page)).appearance.fontScale,
+  ).toBe(1);
   await clickDrawTool(page, "document-style");
   await expect(settings).toHaveCount(0);
 });
@@ -7872,6 +8165,12 @@ test("carries the connection point when a column and its wire move", async ({
   ] as const) {
     await clickDrawTool(page, "wire");
     await page.getByTestId(`terminal-${top}-D`).click();
+    await canvas.click({
+      position: {
+        x: top === ids[0] ? 250 : 570,
+        y: 300,
+      },
+    });
     await page.getByTestId(`terminal-${bottom}-D`).click();
     await page.keyboard.press("Escape");
   }
@@ -7941,6 +8240,7 @@ test("leaves the connection point alone when only a part moves", async ({
     );
   await clickDrawTool(page, "wire");
   await page.getByTestId(`terminal-${ids[0]}-D`).click();
+  await canvas.click({ position: { x: 310, y: 300 } });
   await page.getByTestId(`terminal-${ids[1]}-D`).click();
   await page.keyboard.press("Escape");
   const wire = (await page
@@ -8491,7 +8791,22 @@ test("keeps the netlist live and selectable when clipboard access fails", async 
   );
   await page.getByTestId("copy-netlist").click();
   const code = page.getByRole("textbox", { name: "Netlist code", exact: true });
-  await expect(code).toHaveValue(/\.subckt Main/u);
+  await expect(code).toContainText(".subckt dut");
+  const netlistEditor = page.locator(
+    '.project-source-editor[data-language="netlist"]',
+  );
+  await expect(netlistEditor.locator(".cm-lineNumbers")).toBeVisible();
+  await expect(
+    netlistEditor.locator(".cm-gutterElement").filter({ hasText: /^1$/u }),
+  ).toBeVisible();
+  expect(
+    await netlistEditor.locator(".cm-content").evaluate((content) => {
+      const colors = [getComputedStyle(content).color];
+      for (const token of content.querySelectorAll("span"))
+        colors.push(getComputedStyle(token).color);
+      return new Set(colors).size;
+    }),
+  ).toBeGreaterThan(1);
   await expect(page.getByTestId("status")).toContainText(
     "select the netlist in the sidebar",
   );
@@ -8500,8 +8815,8 @@ test("keeps the netlist live and selectable when clipboard access fails", async 
     mimeType: "text/plain",
     buffer: Buffer.from("\n.subckt live a b\nR1 a b 2k\n.ends live\n"),
   });
-  await expect(code).toHaveValue(/R1 a b 2k/u);
-  await expect(code).not.toHaveValue(/\.subckt Main/u);
+  await expect(code).toContainText("R1 a b 2k");
+  await expect(code).not.toContainText(".subckt dut");
   await page.setViewportSize({ width: 760, height: 800 });
   await expect(code).toBeVisible();
   await code.focus();

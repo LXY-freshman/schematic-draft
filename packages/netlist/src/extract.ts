@@ -46,6 +46,14 @@ const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 const MAX_CELLS = 1024;
 const MAX_INSTANCES_PER_CELL = 100_000;
 const MAX_NETS_PER_CELL = 100_000;
+const DEFAULT_CELL_SUPPLY_PORTS = ["VDD", "VSS"] as const;
+
+function supplyPortRank(name: string): number {
+  const index = DEFAULT_CELL_SUPPLY_PORTS.findIndex(
+    (supply) => foldNetName(supply) === foldNetName(name),
+  );
+  return index < 0 ? DEFAULT_CELL_SUPPLY_PORTS.length : index;
+}
 
 function isIdentifier(value: string, allowGround = false): boolean {
   return (allowGround && value === "0") || IDENTIFIER.test(value);
@@ -676,9 +684,9 @@ function terminalNetName(
         candidate.name.toLowerCase() === implicitName.toLowerCase(),
     );
     if (existing) return existing.name;
-    let id = `implicit-mos-bulk-${implicitName === "0" ? "ground" : implicitName.toLowerCase()}`;
+    let id = `implicit-cell-supply-${implicitName.toLowerCase()}`;
     while (context.nets.some((candidate) => candidate.id === id)) id += "-new";
-    context.nets.push({ id, name: implicitName, scope: "global" });
+    context.nets.push({ id, name: implicitName, scope: "local" });
     return implicitName;
   }
   if (!name) {
@@ -697,10 +705,33 @@ function terminalNetName(
 function implicitMosBulkNetName(
   instance: Instance,
   pinName: string,
-): "0" | "VDD" | undefined {
+): "VDD" | "VSS" | undefined {
   if (pinName.toLowerCase() !== "b") return undefined;
   const bulkClass = deviceDescriptor(instance.symbolId)?.mosBulkClass;
-  return bulkClass === "nmos" ? "0" : bulkClass === "pmos" ? "VDD" : undefined;
+  return bulkClass === "nmos"
+    ? "VSS"
+    : bulkClass === "pmos"
+      ? "VDD"
+      : undefined;
+}
+
+function cellPortsWithDefaultSupplies(
+  document: SchematicDocument,
+): Array<{ name: string; implicit: boolean }> {
+  const authored = projectCellInterface(document.netlist).ports.map((port) => ({
+    name: port.name,
+    implicit: false,
+  }));
+  if (document.sourceBinding) return authored;
+  const keys = new Set(authored.map((port) => foldNetName(port.name)));
+  return [
+    ...authored,
+    ...DEFAULT_CELL_SUPPLY_PORTS.filter(
+      (name) => !keys.has(foldNetName(name)),
+    ).map((name) => ({ name, implicit: true })),
+  ].sort(
+    (left, right) => supplyPortRank(left.name) - supplyPortRank(right.name),
+  );
 }
 
 function extractHierarchyInstance(
@@ -750,13 +781,14 @@ function extractHierarchyInstance(
     child.netlist.formalParameters,
     diagnostics,
   );
-  const nodes = projectCellInterface(child.netlist).ports.flatMap((port) => {
+  const nodes = cellPortsWithDefaultSupplies(child).flatMap((port) => {
     const netName = terminalNetName(
       document,
       instance,
       port.name,
       context,
       diagnostics,
+      port.implicit ? port.name : undefined,
     );
     return netName ? [{ pinName: port.name, netName }] : [];
   });
@@ -825,7 +857,6 @@ function extractExternalSubcircuitInstance(
   instance: Instance,
   definition: ExternalSubcircuitDefinition | undefined,
   context: CellNetContext,
-  options: ResolvedDesignNetlistAnalysisOptions,
   diagnostics: NetlistDiagnostic[],
 ): DesignNetlistInstance | null {
   const netlist = instance.netlist;
@@ -948,16 +979,6 @@ function extractExternalSubcircuitInstance(
             if (!entry) return [];
             let rawValue = entry[1];
             if (parameter.targetUnit === "micrometre") {
-              if (options.format !== "spice") {
-                diagnostic(
-                  diagnostics,
-                  document.id,
-                  "UNSUPPORTED_REVIEWED_BINDING_DIALECT",
-                  `${reviewed.masterName} geometry projection is reviewed only for SPICE/ngspice`,
-                  [instance.id],
-                );
-                return [];
-              }
               try {
                 rawValue = projectLengthToSky130Micrometres(rawValue);
               } catch (error) {
@@ -1272,42 +1293,74 @@ function extractCell(
     diagnostics,
   );
   const interfaceProjection = projectCellInterface(document.netlist);
-  const ports = interfaceProjection.ports.flatMap((port) => {
-    let hasMissingNet = false;
-    for (const netId of port.netIds) {
-      if (document.nets.some((candidate) => candidate.id === netId)) continue;
-      hasMissingNet = true;
-      diagnostic(
-        diagnostics,
-        document.id,
-        "MISSING_INTERFACE_NET",
-        `Netlist terminal ${port.name} references unknown Net ${netId}`,
-        [netId],
+  const ports: DesignNetlistCell["ports"] = interfaceProjection.ports.flatMap(
+    (port) => {
+      let hasMissingNet = false;
+      for (const netId of port.netIds) {
+        if (document.nets.some((candidate) => candidate.id === netId)) continue;
+        hasMissingNet = true;
+        diagnostic(
+          diagnostics,
+          document.id,
+          "MISSING_INTERFACE_NET",
+          `Netlist terminal ${port.name} references unknown Net ${netId}`,
+          [netId],
+        );
+      }
+      if (hasMissingNet) return [];
+      const logicalNet = resolveDocumentLogicalNets(document).byBaseNetId.get(
+        port.netIds[0]!,
       );
-    }
-    if (hasMissingNet) return [];
-    const logicalNet = resolveDocumentLogicalNets(document).byBaseNetId.get(
-      port.netIds[0]!,
-    );
-    const encodedPort = encodeCandidate(
-      port.name,
-      logicalNet?.scope ?? "local",
-      options,
-    );
+      const encodedPort = encodeCandidate(
+        port.name,
+        logicalNet?.scope ?? "local",
+        options,
+      );
+      if (!encodedPort.ok) {
+        diagnostic(
+          diagnostics,
+          document.id,
+          encodedPort.code,
+          `Port ${port.name} cannot be encoded for ${options.format}: ${encodedPort.message}`,
+          [...port.netIds],
+        );
+        return [];
+      }
+      const representativeNetId = port.netIds[0]!;
+      const netName = context.nameByNetId.get(representativeNetId) ?? port.name;
+      return [{ id: representativeNetId, name: encodedPort.token, netName }];
+    },
+  );
+  const portKeys = new Set(ports.map((port) => foldNetName(port.name)));
+  for (const name of document.sourceBinding ? [] : DEFAULT_CELL_SUPPLY_PORTS) {
+    if (portKeys.has(foldNetName(name))) continue;
+    const encodedPort = encodeCandidate(name, "local", options);
     if (!encodedPort.ok) {
       diagnostic(
         diagnostics,
         document.id,
         encodedPort.code,
-        `Port ${port.name} cannot be encoded for ${options.format}: ${encodedPort.message}`,
-        [...port.netIds],
+        `Default port ${name} cannot be encoded for ${options.format}: ${encodedPort.message}`,
       );
-      return [];
+      continue;
     }
-    const representativeNetId = port.netIds[0]!;
-    const netName = context.nameByNetId.get(representativeNetId) ?? port.name;
-    return [{ id: representativeNetId, name: encodedPort.token, netName }];
-  });
+    const existingNet = context.nets.find(
+      (net) =>
+        encodedNetNameCollisionKey(net.name, options.format) ===
+        encodedPort.collisionKey,
+    );
+    const id =
+      existingNet?.id ??
+      deriveStableId("default-cell-supply", document.id, name);
+    const netName = existingNet?.name ?? encodedPort.token;
+    if (!existingNet) context.nets.push({ id, name: netName, scope: "local" });
+    ports.push({ id, name: encodedPort.token, netName });
+  }
+  if (!document.sourceBinding) {
+    ports.sort(
+      (left, right) => supplyPortRank(left.name) - supplyPortRank(right.name),
+    );
+  }
 
   const referenceIndex = createReferenceIndex(document);
   const reportedDuplicateReferences = new Set<string>();
@@ -1372,7 +1425,6 @@ function extractCell(
                 (definition) => definition.id === binding.definitionId,
               ),
               context,
-              options,
               diagnostics,
             )
           : extractDeviceInstance(document, instance, context, diagnostics);
@@ -1472,6 +1524,62 @@ function analyzeDesign(
   attachDiagnosticLocators(project, diagnostics);
   if (!authoring && diagnostics.some((item) => item.severity === "error")) {
     return { ir: null, diagnostics };
+  }
+  const globalSupplyKeys = new Set(
+    cells.flatMap((cell) =>
+      cell.nets
+        .filter(
+          (net) =>
+            net.scope === "global" &&
+            DEFAULT_CELL_SUPPLY_PORTS.some(
+              (name) => foldNetName(name) === foldNetName(net.name),
+            ),
+        )
+        .map((net) =>
+          encodedNetNameCollisionKey(net.name, resolvedOptions.format),
+        ),
+    ),
+  );
+  const omittedImplicitSuppliesByCell = new Map<string, Set<string>>();
+  for (const cell of cells) {
+    const sourceDocument = documentsById.get(cell.id);
+    const authoredPortKeys = new Set(
+      sourceDocument
+        ? projectCellInterface(sourceDocument.netlist).ports.map((port) =>
+            foldNetName(port.name),
+          )
+        : [],
+    );
+    const omittedPorts = cell.ports.filter(
+      (port) =>
+        !authoredPortKeys.has(foldNetName(port.name)) &&
+        globalSupplyKeys.has(
+          encodedNetNameCollisionKey(port.name, resolvedOptions.format),
+        ),
+    );
+    if (omittedPorts.length === 0) continue;
+    const omittedIds = new Set(omittedPorts.map((port) => port.id));
+    const omittedNames = new Set(
+      omittedPorts.map((port) => foldNetName(port.name)),
+    );
+    omittedImplicitSuppliesByCell.set(foldNetName(cell.name), omittedNames);
+    cell.ports = cell.ports.filter((port) => !omittedIds.has(port.id));
+    cell.nets = cell.nets.filter(
+      (net) =>
+        !omittedIds.has(net.id) || !net.id.startsWith("default-cell-supply-"),
+    );
+  }
+  for (const cell of cells) {
+    for (const instance of cell.instances) {
+      if (instance.deviceClass !== "hierarchical" || !instance.target) continue;
+      const omitted = omittedImplicitSuppliesByCell.get(
+        foldNetName(instance.target),
+      );
+      if (!omitted) continue;
+      instance.nodes = instance.nodes.filter(
+        (node) => !omitted.has(foldNetName(node.pinName)),
+      );
+    }
   }
   const globals = [
     ...new Set(
