@@ -66,7 +66,7 @@ PDF extraction, Symbol generation, and raster comparison are separate tools:
 ```text
 source PDF -> tools/pdf-vector-extract -> pinned vector evidence + PNG witness
 pinned vector evidence -> family generator -> Symbol DSL
-PNG witness + rendered Symbol -> tools/calibration/razavi/fidelity-diff.mjs -> report
+PNG witness + rendered Symbol -> tools/calibration/razavi/symbol-fidelity-diff.mjs -> report
 ```
 
 The PDF extractor must not import the fidelity implementation, and the
@@ -157,10 +157,10 @@ strokes:
   emphasis: 2.4
   ground: 2.906977
   supply: 1.8
+  powerRail: 3.24
   annotation: 1.6
 nodes:
   junctionRadius: 3.77907
-  portOriginRadius: 2.47907
 annotations:
   supplyBarWidth: 20
   currentArrowLength: 53.488372
@@ -295,7 +295,7 @@ pnpm --filter @icm/model build
 pnpm --filter @icm/derived build
 pnpm --filter @icm/render-svg build
 pnpm --filter @icm/exporters build
-node tools/calibration/razavi/fidelity-diff.mjs <target>
+node tools/calibration/razavi/symbol-fidelity-diff.mjs <target>
 ```
 
 The PDF extraction command and dependencies are documented in

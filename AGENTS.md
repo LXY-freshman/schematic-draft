@@ -198,8 +198,8 @@ protection for the implementation batch while the browser layer is selected by
 impact.
 
 Merging to `main` deploys the **preview** channel, not the public site.
-Production deploys only from a `v*` release tag, or a dispatch naming a
-commit, whose commit already has a green preview deploy; see ADR 0057 and
+Production deploys only from a `v*` release tag, or a manual dispatch of an
+accepted ref, whose commit already has a green preview deploy; see ADR 0057 and
 `docs/deployment.md`.
 
 Before a non-document change is merged or pushed to `main`:
@@ -218,7 +218,7 @@ Before a non-document change is merged or pushed to `main`:
 4. Push a review branch and wait for both GitHub required checks.
    `Core contracts` runs static contracts, the complete unit/module suite, and
    the release/performance checks on one shared runner. `Browser tests` runs
-   only the mapped affected specs, or a small editor/runtime/Agent fallback for
+   only the mapped affected specs, or a small insertion/runtime fallback for
    an unmapped product path. The branch must still be based on current `main`;
    if `main` changes while checks run, update once and revalidate. Current
    branches merge directly after this one CI pass. Nightly and manual CI runs
