@@ -104,11 +104,13 @@ bounds.
 Derived visual diagnostics cover unplaced or unresolved symbols, symbol and
 label overlap, Routes through symbols, collinear same-Net Route overlap, Route
 departure against a pin's outward direction, terminals resting on another
-Net's Route, non-standard wire angles, short route segments, ambiguous
+Net's Route, short route segments, ambiguous
 Junction dots, unsatisfied layout constraints, and optional export-page
 bounds. Diagnostics never mutate geometry. Unresolved symbols and ambiguous
-Junction dots are blocking errors. Non-standard wire angles are gate-eligible
-structural warnings; a terminal resting on another Net's Route is a
+Junction dots are blocking errors. Arbitrary wire angles are valid authoring
+intent and produce no angle-only warning or error, including on protected
+Routes. Explicit angle straightening remains an optional undoable operation,
+not a diagnostic prerequisite. A terminal resting on another Net's Route is a
 structural warning outside the gate. Spacing and other layout-quality findings
 are observations.
 
@@ -122,8 +124,8 @@ active symbol variant's visible geometry and clusters repeated overlaps.
 
 ## Invariants
 
-- Formal output is black on white with no gradients, shadows, or decorative
-  frames.
+- Formal output defaults to black on white. Explicit authored color overrides
+  are preserved; there are no gradients, shadows, or decorative frames.
 - Symbol geometry uses butt line caps and miter joins unless a reviewed
   symbol explicitly requires another choice.
 - Instance transforms apply rotation, then independent screen-space horizontal
