@@ -6447,6 +6447,10 @@ export function App({
             flightlines: displayedFlightlines,
             onFlightlineClick: handleFlightline,
             wireDraftPreview,
+            wireSnapTarget:
+              wireSource && wirePreviewTarget?.kind !== "free"
+                ? wirePreviewTarget?.point
+                : undefined,
             bulkRoutePreview: wireSource?.routePresentation === "bulk-dashed",
             snapGuideLayerRef,
           }}
@@ -6667,7 +6671,14 @@ export function App({
                   cycleWireCornerShape();
                   return;
                 }
-                handleWireEndpoint(event, candidate);
+                if (tool === "wire" && event.button === 0) {
+                  event.stopPropagation();
+                  // Commit on the canvas click capture, just like a route or
+                  // the background. The DOM hit radius must not select a
+                  // different electrical target from the hover resolver.
+                } else {
+                  handleWireEndpoint(event, candidate);
+                }
               },
               onNetPointerEnter: (netId) => {
                 if (simulationPickNetsActive) setSimulationHoverNetId(netId);
