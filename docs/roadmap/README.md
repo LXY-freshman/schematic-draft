@@ -26,7 +26,7 @@ do not recreate an already implemented subsystem.
 
 Use the current [connectivity](../specs/connectivity-and-routing.md),
 [netlist](../specs/netlist-export.md), and
-[diagnostic](../adr/0015-object-locator-and-diagnostic-envelope.md) contracts.
+[diagnostic](../specs/connectivity-and-routing.md#shared-read-and-diagnostic-boundary) contracts.
 The acceptance review must cover:
 
 - One occurrence-aware location path for search, trace, highlight, and check
@@ -53,6 +53,17 @@ The acceptance review must cover:
 
 These are regression and closure obligations, not a new Net protocol, an
 automatic rerouter, or a requirement to restore retired APIs.
+
+## Deferred contract questions
+
+- Durable edit history: decide whether session-only Undo needs persistence,
+  compaction or recovery integration. Any accepted extension must preserve
+  revision/atomicity and the separate Save/recovery boundary; current
+  [session history](../specs/edit-engine.md#session-history) remains in memory.
+- Text portability: decide the required font-embedding and cross-format metric
+  guarantees using representative SVG/PDF renders. Current
+  [formal export](../specs/export.md) remains the accepted behavior; do not
+  infer portable font metrics from a passing browser screenshot alone.
 
 ## Execution discipline
 
