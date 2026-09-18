@@ -34,7 +34,9 @@ refuses every outbound request, so "offline" is enforced rather than promised.
 
 ## How your work is stored
 
-The `.icproj.json` file you opened is the Project. **Save** writes that file; the
+The file you opened is the Project — `.schdraft` for a Project this application
+saved, or the portable `.icproj.json` interchange form. **Save** writes that
+file; the
 File menu names the exact path so overwriting is never a guess. **Save As…** is
 the only command that prompts. A new Project has no file yet, so its first
 **Save** asks once, then remembers.

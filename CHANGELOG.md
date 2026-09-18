@@ -45,10 +45,13 @@ needed a server.
 ### Real files instead of Cloud Projects
 
 - **Open Project…** and **Save As…** use the operating system's own file
-  dialogs. A Project is the `.icproj.json` file you opened.
-- New Projects are saved as `.icproj` — the same canonical JSON under an
+  dialogs. A Project is the file you opened, at the path the File menu names.
+- New Projects are saved as `.schdraft` — the same canonical JSON under an
   extension of this application's own, because Windows resolves only the last
-  extension and `.icproj.json` is indistinguishable from `.json` to it. Existing
+  extension and `.icproj.json` is indistinguishable from `.json` to it. The name
+  is long and says what wrote the file on purpose: a short generic extension is
+  the kind another tool arrives at independently, and whichever registered last
+  would own the double-click. Existing `.icproj` Projects from earlier builds,
   `.icproj.json` and plain `.json` Projects open unchanged, and `.icproj.json`
   stays the portable interchange name.
 - **Save** and `Ctrl+S` overwrite that file in place, with no dialog. The File
@@ -88,16 +91,19 @@ needed a server.
 
 ### Double-clicking a Project
 
-- An installed copy claims `.icproj` for itself the first time it runs, so
+- An installed copy claims `.schdraft` for itself the first time it runs, so
   double-clicking a Project in Explorer opens it here. The entries are per-user
   (`HKCU\Software\Classes`): no elevation, no other account affected, and the
   open command names this folder's executable, so a folder that moved re-points
-  the association at its new home the next time it starts.
-- **Help → Open .icproj Files With This Copy** shows the real state and turns it
-  off, removing those entries. The `.icproj` entry is only removed while it still
-  points here — if another application has claimed the extension since, that
-  entry is not this one's to delete. Turning it off is remembered, so a later
-  launch does not quietly claim the extension again.
+  the association at its new home the next time it starts. Claiming it releases
+  the `.icproj` claim an earlier build made rather than holding both — the
+  collision the longer name avoids would be back otherwise. Files already saved
+  as `.icproj` still open from **File → Open Project…**.
+- **Help → Open .schdraft Files With This Copy** shows the real state and turns
+  it off, removing those entries. An extension entry is only removed while it
+  still points here — if another application has claimed it since, that entry is
+  not this one's to delete. Turning it off is remembered, so a later launch does
+  not quietly claim the extension again.
 - The single-file portable build claims nothing unless that menu item is ticked,
   because it runs from a temporary directory whose path is stale by tomorrow.
 - **Help → About** states whether the association is in place.

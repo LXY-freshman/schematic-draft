@@ -24,8 +24,10 @@ import {
   associationTargets,
   claimsExtension,
   EXTENSION_KEY,
+  LEGACY_EXTENSION_KEY,
   OPEN_COMMAND_KEY,
   PROG_ID_KEY,
+  releaseExtensionCommands,
   removalCommands,
   TARGET_VALUE_NAME,
 } from "./file-association.js";
@@ -334,16 +336,21 @@ function reg(
 }
 
 /**
- * Whether Explorer opens a Project with this copy right now: `.icproj` has to
- * still name this application's document type, and that document type has to
+ * Whether Explorer opens a Project with this copy right now: the extension has
+ * to still name this application's document type, and that document type has to
  * still name this executable rather than a copy in a folder that moved.
  */
 async function queryAssociation(): Promise<boolean> {
   if (process.platform !== "win32") return false;
-  const owner = await reg(["query", EXTENSION_KEY, "/ve"]);
-  if (!owner.ok || !claimsExtension(owner.output)) return false;
+  if (!(await ownsExtension(EXTENSION_KEY))) return false;
   const target = await reg(["query", PROG_ID_KEY, "/v", TARGET_VALUE_NAME]);
   return target.ok && associationTargets(target.output, launchExecutable());
+}
+
+/** Whether an extension key is still this application's own claim. */
+async function ownsExtension(key: string): Promise<boolean> {
+  const owner = await reg(["query", key, "/ve"]);
+  return owner.ok && claimsExtension(owner.output);
 }
 
 async function applyAssociation(): Promise<boolean> {
@@ -353,14 +360,24 @@ async function applyAssociation(): Promise<boolean> {
   )) {
     if (!(await reg(args)).ok) return false;
   }
+  // An earlier build claimed the old extension. Now that Projects are saved
+  // under the current one, holding the old name would squat an extension this
+  // application no longer writes; files that already carry it still open from
+  // inside the application.
+  for (const args of releaseExtensionCommands(
+    LEGACY_EXTENSION_KEY,
+    await ownsExtension(LEGACY_EXTENSION_KEY),
+  )) {
+    await reg(args);
+  }
   return true;
 }
 
 async function withdrawAssociation(): Promise<boolean> {
-  const owner = await reg(["query", EXTENSION_KEY, "/ve"]);
-  for (const args of removalCommands(
-    owner.ok && claimsExtension(owner.output),
-  )) {
+  for (const args of removalCommands({
+    extension: await ownsExtension(EXTENSION_KEY),
+    legacyExtension: await ownsExtension(LEGACY_EXTENSION_KEY),
+  })) {
     if (!(await reg(args)).ok) return false;
   }
   return true;

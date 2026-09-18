@@ -45,7 +45,6 @@ variants—start with `1k`, `1p`, and `1n` respectively. T-coil starts with
 and XFMR remain manual-only compound devices until structural netlist lowering
 is defined.
 
-
 ## Edit and connect
 
 - Open **Library** to choose a categorized built-in symbol by its inline
@@ -252,7 +251,7 @@ copies remain available through **File / Recover Local Work…**; recovery never
 silently replaces the current Project. A Project restored from a recovery copy
 has no file binding, so its first **Save** asks where to put it.
 
-Use **Import Project File…** to validate a portable `.icproj` or `.icproj.json`
+Use **Import Project File…** to validate a portable `.schdraft` or `.icproj.json`
 without binding it; invalid or future-version input leaves the current Document
 unchanged.
 
@@ -296,7 +295,6 @@ open its live code in the right sidebar. That panel's **Format** (SPICE or SCS)
 and **Process** selectors choose what is copied and are remembered locally;
 **Default** restores every preset. Editing the circuit refreshes the
 visible code. Clipboard failures leave the code selectable for manual copy.
-
 
 **Netlist / Instances…** opens the Project's netlist instances as one editable
 JSON document in the right sidebar. Paste whole blocks to change references,

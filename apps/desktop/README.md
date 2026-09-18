@@ -6,11 +6,11 @@ Windows 本地离线运行的电路原理图编辑器。基于开源项目
 
 ## 目录内容
 
-| 路径                                                    | 说明                                                                       |
-| ------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `Schematic Draft\schematic-draft.exe`                   | 直接双击运行，推荐日常使用；整个 `Schematic Draft\` 文件夹就是完整的一份安装 |
-| `portable\Schematic Draft-0.9.2-win-x64-portable.exe`   | 单文件便携版，功能相同；每次启动会先解压到临时目录，启动稍慢                |
-| `source\`                                               | 完整源码（不含 node_modules），可自行审计和重新构建                        |
+| 路径                                                  | 说明                                                                         |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `Schematic Draft\schematic-draft.exe`                 | 直接双击运行，推荐日常使用；整个 `Schematic Draft\` 文件夹就是完整的一份安装 |
+| `portable\Schematic Draft-0.9.2-win-x64-portable.exe` | 单文件便携版，功能相同；每次启动会先解压到临时目录，启动稍慢                 |
+| `source\`                                             | 完整源码（不含 node_modules），可自行审计和重新构建                          |
 
 首次运行如果 Windows SmartScreen 提示"未知发布者"，点"更多信息 → 仍要运行"即可，
 程序没有做代码签名。
@@ -24,14 +24,15 @@ Windows 本地离线运行的电路原理图编辑器。基于开源项目
 ```
 Schematic Draft\
   schematic-draft.exe
-  Projects\              ← 默认保存的工程（.icproj）
+  Projects\              ← 默认保存的工程（.schdraft）
   AppData\               ← 窗口大小、界面偏好、崩溃恢复副本
   resources\ …           ← 程序自身的文件
 ```
 
-- **电路工程**：就是你自己选的那个 `.icproj` 文件（内容还是纯 JSON，只是换了个
+- **电路工程**：就是你自己选的那个 `.schdraft` 文件（内容还是纯 JSON，只是换了个
   只属于本程序的后缀，这样才能双击打开 —— Windows 只认最后一级后缀，`.icproj.json`
-  在它眼里就是 `.json`）。以前存的 `.icproj.json` 和普通 `.json` 照样能打开。
+  在它眼里就是 `.json`）。后缀故意起得长、带着程序名，免得别的工具也独立想到同一个
+  四字母缩写把双击抢走。以前存的 `.icproj`、`.icproj.json` 和普通 `.json` 照样能打开。
   - `File → Open Project…` / `Save As…` 走 Windows 原生对话框，默认从 `Projects\` 开始；
   - `File → Save`（`Ctrl+S`）直接覆盖当前打开的那个文件，不再弹窗；菜单里会显示要写入的完整路径；
   - 新建的工程还没有文件，第一次 `Save` 会问一次位置，之后就记住了；
@@ -39,7 +40,7 @@ Schematic Draft\
   - 存到 `Projects\` 之外也完全可以，对话框去哪儿都行 —— 只是那样迁移就得自己再拷一份。
 - **导出的 SVG/PDF/PNG/netlist**：另存为对话框默认也从 `Projects\` 开始。
 - **窗口大小、界面偏好、崩溃恢复副本**：`AppData\`。崩溃恢复副本是保险，不是备份 ——
-  硬盘上那个 `.icproj` 才是正本。有副本可用时 `File` 菜单里会多出 `Recover Local Work…`。
+  硬盘上那个 `.schdraft` 才是正本。有副本可用时 `File` 菜单里会多出 `Recover Local Work…`。
 - 菜单 `File → Open Projects Folder` 直接打开 `Projects\`；`Help → About` 显示当前实际使用的路径。
 - 移动文件夹以后第一次启动，"上次打开的文件"路径失效，程序会提示一次并停在空工程上，
   重新 `Open Project…` 打开新位置的文件即可。
@@ -52,21 +53,23 @@ Schematic Draft\
 
 ## 双击打开
 
-`Schematic Draft\schematic-draft.exe` 第一次启动时会把 `.icproj` 关联到自己，
+`Schematic Draft\schematic-draft.exe` 第一次启动时会把 `.schdraft` 关联到自己，
 这样在资源管理器里双击工程文件就直接用本程序打开：
 
-- 写的只是**当前用户**名下两个键（`HKCU\Software\Classes\.icproj` 和
+- 写的只是**当前用户**名下两个键（`HKCU\Software\Classes\.schdraft` 和
   `HKCU\Software\Classes\SchematicDraft.Project`，后者下面放图标、打开命令，
   以及一个记着"这份程序在哪"的值），不需要管理员权限，不影响这台电脑上的其他账户；
 - 打开命令里写的是**这个文件夹里**的 exe，所以文件夹移动以后再启动一次就自动指向新位置；
-- `Help → Open .icproj Files With This Copy` 是个勾选项，显示当前真实状态，
-  取消勾选就把上面那两个键删掉（`.icproj` 那一个只在它还指向本程序时才删，
+- 旧版本关联的是 `.icproj`；关联新后缀时会把那个键**交还**（同样只在它还指向本程序时才删），
+  不会两个后缀都占着。已经存成 `.icproj` 的文件用 `File → Open Project…` 照样打开；
+- `Help → Open .schdraft Files With This Copy` 是个勾选项，显示当前真实状态，
+  取消勾选就把上面那两个键删掉（后缀那一个只在它还指向本程序时才删，
   别的程序后来抢走了就不动它）。取消的选择记在 `AppData\file-association.json` 里，
   下次启动不会偷偷改回去；
 - **便携版不会自动关联**（它跑在临时解压目录里，路径明天就失效了）。确实要关联的话，
   在便携版里手动勾选那个菜单项，它写的是你双击的那个 exe 的路径；
 - 没有关联也一样能用：程序内 `File → Open Project…`，或者在资源管理器里右键
-  `打开方式 → 选择其他应用`，或者命令行 `schematic-draft.exe "D:\...\amp.icproj"`。
+  `打开方式 → 选择其他应用`，或者命令行 `schematic-draft.exe "D:\...\amp.schdraft"`。
 - 程序已经开着的时候再双击一个工程，会在**已经开着的窗口**里打开它，不会再启动一份；
   当前工程有未保存的改动时会先问一下，和 `Open Project…` 完全一样。
 - `Help → About` 会照实写明当前是否关联。

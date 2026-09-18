@@ -1,4 +1,7 @@
-import { PROJECT_FILE_EXTENSION } from "./project-files.js";
+import {
+  LEGACY_PROJECT_FILE_EXTENSION,
+  PROJECT_FILE_EXTENSION,
+} from "./project-files.js";
 
 /**
  * The Windows registry entries that let Explorer open a Project here.
@@ -18,6 +21,15 @@ export const PROJECT_PROG_ID = "SchematicDraft.Project";
 const CLASSES = "HKCU\\Software\\Classes";
 
 export const EXTENSION_KEY = `${CLASSES}\\${PROJECT_FILE_EXTENSION}`;
+
+/**
+ * The extension earlier builds claimed. One extension is owned at a time, so
+ * claiming the current one releases this: squatting a name this application no
+ * longer writes would leave exactly the kind of collision the rename avoided.
+ * Files with the old extension still open from inside the application.
+ */
+export const LEGACY_EXTENSION_KEY = `${CLASSES}\\${LEGACY_PROJECT_FILE_EXTENSION}`;
+
 export const PROG_ID_KEY = `${CLASSES}\\${PROJECT_PROG_ID}`;
 export const OPEN_COMMAND_KEY = `${PROG_ID_KEY}\\shell\\open\\command`;
 
@@ -45,7 +57,7 @@ export function targetFingerprint(executablePath: string): string {
   );
 }
 
-/** `reg.exe` argument lists that claim `.icproj` for this executable. */
+/** `reg.exe` argument lists that claim the Project extension for this executable. */
 export function associationCommands(
   executablePath: string,
   description: string,
@@ -75,13 +87,28 @@ export function associationCommands(
 }
 
 /**
- * `reg.exe` argument lists that give the claim back. The extension key is only
- * removed when it still points here: if something else owns `.icproj` by now,
- * that is its entry, not ours to delete.
+ * `reg.exe` argument lists that release an extension key — but only while it
+ * still names this application's document type. Once something else owns the
+ * extension, that entry is its own, not this application's to delete.
  */
-export function removalCommands(ownsExtension: boolean): string[][] {
+export function releaseExtensionCommands(
+  key: string,
+  owned: boolean,
+): string[][] {
+  return owned ? [["delete", key, "/f"]] : [];
+}
+
+/**
+ * `reg.exe` argument lists that give the whole claim back: both extensions this
+ * application has ever claimed, and its document type.
+ */
+export function removalCommands(owned: {
+  extension: boolean;
+  legacyExtension: boolean;
+}): string[][] {
   return [
-    ...(ownsExtension ? [["delete", EXTENSION_KEY, "/f"]] : []),
+    ...releaseExtensionCommands(EXTENSION_KEY, owned.extension),
+    ...releaseExtensionCommands(LEGACY_EXTENSION_KEY, owned.legacyExtension),
     ["delete", PROG_ID_KEY, "/f"],
   ];
 }
@@ -111,7 +138,7 @@ export function associationTargets(
   return registryValue(queryOutput) === targetFingerprint(executablePath);
 }
 
-/** Whether `.icproj` still points at this application's document type. */
+/** Whether an extension key still points at this application's document type. */
 export function claimsExtension(queryOutput: string): boolean {
   return registryValue(queryOutput) === PROJECT_PROG_ID;
 }

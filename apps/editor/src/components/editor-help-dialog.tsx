@@ -114,7 +114,7 @@ export function EditorHelpDialog({
             <h3>Start, open, and save</h3>
             <p>
               Use <strong>File / Open Project…</strong> to open a{" "}
-              <code>.icproj</code> file — or the interchange form{" "}
+              <code>.schdraft</code> file — or the interchange form{" "}
               <code>.icproj.json</code> — or <strong>Import SPICE</strong> for a
               netlist. <strong>File / Save</strong> (<kbd>Ctrl+S</kbd>) writes
               the open file back in place; <strong>Save As…</strong> asks for a

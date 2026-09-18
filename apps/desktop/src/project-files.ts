@@ -21,15 +21,28 @@ const MAX_PROJECT_BYTES = 16 * 1024 * 1024;
  * last one: `.icproj.json` looks like `.json`, which every text editor on the
  * machine already claims, so a Project saved that way could never be opened by
  * double-clicking it. The bytes are the same canonical JSON either way.
+ *
+ * Long and named after the product on purpose. A four-letter extension is the
+ * kind of thing another tool picks independently — `.icproj` reads as "IC
+ * project" to anyone — and whichever program registered last would own the
+ * double-click.
  */
-export const PROJECT_FILE_EXTENSION = ".icproj";
+export const PROJECT_FILE_EXTENSION = ".schdraft";
+
+/** What earlier builds of this application saved as, and still open. */
+export const LEGACY_PROJECT_FILE_EXTENSION = ".icproj";
 
 /**
  * What the Open dialog offers, most specific first. `.icproj.json` is the
  * portable interchange name — what the browser build downloads and what the
  * repository's own fixtures use — and stays a first-class Project file here.
  */
-export const PROJECT_FILE_EXTENSIONS = ["icproj", "icproj.json", "json"];
+export const PROJECT_FILE_EXTENSIONS = [
+  "schdraft",
+  "icproj",
+  "icproj.json",
+  "json",
+];
 
 /**
  * A file the shell was handed — a double-click, or a path on the command line.
@@ -73,9 +86,12 @@ const failed = (error: unknown, fallback: string): Response =>
     200,
   );
 
-/** `Low-pass filter.icproj` → `Low-pass filter`, and the same for the others. */
+/** `Low-pass filter.schdraft` → `Low-pass filter`, and the same for the others. */
 export function projectNameFromPath(path: string): string {
-  return basename(path).replace(/(?:\.icproj)?\.json$|\.icproj$/iu, "");
+  return basename(path).replace(
+    /(?:\.icproj)?\.json$|\.icproj$|\.schdraft$/iu,
+    "",
+  );
 }
 
 async function openPath(path: string): Promise<Response> {

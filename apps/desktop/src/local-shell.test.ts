@@ -9,7 +9,9 @@ import {
   associationCommands,
   associationTargets,
   claimsExtension,
+  LEGACY_EXTENSION_KEY,
   registryValue,
+  releaseExtensionCommands,
   removalCommands,
   targetFingerprint,
 } from "./file-association.js";
@@ -142,7 +144,7 @@ describe("desktop app protocol", () => {
       status: "idle",
     });
 
-    const path = join(workspace, "Double-clicked.icproj");
+    const path = join(workspace, "Double-clicked.schdraft");
     requested.path = path;
     expect(await (await post("/api/file/pending")).json()).toEqual({
       status: "requested",
@@ -158,7 +160,7 @@ describe("desktop app protocol", () => {
 
   it("saves in place and only prompts without a path or for Save As", async () => {
     const { post, dialogs, workspace } = await shell();
-    const chosen = join(workspace, "Filter.icproj");
+    const chosen = join(workspace, "Filter.schdraft");
     dialogs.saveAnswers.push(chosen);
 
     const created = await post("/api/file/save", {
@@ -189,7 +191,7 @@ describe("desktop app protocol", () => {
     expect(await readFile(chosen, "utf8")).toBe(`${PROJECT_TEXT} `);
 
     // Save As asks even though the same file is open.
-    const copy = join(workspace, "Filter copy.icproj");
+    const copy = join(workspace, "Filter copy.schdraft");
     dialogs.saveAnswers.push(copy);
     const savedAs = await post("/api/file/save", {
       path: chosen,
@@ -240,18 +242,21 @@ describe("desktop app protocol", () => {
 
 describe("project file names", () => {
   it("reads a Project name out of every extension it saves or opens", () => {
-    // `.icproj` is what a new Project is saved as, so Windows can associate it;
-    // the longer interchange name and a plain `.json` file still open.
-    expect(projectNameFromPath(join("D:", "C", "Low-pass filter.icproj"))).toBe(
-      "Low-pass filter",
-    );
+    // `.schdraft` is what a new Project is saved as, so Windows can associate
+    // it; the extension earlier builds wrote, the longer interchange name and a
+    // plain `.json` file all still open.
+    expect(
+      projectNameFromPath(join("D:", "C", "Low-pass filter.schdraft")),
+    ).toBe("Low-pass filter");
+    expect(projectNameFromPath(join("D:", "C", "amp.SCHDRAFT"))).toBe("amp");
+    expect(projectNameFromPath(join("D:", "C", "amp.icproj"))).toBe("amp");
     expect(projectNameFromPath(join("D:", "C", "amp.ICPROJ"))).toBe("amp");
     expect(projectNameFromPath(join("D:", "C", "amp.icproj.json"))).toBe("amp");
     expect(projectNameFromPath(join("D:", "C", "amp.json"))).toBe("amp");
     // Anything else keeps its name: guessing at an unknown extension would
     // silently rename the Project.
-    expect(projectNameFromPath(join("D:", "C", "amp.icproj.bak"))).toBe(
-      "amp.icproj.bak",
+    expect(projectNameFromPath(join("D:", "C", "amp.schdraft.bak"))).toBe(
+      "amp.schdraft.bak",
     );
   });
 });
@@ -261,7 +266,7 @@ describe("open requests", () => {
   // is resolved against the launching shell's directory, so the distinction has
   // to be real on whichever machine runs this.
   const circuits = join(tmpdir(), "sd-argv", "Circuits");
-  const project = join(circuits, "Low-pass filter.icproj");
+  const project = join(circuits, "Low-pass filter.schdraft");
   const exe = join(tmpdir(), "sd-argv", "Schematic Draft", "app.exe");
   const installed = (
     argv: readonly string[],
@@ -280,7 +285,7 @@ describe("open requests", () => {
       project,
     );
     // Explorer passes an absolute path; a command line need not.
-    expect(installed([exe, "Low-pass filter.icproj"])).toBe(project);
+    expect(installed([exe, "Low-pass filter.schdraft"])).toBe(project);
     expect(installed([exe])).toBeNull();
     expect(installed([exe, "--no-sandbox"])).toBeNull();
   });
@@ -288,7 +293,7 @@ describe("open requests", () => {
   it("ignores a path that is not a file there", () => {
     // A stale shortcut, a deleted file, a stray argument: the editor stays on
     // the Project it has rather than reporting a failure nobody asked for.
-    expect(installed([exe, join(circuits, "gone.icproj")])).toBeNull();
+    expect(installed([exe, join(circuits, "gone.schdraft")])).toBeNull();
     expect(installed([exe, project], [])).toBeNull();
   });
 
@@ -396,7 +401,7 @@ describe("windows file association", () => {
   it("claims the extension for this executable and nothing else", () => {
     const commands = associationCommands(exe, "Schematic Draft Project");
     expect(commands.map((command) => command[1])).toEqual([
-      "HKCU\\Software\\Classes\\.icproj",
+      "HKCU\\Software\\Classes\\.schdraft",
       "HKCU\\Software\\Classes\\SchematicDraft.Project",
       "HKCU\\Software\\Classes\\SchematicDraft.Project",
       "HKCU\\Software\\Classes\\SchematicDraft.Project\\DefaultIcon",
@@ -449,13 +454,35 @@ describe("windows file association", () => {
     expect(claimsExtension(queryOutput("(Default)", "VSCode.json"))).toBe(
       false,
     );
-    expect(removalCommands(true).map((command) => command[1])).toEqual([
+    expect(
+      removalCommands({ extension: true, legacyExtension: true }).map(
+        (command) => command[1],
+      ),
+    ).toEqual([
+      "HKCU\\Software\\Classes\\.schdraft",
       "HKCU\\Software\\Classes\\.icproj",
       "HKCU\\Software\\Classes\\SchematicDraft.Project",
     ]);
-    // Another application owns `.icproj` now: its entry is not ours to delete.
-    expect(removalCommands(false).map((command) => command[1])).toEqual([
-      "HKCU\\Software\\Classes\\SchematicDraft.Project",
+    // Another application owns an extension now: its entry is not ours to
+    // delete, whichever of the two it took.
+    expect(
+      removalCommands({ extension: false, legacyExtension: false }).map(
+        (command) => command[1],
+      ),
+    ).toEqual(["HKCU\\Software\\Classes\\SchematicDraft.Project"]);
+  });
+
+  it("stops squatting the extension earlier builds saved as", () => {
+    // Projects are `.schdraft` now. Holding `.icproj` as well would keep the
+    // name the rename was meant to give up, so claiming the new extension
+    // releases the old one — but again, only while it is still ours.
+    expect(releaseExtensionCommands(LEGACY_EXTENSION_KEY, true)).toEqual([
+      ["delete", "HKCU\\Software\\Classes\\.icproj", "/f"],
     ]);
+    expect(releaseExtensionCommands(LEGACY_EXTENSION_KEY, false)).toEqual([]);
+    // Nothing in the claim it writes mentions the old extension.
+    expect(
+      associationCommands(exe, "Schematic Draft Project").flat().join(" "),
+    ).not.toContain(".icproj");
   });
 });

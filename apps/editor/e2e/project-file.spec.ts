@@ -331,8 +331,8 @@ test("opens the file the shell was handed, at launch and while running", async (
   page,
 }) => {
   const bridge = await mockFileBridge(page);
-  const first = "C:\\circuits\\double-clicked.icproj";
-  const second = "C:\\circuits\\another.icproj";
+  const first = "C:\\circuits\\double-clicked.schdraft";
+  const second = "C:\\circuits\\another.schdraft";
   bridge.files.set(first, minimalProjectText);
   bridge.files.set(second, minimalProjectText);
   bridge.requestedOpen = first;
