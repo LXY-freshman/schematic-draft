@@ -69,7 +69,7 @@ pnpm install --frozen-lockfile
 pnpm build          # once after install, and after pulling package changes
 pnpm dev            # editor in a browser at http://localhost:5173
 pnpm desktop:start  # editor in the Electron window
-pnpm desktop:dist   # portable Windows .exe under apps/desktop/release/
+pnpm desktop:dist   # portable Windows .exe under output/desktop/
 ```
 
 `pnpm build` is not optional before the first `pnpm dev`: the development

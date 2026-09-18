@@ -1,3 +1,4 @@
+import { mkdirSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
@@ -18,6 +19,12 @@ import {
   createAppProtocolHandler,
 } from "./app-protocol.js";
 import {
+  APP_DATA_FOLDER,
+  canWriteDirectory,
+  PROJECTS_FOLDER,
+  resolveInstallRoot,
+} from "./install-paths.js";
+import {
   PROJECT_FILE_EXTENSION,
   type ProjectFileDialogs,
 } from "./project-files.js";
@@ -27,12 +34,47 @@ const APP_USER_MODEL_ID = "com.schematicdraft.desktop";
 const EDITOR_ROUTE = `${APP_ORIGIN}/editor`;
 
 /**
- * Where a first save is offered. Documents rather than AppData: these are a
- * person's files, meant to be found, copied and backed up like any other work.
- * Nothing forces a circuit to stay here — the dialogs go wherever they point.
+ * The folder this copy of the program owns, or null when it cannot write there.
+ * Everything the program writes lives under it, so moving the folder moves the
+ * installation. See `install-paths.ts`.
+ */
+let installRoot = resolveInstallRoot({
+  portableDirectory: process.env["PORTABLE_EXECUTABLE_DIR"],
+  executablePath: app.getPath("exe"),
+  packaged: app.isPackaged,
+  // A development run must not litter the repository: `output/` is ignored.
+  developmentDirectory: resolve(
+    import.meta.dirname,
+    "../../../output/desktop-data",
+  ),
+  canWrite: canWriteDirectory,
+});
+
+if (installRoot !== null) {
+  try {
+    const appData = join(installRoot, APP_DATA_FOLDER);
+    // `setPath` requires an existing directory, and this has to happen before
+    // the single-instance lock below, which lives in `userData`.
+    mkdirSync(appData, { recursive: true });
+    app.setPath("userData", appData);
+  } catch {
+    // The folder passed the write probe and then refused anyway; the per-user
+    // locations are still there.
+    installRoot = null;
+  }
+}
+
+/**
+ * Where a first save is offered, and what `Open Projects Folder` opens.
+ *
+ * Inside the program's own folder, so a circuit never lands somewhere a person
+ * has to hunt for and the whole installation stays movable. Nothing forces a
+ * circuit to stay here — the dialogs go wherever they point.
  */
 function projectsDirectory(): string {
-  return join(app.getPath("documents"), PRODUCT_NAME);
+  return installRoot === null
+    ? join(app.getPath("documents"), PRODUCT_NAME)
+    : join(installRoot, PROJECTS_FOLDER);
 }
 
 const PROJECT_FILTERS = [
@@ -147,7 +189,9 @@ function routeDownloadsToSaveDialog(): void {
   session.defaultSession.on("will-download", (_, item) => {
     item.setSaveDialogOptions({
       title: `Save ${item.getFilename()}`,
-      defaultPath: join(app.getPath("documents"), item.getFilename()),
+      // Beside the Projects: accepting the default keeps an exported drawing in
+      // the program's folder with the circuit it came from.
+      defaultPath: join(projectsDirectory(), item.getFilename()),
     });
   });
 }
@@ -246,7 +290,12 @@ function buildMenu(window: BrowserWindow): Menu {
                 "files, Projects are saved wherever you choose, and every",
                 "network request is refused before a connection is made.",
                 "",
-                `Default folder: ${projectsDirectory()}`,
+                installRoot === null
+                  ? "This copy cannot write to its own folder, so it uses the\nper-user locations below."
+                  : "Everything this copy writes stays in its own folder, so\nmoving the folder moves the whole installation.",
+                "",
+                `Projects: ${projectsDirectory()}`,
+                `Settings and recovery: ${app.getPath("userData")}`,
               ].join("\n"),
             }),
         },

@@ -1,10 +1,11 @@
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import { APP_ORIGIN, createAppProtocolHandler } from "./app-protocol.js";
+import { canWriteDirectory, resolveInstallRoot } from "./install-paths.js";
 import type { ProjectFileDialogs } from "./project-files.js";
 
 const INDEX_HTML = [
@@ -189,5 +190,80 @@ describe("desktop app protocol", () => {
     ).toEqual(expect.objectContaining({ status: "failed" }));
     expect((await post("/api/file/bogus")).status).toBe(404);
     expect((await post("/api/projects")).status).toBe(404);
+  });
+});
+
+describe("install paths", () => {
+  const writable = () => true;
+
+  it("keeps an installed copy's files inside its own folder", () => {
+    expect(
+      resolveInstallRoot({
+        portableDirectory: undefined,
+        executablePath: join("D:", "Tools", "Schematic Draft", "app.exe"),
+        packaged: true,
+        developmentDirectory: join("repo", "output"),
+        canWrite: writable,
+      }),
+    ).toBe(join("D:", "Tools", "Schematic Draft"));
+  });
+
+  it("follows the portable build to the folder a person actually sees", () => {
+    // The portable .exe unpacks itself into a temporary directory, so the folder
+    // holding the executable that was double-clicked is the one that moves.
+    const chosen = join("E:", "Circuits");
+    for (const portableDirectory of [chosen, `${chosen} `]) {
+      expect(
+        resolveInstallRoot({
+          portableDirectory,
+          executablePath: join("C:", "Temp", "unpacked", "app.exe"),
+          packaged: true,
+          developmentDirectory: join("repo", "output"),
+          canWrite: writable,
+        }),
+      ).toBe(chosen);
+    }
+  });
+
+  it("sends a development run to its own directory, not the install folder", () => {
+    for (const portableDirectory of [undefined, "", "   "]) {
+      expect(
+        resolveInstallRoot({
+          portableDirectory,
+          executablePath: join("repo", "node_modules", "electron", "app.exe"),
+          packaged: false,
+          developmentDirectory: join("repo", "output", "desktop-data"),
+          canWrite: writable,
+        }),
+      ).toBe(join("repo", "output", "desktop-data"));
+    }
+  });
+
+  it("reports no folder of its own when it cannot write there", () => {
+    // Program Files without elevation, a read-only share, a mounted image: the
+    // caller falls back to the per-user locations.
+    expect(
+      resolveInstallRoot({
+        portableDirectory: undefined,
+        executablePath: join("C:", "Program Files", "sd", "app.exe"),
+        packaged: true,
+        developmentDirectory: join("repo", "output"),
+        canWrite: () => false,
+      }),
+    ).toBeNull();
+  });
+
+  it("answers writability by writing, and leaves nothing behind", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "sd-install-"));
+    const nested = join(directory, "Projects");
+
+    expect(canWriteDirectory(nested)).toBe(true);
+    expect(await readdir(nested)).toEqual([]);
+
+    // A file where a directory has to go is the shape a read-only location
+    // reports as: the call fails rather than the mode saying so.
+    const blocked = join(directory, "occupied");
+    await writeFile(blocked, "");
+    expect(canWriteDirectory(join(blocked, "inside"))).toBe(false);
   });
 });

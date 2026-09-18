@@ -56,6 +56,25 @@ needed a server.
   in the application's own storage, reachable from **File / Recover Local
   Work…**. The file on disk is the record.
 
+### One folder is the whole installation
+
+- Everything the application writes lives inside its own folder: new Projects go
+  to `Projects\` beside the executable, and the window size, preferences and
+  crash-recovery copies go to `AppData\`. Nothing is left in `%APPDATA%`, the
+  registry or your Documents folder, so copying or moving that one folder — to
+  another drive, a stick, another machine — moves the installation with its work
+  intact.
+- **File → Open Projects Folder** opens that `Projects\` directory, the Save As
+  and export dialogs start there, and **Help → About** reports the paths in use.
+  Saving anywhere else still works; the dialogs go wherever you point them.
+- A copy placed somewhere it cannot write — `C:\Program Files` without
+  elevation, a read-only share — keeps working and falls back to the per-user
+  AppData and Documents locations, which About then reports instead.
+- The delivered program folder is named `Schematic Draft\` rather than `app\`,
+  and the single-file portable build sits in `portable\` because it keeps its
+  own `Projects\` and `AppData\` beside the executable. Rebuilding replaces the
+  program and leaves both of those directories alone.
+
 ### Simulation
 
 - The editor no longer runs simulations. It still exports deterministic

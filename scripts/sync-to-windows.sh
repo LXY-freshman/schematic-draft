@@ -6,10 +6,14 @@
 #
 # target-dir defaults to /mnt/d/AI/Claude/schematic-draft. Afterwards it holds:
 #
-#   app/                          ready-to-run folder (schematic-draft.exe)
-#   Schematic Draft-<v>-...exe    single-file portable build of the same app
-#   source/                       the source tree (no node_modules, no dist)
-#   README.md                     how to use, what is guaranteed, how to rebuild
+#   Schematic Draft/   ready-to-run program folder (schematic-draft.exe), which
+#                      also holds the Projects/ and AppData/ it writes, so the
+#                      whole folder can be moved or copied as one installation
+#   portable/          single-file portable build of the same app; it keeps its
+#                      own Projects/ and AppData/ beside the .exe, which is why
+#                      it gets a folder of its own
+#   source/            the source tree (no node_modules, no dist)
+#   README.md          how to use, what is guaranteed, how to rebuild
 #
 # The NSIS installer target needs Wine on Linux, so it is not built here; run
 # `pnpm --filter @icm/desktop exec electron-builder --win nsis` on a Windows
@@ -18,6 +22,7 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 target="${1:-/mnt/d/AI/Claude/schematic-draft}"
+program="$target/Schematic Draft"
 
 # Binaries hosted on GitHub are unreachable from some networks; the npmmirror
 # mirrors carry byte-identical copies of the Electron runtime and the
@@ -38,10 +43,23 @@ echo "== packaging (portable exe + unpacked folder)"
 (cd apps/desktop && ./node_modules/.bin/electron-builder --win portable --x64 --publish never)
 
 echo "== syncing to $target"
-mkdir -p "$target"
-rm -rf "$target/app" "$target/source"
-cp -r output/desktop/win-unpacked "$target/app"
-cp output/desktop/*-portable.exe "$target/"
+mkdir -p "$target" "$target/portable"
+rm -rf "$target/source"
+# Leftovers from the previous layout: the program folder was `app/` and the
+# portable .exe sat loose in the root. Neither ever held a person's files.
+rm -rf "$target/app"
+rm -f "$target"/*-portable.exe
+
+# Replace the program, never the person's work: Projects/ and AppData/ live
+# inside the program folder now, so a rebuild keeps them and clears the rest.
+if [ -d "$program" ]; then
+  find "$program" -mindepth 1 -maxdepth 1 \
+    ! -name Projects ! -name AppData -exec rm -rf {} +
+fi
+mkdir -p "$program"
+cp -r output/desktop/win-unpacked/. "$program/"
+rm -f "$target/portable"/*-portable.exe
+cp output/desktop/*-portable.exe "$target/portable/"
 cp apps/desktop/README.md "$target/README.md"
 
 # Source snapshot: everything git tracks plus the uncommitted working tree,
