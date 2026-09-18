@@ -13,7 +13,23 @@ import { basename } from "node:path";
 
 /** The same ceiling the editor's own Project parser is happy with. */
 const MAX_PROJECT_BYTES = 16 * 1024 * 1024;
-export const PROJECT_FILE_EXTENSION = ".icproj.json";
+
+/**
+ * What a new Project is saved as.
+ *
+ * An extension of this application's own, because Windows resolves only the
+ * last one: `.icproj.json` looks like `.json`, which every text editor on the
+ * machine already claims, so a Project saved that way could never be opened by
+ * double-clicking it. The bytes are the same canonical JSON either way.
+ */
+export const PROJECT_FILE_EXTENSION = ".icproj";
+
+/**
+ * What the Open dialog offers, most specific first. `.icproj.json` is the
+ * portable interchange name — what the browser build downloads and what the
+ * repository's own fixtures use — and stays a first-class Project file here.
+ */
+export const PROJECT_FILE_EXTENSIONS = ["icproj", "icproj.json", "json"];
 
 export interface ProjectFileDialogs {
   /** Ask which file to open; null when the person cancels. */
@@ -45,12 +61,9 @@ const failed = (error: unknown, fallback: string): Response =>
     200,
   );
 
-/** `Low-pass filter.icproj.json` → `Low-pass filter`. */
+/** `Low-pass filter.icproj` → `Low-pass filter`, and the same for the others. */
 export function projectNameFromPath(path: string): string {
-  const file = basename(path);
-  return file.endsWith(PROJECT_FILE_EXTENSION)
-    ? file.slice(0, -PROJECT_FILE_EXTENSION.length)
-    : file.replace(/\.json$/iu, "");
+  return basename(path).replace(/(?:\.icproj)?\.json$|\.icproj$/iu, "");
 }
 
 async function openPath(path: string): Promise<Response> {

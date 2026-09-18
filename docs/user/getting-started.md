@@ -252,8 +252,8 @@ copies remain available through **File / Recover Local Work…**; recovery never
 silently replaces the current Project. A Project restored from a recovery copy
 has no file binding, so its first **Save** asks where to put it.
 
-Use **Import Project File…** to validate a portable `.icproj.json` without
-binding it; invalid or future-version input leaves the current Document
+Use **Import Project File…** to validate a portable `.icproj` or `.icproj.json`
+without binding it; invalid or future-version input leaves the current Document
 unchanged.
 
 SPICE files are import inputs, not embedded source attachments. Saving an

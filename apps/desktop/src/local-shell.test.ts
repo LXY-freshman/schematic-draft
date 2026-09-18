@@ -6,7 +6,10 @@ import { describe, expect, it } from "vitest";
 
 import { APP_ORIGIN, createAppProtocolHandler } from "./app-protocol.js";
 import { canWriteDirectory, resolveInstallRoot } from "./install-paths.js";
-import type { ProjectFileDialogs } from "./project-files.js";
+import {
+  projectNameFromPath,
+  type ProjectFileDialogs,
+} from "./project-files.js";
 
 const INDEX_HTML = [
   "<!doctype html><title>Schematic Draft</title>",
@@ -113,7 +116,7 @@ describe("desktop app protocol", () => {
 
   it("saves in place and only prompts without a path or for Save As", async () => {
     const { post, dialogs, workspace } = await shell();
-    const chosen = join(workspace, "Filter.icproj.json");
+    const chosen = join(workspace, "Filter.icproj");
     dialogs.saveAnswers.push(chosen);
 
     const created = await post("/api/file/save", {
@@ -144,7 +147,7 @@ describe("desktop app protocol", () => {
     expect(await readFile(chosen, "utf8")).toBe(`${PROJECT_TEXT} `);
 
     // Save As asks even though the same file is open.
-    const copy = join(workspace, "Filter copy.icproj.json");
+    const copy = join(workspace, "Filter copy.icproj");
     dialogs.saveAnswers.push(copy);
     const savedAs = await post("/api/file/save", {
       path: chosen,
@@ -190,6 +193,24 @@ describe("desktop app protocol", () => {
     ).toEqual(expect.objectContaining({ status: "failed" }));
     expect((await post("/api/file/bogus")).status).toBe(404);
     expect((await post("/api/projects")).status).toBe(404);
+  });
+});
+
+describe("project file names", () => {
+  it("reads a Project name out of every extension it saves or opens", () => {
+    // `.icproj` is what a new Project is saved as, so Windows can associate it;
+    // the longer interchange name and a plain `.json` file still open.
+    expect(projectNameFromPath(join("D:", "C", "Low-pass filter.icproj"))).toBe(
+      "Low-pass filter",
+    );
+    expect(projectNameFromPath(join("D:", "C", "amp.ICPROJ"))).toBe("amp");
+    expect(projectNameFromPath(join("D:", "C", "amp.icproj.json"))).toBe("amp");
+    expect(projectNameFromPath(join("D:", "C", "amp.json"))).toBe("amp");
+    // Anything else keeps its name: guessing at an unknown extension would
+    // silently rename the Project.
+    expect(projectNameFromPath(join("D:", "C", "amp.icproj.bak"))).toBe(
+      "amp.icproj.bak",
+    );
   });
 });
 

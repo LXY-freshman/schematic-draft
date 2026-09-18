@@ -114,10 +114,11 @@ export function EditorHelpDialog({
             <h3>Start, open, and save</h3>
             <p>
               Use <strong>File / Open Project…</strong> to open a{" "}
-              <code>.icproj.json</code> file, or <strong>Import SPICE</strong>{" "}
-              for a netlist. <strong>File / Save</strong> (<kbd>Ctrl+S</kbd>)
-              writes the open file back in place; <strong>Save As…</strong> asks
-              for a new location, and a first save asks as well. A direct backup
+              <code>.icproj</code> file — or the interchange form{" "}
+              <code>.icproj.json</code> — or <strong>Import SPICE</strong> for a
+              netlist. <strong>File / Save</strong> (<kbd>Ctrl+S</kbd>) writes
+              the open file back in place; <strong>Save As…</strong> asks for a
+              new location, and a first save asks as well. A direct backup
               download appears only when local recovery cannot protect current
               work. Drawing export provides SVG, PNG, and PDF. Because raw
               refresh shortcuts are blocked to protect unsaved work, use{" "}

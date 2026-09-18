@@ -23,12 +23,14 @@ Windows 本地离线运行的电路原理图编辑器。基于开源项目
 ```
 Schematic Draft\
   schematic-draft.exe
-  Projects\              ← 默认保存的工程（.icproj.json）
+  Projects\              ← 默认保存的工程（.icproj）
   AppData\               ← 窗口大小、界面偏好、崩溃恢复副本
   resources\ …           ← 程序自身的文件
 ```
 
-- **电路工程**：就是你自己选的那个 `.icproj.json` 文件。
+- **电路工程**：就是你自己选的那个 `.icproj` 文件（内容还是纯 JSON，只是换了个
+  只属于本程序的后缀，这样才能双击打开 —— Windows 只认最后一级后缀，`.icproj.json`
+  在它眼里就是 `.json`）。以前存的 `.icproj.json` 和普通 `.json` 照样能打开。
   - `File → Open Project…` / `Save As…` 走 Windows 原生对话框，默认从 `Projects\` 开始；
   - `File → Save`（`Ctrl+S`）直接覆盖当前打开的那个文件，不再弹窗；菜单里会显示要写入的完整路径；
   - 新建的工程还没有文件，第一次 `Save` 会问一次位置，之后就记住了；
@@ -36,7 +38,7 @@ Schematic Draft\
   - 存到 `Projects\` 之外也完全可以，对话框去哪儿都行 —— 只是那样迁移就得自己再拷一份。
 - **导出的 SVG/PDF/PNG/netlist**：另存为对话框默认也从 `Projects\` 开始。
 - **窗口大小、界面偏好、崩溃恢复副本**：`AppData\`。崩溃恢复副本是保险，不是备份 ——
-  硬盘上那个 `.icproj.json` 才是正本。有副本可用时 `File` 菜单里会多出 `Recover Local Work…`。
+  硬盘上那个 `.icproj` 才是正本。有副本可用时 `File` 菜单里会多出 `Recover Local Work…`。
 - 菜单 `File → Open Projects Folder` 直接打开 `Projects\`；`Help → About` 显示当前实际使用的路径。
 - 移动文件夹以后第一次启动，"上次打开的文件"路径失效，程序会提示一次并停在空工程上，
   重新 `Open Project…` 打开新位置的文件即可。

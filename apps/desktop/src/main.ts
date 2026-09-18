@@ -26,6 +26,7 @@ import {
 } from "./install-paths.js";
 import {
   PROJECT_FILE_EXTENSION,
+  PROJECT_FILE_EXTENSIONS,
   type ProjectFileDialogs,
 } from "./project-files.js";
 
@@ -78,7 +79,7 @@ function projectsDirectory(): string {
 }
 
 const PROJECT_FILTERS = [
-  { name: "Schematic Draft Project", extensions: ["icproj.json", "json"] },
+  { name: "Schematic Draft Project", extensions: PROJECT_FILE_EXTENSIONS },
 ];
 
 /**

@@ -155,7 +155,7 @@ export function FileCommandMenu({
             ref={projectInputRef}
             data-testid="project-file"
             type="file"
-            accept=".json,.icproj.json,application/json"
+            accept=".icproj,.json,.icproj.json,application/json"
             onChange={(event) =>
               onImportProject(event.currentTarget.files?.[0] ?? null)
             }

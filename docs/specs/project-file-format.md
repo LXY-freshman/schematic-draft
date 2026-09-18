@@ -7,10 +7,15 @@ Project schema: `57`
 Primary owners: `packages/model` (current shape) and
 `packages/project-protocol` (file boundary)
 
-An `.icproj.json` file is canonical JSON for one complete `CircuitProject`.
-The current-only model validates schema 57. The public `parseProject` boundary
-accepts schemas 24 through 57, runs the explicit contiguous upgrade chain, and
-returns only the current shape. Serialization writes only schema 57.
+A Project file is canonical JSON for one complete `CircuitProject`. The desktop
+application saves it as `.icproj`, because Windows resolves only the last
+extension and an association is what makes a Project double-clickable; the
+portable interchange name `.icproj.json` — what the browser build downloads and
+what this repository's fixtures and examples use — is the same bytes and opens
+the same way, as does a plain `.json` file. Nothing in the format depends on the
+name. The current-only model validates schema 57. The public `parseProject`
+boundary accepts schemas 24 through 57, runs the explicit contiguous upgrade
+chain, and returns only the current shape. Serialization writes only schema 57.
 Versions outside that range are rejected.
 
 [The loader](../../packages/project-protocol/src/load.ts) and its adjacent

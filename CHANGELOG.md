@@ -46,6 +46,11 @@ needed a server.
 
 - **Open Project…** and **Save As…** use the operating system's own file
   dialogs. A Project is the `.icproj.json` file you opened.
+- New Projects are saved as `.icproj` — the same canonical JSON under an
+  extension of this application's own, because Windows resolves only the last
+  extension and `.icproj.json` is indistinguishable from `.json` to it. Existing
+  `.icproj.json` and plain `.json` Projects open unchanged, and `.icproj.json`
+  stays the portable interchange name.
 - **Save** and `Ctrl+S` overwrite that file in place, with no dialog. The File
   menu shows the exact path so overwriting is never a guess. A new Project has
   no file yet, so its first **Save** asks once and then remembers.
