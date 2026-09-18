@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { useVisitStats } from "../analytics/client";
 import { EditorErrorBoundary } from "./components/editor-error-boundary";
 import { guardedRouteChunk } from "./components/route-chunk-loader";
+import { DESKTOP_BUILD } from "./desktop/desktop-mode";
 import "../analytics/analytics.css";
 import "./styles.css";
 
@@ -63,6 +64,18 @@ function Root() {
   const path = window.location.pathname;
   const stats = useVisitStats(path);
 
+  // The desktop shell owns one surface: the editor. It has no Gallery to
+  // browse, no moderation queue and no analytics page, so every path opens
+  // the editor and never names a Gallery entry.
+  if (DESKTOP_BUILD) {
+    return (
+      <Suspense
+        fallback={<div className="analytics-loading">Loading editor…</div>}
+      >
+        <EditorApp visitStats={null} initialGalleryEntryId={null} />
+      </Suspense>
+    );
+  }
   if (/^\/analytics\/?$/.test(path)) {
     return (
       <Suspense
@@ -119,7 +132,10 @@ createRoot(container).render(
   </StrictMode>,
 );
 
-if ("serviceWorker" in navigator) {
+// The desktop shell serves the editor from its own bundled files, so there is
+// no network to cache and no deploy to recover from; it never installs a
+// service worker.
+if ("serviceWorker" in navigator && !DESKTOP_BUILD) {
   if (import.meta.env.PROD) {
     // Keep the worker inside Vite's base path so a repository Pages deployment
     // never installs a root-origin worker belonging to another site.

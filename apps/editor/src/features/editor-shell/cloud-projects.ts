@@ -1,8 +1,12 @@
 import type { CircuitProject } from "@icm/model";
 import { serializeProject } from "@icm/project-protocol";
 
-/** Private formal Project storage. One id owns one mutable current revision. */
-export const CLOUD_PROJECT_LIMIT = 20;
+import { DESKTOP_BUILD } from "../../desktop/desktop-mode";
+
+/** Private formal Project storage. One id owns one mutable current revision.
+ * The hosted quota protects a shared service; the desktop store is the
+ * person's own disk, so its shelf is bounded only by what stays browsable. */
+export const CLOUD_PROJECT_LIMIT = DESKTOP_BUILD ? 200 : 20;
 
 export interface CloudProjectSummary {
   id: string;

@@ -1,0 +1,56 @@
+# electron-builder configuration for the Windows desktop build.
+#
+# The main process is a single esbuild bundle (dist/main.mjs); the editor is
+# copied verbatim from apps/editor/dist into resources/editor. No node_modules
+# ship, which is why the workspace packages sit in devDependencies.
+
+appId: com.schematicdraft.desktop
+productName: Schematic Draft
+executableName: schematic-draft
+copyright: "Based on Analog Canvas (cascode-ai), GNU AGPL-3.0"
+electronLanguages:
+  - en-US
+  - zh-CN
+
+directories:
+  buildResources: build
+  output: ../../output/desktop
+
+files:
+  - dist/**
+  - package.json
+
+extraResources:
+  - from: ../editor/dist
+    to: editor
+  - from: ../../LICENSE.md
+    to: LICENSE.md
+  - from: NOTICE.md
+    to: NOTICE.md
+
+asar: true
+npmRebuild: false
+nodeGypRebuild: false
+
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  artifactName: "${productName}-${version}-${os}-${arch}-setup.${ext}"
+  verifyUpdateCodeSignature: false
+  signAndEditExecutable: true
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Schematic Draft
+  deleteAppDataOnUninstall: false
+
+portable:
+  artifactName: "${productName}-${version}-${os}-${arch}-portable.${ext}"

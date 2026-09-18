@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    Schematic Draft application icon: an operational amplifier on a drafting
+    sheet. Original artwork for this build; licensed with the program under
+    the GNU AGPL-3.0.
+
+    Everything inside the "icon-detail" group is dropped for the 16 to 32 px
+    rasters, where the input polarity marks would only blur the triangle.
+  -->
+  <defs>
+    <linearGradient id="sheet" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a3a5a"/>
+      <stop offset="1" stop-color="#1b2740"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#sheet)"/>
+  <g fill="none" stroke="#f2efe6" stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M176 118v276l222-138z"/>
+    <path d="M66 186h110M66 326h110M398 256h42"/>
+  </g>
+  <g class="icon-detail" fill="none" stroke="#f2efe6" stroke-width="18" stroke-linecap="round">
+    <path d="M206 186h32"/>
+    <path d="M206 326h32M222 310v32"/>
+  </g>
+  <circle cx="440" cy="256" r="26" fill="#e8a33d"/>
+</svg>

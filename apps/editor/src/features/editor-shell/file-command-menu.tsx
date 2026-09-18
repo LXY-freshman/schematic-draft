@@ -1,13 +1,14 @@
 import { useRef, useState, type ReactNode, type RefObject } from "react";
 
+import type { ProjectStoreCopy } from "../../document/release-channel";
 import {
   CLOUD_PROJECT_LIMIT,
   type CloudProjectSummary,
 } from "./cloud-projects";
 
 export interface FileCommandMenuProps {
-  projectStoreLabel: "Cloud Projects" | "Preview Projects";
-  projectStoreItemLabel: "Cloud Project" | "Preview Project";
+  projectStoreLabel: ProjectStoreCopy["plural"];
+  projectStoreItemLabel: ProjectStoreCopy["singular"];
   cloudProjects: readonly CloudProjectSummary[];
   activeCloudProjectId: string | null;
   canRevert: boolean;

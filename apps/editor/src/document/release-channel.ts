@@ -1,3 +1,5 @@
+import { DESKTOP_BUILD } from "../desktop/desktop-mode";
+
 /**
  * Which release channel this editor is being served from (Deployment rationale).
  *
@@ -10,13 +12,22 @@
 export type ReleaseChannel = "production" | "preview";
 
 export interface ProjectStoreCopy {
-  singular: "Cloud Project" | "Preview Project";
-  plural: "Cloud Projects" | "Preview Projects";
-  destination: "Cloud" | "Preview Projects";
+  singular: "Cloud Project" | "Preview Project" | "Local Project";
+  plural: "Cloud Projects" | "Preview Projects" | "Local Projects";
+  destination: "Cloud" | "Preview Projects" | "this computer";
 }
 
 /** Human-facing storage identity; the underlying Project API is shared. */
 export function projectStoreCopy(channel: ReleaseChannel): ProjectStoreCopy {
+  // The desktop shell answers the same Project API from files on this
+  // computer, so its store is named for where the bytes actually live.
+  if (DESKTOP_BUILD) {
+    return {
+      singular: "Local Project",
+      plural: "Local Projects",
+      destination: "this computer",
+    };
+  }
   return channel === "preview"
     ? {
         singular: "Preview Project",
@@ -33,6 +44,8 @@ export function projectStoreCopy(channel: ReleaseChannel): ProjectStoreCopy {
 export async function loadReleaseChannel(
   fetchLike: typeof fetch | null = typeof fetch === "function" ? fetch : null,
 ): Promise<ReleaseChannel> {
+  // The desktop shell has no Worker and no channel to ask about.
+  if (DESKTOP_BUILD) return "production";
   if (!fetchLike) return "production";
   try {
     const response = await fetchLike("/api/channel", {

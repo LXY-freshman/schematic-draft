@@ -257,6 +257,17 @@ body {
   color: var(--icm-accent);
 }
 
+/* The desktop build has no gallery to return to: the brand is a static
+   label carrying the product mark, and it must not light up on hover. */
+.app-brand-static .app-brand-mark {
+  background: url("/schematic-draft-mark.svg") center / contain no-repeat;
+  box-shadow: none;
+}
+
+.app-brand-static:hover h1 {
+  color: inherit;
+}
+
 .app-brand-copy {
   min-width: 0;
   overflow: hidden;

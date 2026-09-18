@@ -3,6 +3,7 @@ import { type ComponentProps, type RefObject } from "react";
 
 import { AccountMenu } from "../components/account";
 import { BugReportLink } from "../components/bug-report-link";
+import { DESKTOP_BUILD, DESKTOP_PRODUCT_NAME } from "../desktop/desktop-mode";
 import { DrawingToolbar } from "../features/editor-shell/drawing-toolbar";
 import { EditorTestTelemetry } from "../features/editor-shell/editor-test-telemetry";
 import type { ReleaseChannel } from "../document/release-channel";
@@ -146,28 +147,35 @@ export function EditorAppChrome({
     <header className="app-chrome">
       <div className="app-chrome-main">
         <div className="app-brand">
-          <a
-            className="gallery-home-link"
-            href="/"
-            aria-label="Back to the gallery"
-            title="Back to the gallery"
-            onClick={(event) => {
-              if (
-                event.button !== 0 ||
-                event.metaKey ||
-                event.ctrlKey ||
-                event.shiftKey ||
-                event.altKey
-              ) {
-                return;
-              }
-              event.preventDefault();
-              onOpenGallery();
-            }}
-          >
-            <span className="app-brand-mark" aria-hidden="true" />
-            <h1 title="Analog Canvas">Analog Canvas</h1>
-          </a>
+          {DESKTOP_BUILD ? (
+            <span className="gallery-home-link app-brand-static">
+              <span className="app-brand-mark" aria-hidden="true" />
+              <h1 title={DESKTOP_PRODUCT_NAME}>{DESKTOP_PRODUCT_NAME}</h1>
+            </span>
+          ) : (
+            <a
+              className="gallery-home-link"
+              href="/"
+              aria-label="Back to the gallery"
+              title="Back to the gallery"
+              onClick={(event) => {
+                if (
+                  event.button !== 0 ||
+                  event.metaKey ||
+                  event.ctrlKey ||
+                  event.shiftKey ||
+                  event.altKey
+                ) {
+                  return;
+                }
+                event.preventDefault();
+                onOpenGallery();
+              }}
+            >
+              <span className="app-brand-mark" aria-hidden="true" />
+              <h1 title="Analog Canvas">Analog Canvas</h1>
+            </a>
+          )}
           <div className="app-brand-copy">
             <p title={`${projectName} / ${documentName}`}>
               <input
@@ -417,17 +425,20 @@ export function EditorAppChrome({
             ) : null}
             {/* Publishing is the primary narrow-window action. Keeping it
                 immediately after the compact menus makes it visible before
-                the command row needs horizontal scrolling. */}
-            <button
-              type="button"
-              data-testid="publish-gallery-button"
-              aria-haspopup="dialog"
-              aria-expanded={publishGalleryOpen}
-              title="Publish to Gallery"
-              onClick={onPublishGallery}
-            >
-              Publish<span className="publish-label-long"> to Gallery</span>
-            </button>
+                the command row needs horizontal scrolling. Desktop has no
+                Gallery to publish to. */}
+            {DESKTOP_BUILD ? null : (
+              <button
+                type="button"
+                data-testid="publish-gallery-button"
+                aria-haspopup="dialog"
+                aria-expanded={publishGalleryOpen}
+                title="Publish to Gallery"
+                onClick={onPublishGallery}
+              >
+                Publish<span className="publish-label-long"> to Gallery</span>
+              </button>
+            )}
           </div>
         </nav>
         <div className="app-chrome-actions">
@@ -435,11 +446,13 @@ export function EditorAppChrome({
           {releaseChannel === "preview" ? (
             <AccountMenu showGalleryLinks={false} />
           ) : null}
-          <BugReportLink
-            testId="editor-report-bug"
-            surface="Editor"
-            projectSchemaVersion={projectSchemaVersion}
-          />
+          {DESKTOP_BUILD ? null : (
+            <BugReportLink
+              testId="editor-report-bug"
+              surface="Editor"
+              projectSchemaVersion={projectSchemaVersion}
+            />
+          )}
           <button
             type="button"
             className="menubar-help"
@@ -451,26 +464,28 @@ export function EditorAppChrome({
           >
             Help
           </button>
-          <div className="tokenzhang-credit">
-            <span className="tokenzhang-credit-kicker">Presented by</span>
-            <a
-              className="tokenzhang-link"
-              href="https://tokenzhang.com"
-              target="_blank"
-              rel="noreferrer"
-              aria-label="TokenZhang"
-              title="TokenZhang"
-            >
-              <img
-                className="tokenzhang-link-icon"
-                src="/tokenzhang-favicon.png"
-                alt=""
-                width={12}
-                height={12}
-              />
-              <span className="tokenzhang-link-label">TokenZhang</span>
-            </a>
-          </div>
+          {DESKTOP_BUILD ? null : (
+            <div className="tokenzhang-credit">
+              <span className="tokenzhang-credit-kicker">Presented by</span>
+              <a
+                className="tokenzhang-link"
+                href="https://tokenzhang.com"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="TokenZhang"
+                title="TokenZhang"
+              >
+                <img
+                  className="tokenzhang-link-icon"
+                  src="/tokenzhang-favicon.png"
+                  alt=""
+                  width={12}
+                  height={12}
+                />
+                <span className="tokenzhang-link-label">TokenZhang</span>
+              </a>
+            </div>
+          )}
         </div>
       </div>
       <DrawingToolbar {...drawingToolbar} />

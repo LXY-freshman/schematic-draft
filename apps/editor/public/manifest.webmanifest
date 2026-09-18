@@ -1,7 +1,7 @@
 {
-  "name": "Analog Canvas",
-  "short_name": "Analog Canvas",
-  "description": "Local-first circuit schematic editor",
+  "name": "Schematic Draft",
+  "short_name": "Schematic Draft",
+  "description": "Offline circuit schematic editor",
   "id": "./",
   "start_url": "./",
   "scope": "./",
