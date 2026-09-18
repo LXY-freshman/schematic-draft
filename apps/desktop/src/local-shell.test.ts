@@ -5,6 +5,14 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { APP_ORIGIN, createAppProtocolHandler } from "./app-protocol.js";
+import {
+  associationCommands,
+  associationTargets,
+  claimsExtension,
+  registryValue,
+  removalCommands,
+  targetFingerprint,
+} from "./file-association.js";
 import { canWriteDirectory, resolveInstallRoot } from "./install-paths.js";
 import { projectPathFromArgv } from "./open-request.js";
 import {
@@ -372,5 +380,82 @@ describe("install paths", () => {
     const blocked = join(directory, "occupied");
     await writeFile(blocked, "");
     expect(canWriteDirectory(join(blocked, "inside"))).toBe(false);
+  });
+});
+
+describe("windows file association", () => {
+  const exe = "D:\\Tools\\Schematic Draft\\schematic-draft.exe";
+  const queryOutput = (name: string, value: string) =>
+    [
+      "",
+      `HKEY_CURRENT_USER\\Software\\Classes`,
+      `    ${name}    REG_SZ    ${value}`,
+      "",
+    ].join("\r\n");
+
+  it("claims the extension for this executable and nothing else", () => {
+    const commands = associationCommands(exe, "Schematic Draft Project");
+    expect(commands.map((command) => command[1])).toEqual([
+      "HKCU\\Software\\Classes\\.icproj",
+      "HKCU\\Software\\Classes\\SchematicDraft.Project",
+      "HKCU\\Software\\Classes\\SchematicDraft.Project",
+      "HKCU\\Software\\Classes\\SchematicDraft.Project\\DefaultIcon",
+      "HKCU\\Software\\Classes\\SchematicDraft.Project\\shell\\open\\command",
+    ]);
+    // Per-user keys only: every one of them is under HKCU, so no elevation is
+    // needed and no other account sees the change.
+    expect(commands.every((command) => command[1]?.startsWith("HKCU\\"))).toBe(
+      true,
+    );
+    expect(commands.at(-1)?.at(-2)).toBe(`"${exe}" "%1"`);
+    expect(commands.at(-2)?.at(-2)).toBe(`${exe},0`);
+    // What the copy records about itself is ASCII whatever the path holds, so
+    // `reg.exe` output in any console codepage still reads back intact.
+    expect(commands[2]?.at(-2)).toBe(targetFingerprint(exe));
+    expect(targetFingerprint("D:\\电路\\sd.exe")).toMatch(/^[\w-]+$/u);
+  });
+
+  it("reads the value whatever Windows calls a default entry", () => {
+    // The name is translated; `(默认)` is what a Chinese install prints.
+    expect(registryValue(queryOutput("(默认)", "SchematicDraft.Project"))).toBe(
+      "SchematicDraft.Project",
+    );
+    expect(
+      registryValue(queryOutput("SchematicDraftTarget", "RDpcVG9vbHM")),
+    ).toBe("RDpcVG9vbHM");
+    // Nothing registered: `reg query` prints an error, not a value.
+    expect(
+      registryValue("ERROR: The system was unable to find the\r\n"),
+    ).toBeNull();
+  });
+
+  it("recognizes its own claim, and a claim belonging to somewhere else", () => {
+    const recorded = (path: string) =>
+      queryOutput("SchematicDraftTarget", targetFingerprint(path));
+    expect(associationTargets(recorded(exe), exe)).toBe(true);
+    // Windows does not care about case in a path; a stale claim from the old
+    // location is a different path and has to be rewritten.
+    expect(associationTargets(recorded(exe.toUpperCase()), exe)).toBe(true);
+    expect(
+      associationTargets(recorded("E:\\Elsewhere\\schematic-draft.exe"), exe),
+    ).toBe(false);
+    expect(associationTargets("", exe)).toBe(false);
+  });
+
+  it("gives back only what it claimed", () => {
+    expect(
+      claimsExtension(queryOutput("(Default)", "SchematicDraft.Project")),
+    ).toBe(true);
+    expect(claimsExtension(queryOutput("(Default)", "VSCode.json"))).toBe(
+      false,
+    );
+    expect(removalCommands(true).map((command) => command[1])).toEqual([
+      "HKCU\\Software\\Classes\\.icproj",
+      "HKCU\\Software\\Classes\\SchematicDraft.Project",
+    ]);
+    // Another application owns `.icproj` now: its entry is not ours to delete.
+    expect(removalCommands(false).map((command) => command[1])).toEqual([
+      "HKCU\\Software\\Classes\\SchematicDraft.Project",
+    ]);
   });
 });

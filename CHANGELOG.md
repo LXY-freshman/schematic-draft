@@ -70,10 +70,11 @@ needed a server.
 
 - Everything the application writes lives inside its own folder: new Projects go
   to `Projects\` beside the executable, and the window size, preferences and
-  crash-recovery copies go to `AppData\`. Nothing is left in `%APPDATA%`, the
-  registry or your Documents folder, so copying or moving that one folder — to
-  another drive, a stick, another machine — moves the installation with its work
-  intact.
+  crash-recovery copies go to `AppData\`. Nothing is left in `%APPDATA%` or your
+  Documents folder, so copying or moving that one folder — to another drive, a
+  stick, another machine — moves the installation with its work intact. The
+  Windows file association below is the single exception, because a double-click
+  cannot be taught from inside a folder.
 - **File → Open Projects Folder** opens that `Projects\` directory, the Save As
   and export dialogs start there, and **Help → About** reports the paths in use.
   Saving anywhere else still works; the dialogs go wherever you point them.
@@ -84,6 +85,22 @@ needed a server.
   and the single-file portable build sits in `portable\` because it keeps its
   own `Projects\` and `AppData\` beside the executable. Rebuilding replaces the
   program and leaves both of those directories alone.
+
+### Double-clicking a Project
+
+- An installed copy claims `.icproj` for itself the first time it runs, so
+  double-clicking a Project in Explorer opens it here. The entries are per-user
+  (`HKCU\Software\Classes`): no elevation, no other account affected, and the
+  open command names this folder's executable, so a folder that moved re-points
+  the association at its new home the next time it starts.
+- **Help → Open .icproj Files With This Copy** shows the real state and turns it
+  off, removing those entries. The `.icproj` entry is only removed while it still
+  points here — if another application has claimed the extension since, that
+  entry is not this one's to delete. Turning it off is remembered, so a later
+  launch does not quietly claim the extension again.
+- The single-file portable build claims nothing unless that menu item is ticked,
+  because it runs from a temporary directory whose path is stale by tomorrow.
+- **Help → About** states whether the association is in place.
 
 ### Simulation
 

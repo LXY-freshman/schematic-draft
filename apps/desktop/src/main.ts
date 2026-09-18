@@ -1,3 +1,4 @@
+import { execFile } from "node:child_process";
 import { mkdirSync, statSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
@@ -18,6 +19,16 @@ import {
   APP_SCHEME,
   createAppProtocolHandler,
 } from "./app-protocol.js";
+import {
+  associationCommands,
+  associationTargets,
+  claimsExtension,
+  EXTENSION_KEY,
+  OPEN_COMMAND_KEY,
+  PROG_ID_KEY,
+  removalCommands,
+  TARGET_VALUE_NAME,
+} from "./file-association.js";
 import {
   APP_DATA_FOLDER,
   canWriteDirectory,
@@ -252,6 +263,145 @@ async function saveWindowState(window: BrowserWindow): Promise<void> {
   }
 }
 
+/**
+ * Whether Explorer opens `${PROJECT_FILE_EXTENSION}` files with this copy right
+ * now, and whether it was ever told not to.
+ *
+ * The association is the one thing this application writes outside its own
+ * folder, so it is kept honest: per-user keys only, the Help menu shows and
+ * flips the real state, and turning it off is remembered instead of being
+ * quietly restored at the next launch.
+ */
+let associationActive = false;
+let associationWanted = true;
+
+/**
+ * The executable a person actually launches. The portable build runs from a
+ * temporary unpack directory, so its own path would be stale by tomorrow.
+ */
+function launchExecutable(): string {
+  const portable = process.env["PORTABLE_EXECUTABLE_FILE"]?.trim();
+  return portable !== undefined && portable.length > 0
+    ? portable
+    : app.getPath("exe");
+}
+
+const isPortableBuild =
+  (process.env["PORTABLE_EXECUTABLE_DIR"] ?? "").trim().length > 0;
+
+function associationChoiceFile(): string {
+  return join(app.getPath("userData"), "file-association.json");
+}
+
+async function loadAssociationChoice(): Promise<void> {
+  try {
+    const raw = JSON.parse(
+      await readFile(associationChoiceFile(), "utf8"),
+    ) as Partial<{ enabled: boolean }>;
+    associationWanted = raw.enabled !== false;
+  } catch {
+    // Never asked. A Project that cannot be double-clicked is the thing people
+    // report, so the default is to claim the extension.
+  }
+}
+
+async function rememberAssociationChoice(enabled: boolean): Promise<void> {
+  associationWanted = enabled;
+  try {
+    await mkdir(app.getPath("userData"), { recursive: true });
+    await writeFile(
+      associationChoiceFile(),
+      `${JSON.stringify({ enabled })}\n`,
+      "utf8",
+    );
+  } catch {
+    // The choice still holds for this run; it just will not be remembered.
+  }
+}
+
+/** One `reg.exe` call. Failure is an answer, not an exception. */
+function reg(
+  args: readonly string[],
+): Promise<{ ok: boolean; output: string }> {
+  return new Promise((settle) => {
+    execFile(
+      "reg.exe",
+      [...args],
+      { windowsHide: true },
+      (error, stdout: string) => settle({ ok: error === null, output: stdout }),
+    );
+  });
+}
+
+/**
+ * Whether Explorer opens a Project with this copy right now: `.icproj` has to
+ * still name this application's document type, and that document type has to
+ * still name this executable rather than a copy in a folder that moved.
+ */
+async function queryAssociation(): Promise<boolean> {
+  if (process.platform !== "win32") return false;
+  const owner = await reg(["query", EXTENSION_KEY, "/ve"]);
+  if (!owner.ok || !claimsExtension(owner.output)) return false;
+  const target = await reg(["query", PROG_ID_KEY, "/v", TARGET_VALUE_NAME]);
+  return target.ok && associationTargets(target.output, launchExecutable());
+}
+
+async function applyAssociation(): Promise<boolean> {
+  for (const args of associationCommands(
+    launchExecutable(),
+    `${PRODUCT_NAME} Project`,
+  )) {
+    if (!(await reg(args)).ok) return false;
+  }
+  return true;
+}
+
+async function withdrawAssociation(): Promise<boolean> {
+  const owner = await reg(["query", EXTENSION_KEY, "/ve"]);
+  for (const args of removalCommands(
+    owner.ok && claimsExtension(owner.output),
+  )) {
+    if (!(await reg(args)).ok) return false;
+  }
+  return true;
+}
+
+/**
+ * Keep the association pointing at this copy, including after the folder has
+ * been moved. A portable copy claims nothing unless it is asked to, and a
+ * refusal is remembered.
+ */
+async function ensureFileAssociation(): Promise<void> {
+  if (process.platform !== "win32" || !app.isPackaged) return;
+  associationActive = await queryAssociation();
+  if (associationActive || isPortableBuild || !associationWanted) return;
+  associationActive = await applyAssociation();
+}
+
+async function setFileAssociation(
+  window: BrowserWindow,
+  wanted: boolean,
+): Promise<void> {
+  const done = wanted ? await applyAssociation() : await withdrawAssociation();
+  await rememberAssociationChoice(wanted);
+  associationActive = done ? wanted : await queryAssociation();
+  window.setMenu(buildMenu(window));
+  await dialog.showMessageBox(window, {
+    type: done ? "info" : "warning",
+    title: PRODUCT_NAME,
+    message: done
+      ? wanted
+        ? `${PROJECT_FILE_EXTENSION} files now open with this copy.`
+        : `${PROJECT_FILE_EXTENSION} files are no longer associated with this copy.`
+      : `Windows refused the change to this account's registry.`,
+    detail: done
+      ? wanted
+        ? "Explorer may take a moment to show the new icon. Only this account\nis affected, and the entry names this folder, so moving the folder\nand starting it again moves the association with it."
+        : "The per-user registry entries this application added are gone.\nOpening a Project from inside the application still works."
+      : `Nothing was changed. The keys are under\n${EXTENSION_KEY} and\n${OPEN_COMMAND_KEY}.`,
+  });
+}
+
 function buildMenu(window: BrowserWindow): Menu {
   const template: MenuItemConstructorOptions[] = [
     {
@@ -281,6 +431,14 @@ function buildMenu(window: BrowserWindow): Menu {
       label: "&Help",
       submenu: [
         {
+          label: `Open ${PROJECT_FILE_EXTENSION} Files With This Copy`,
+          type: "checkbox",
+          checked: associationActive,
+          enabled: process.platform === "win32" && app.isPackaged,
+          click: (item) => void setFileAssociation(window, item.checked),
+        },
+        { type: "separator" },
+        {
           label: `About ${PRODUCT_NAME}`,
           click: () =>
             void dialog.showMessageBox(window, {
@@ -301,6 +459,9 @@ function buildMenu(window: BrowserWindow): Menu {
                 "",
                 `Projects: ${projectsDirectory()}`,
                 `Settings and recovery: ${app.getPath("userData")}`,
+                associationActive
+                  ? `Double-click: ${PROJECT_FILE_EXTENSION} files open with this copy (a\nper-user registry entry, removable from this menu).`
+                  : `Double-click: ${PROJECT_FILE_EXTENSION} files are not associated with\nthis copy; nothing of it is in the registry.`,
               ].join("\n"),
             }),
         },
@@ -405,6 +566,9 @@ if (!app.requestSingleInstanceLock()) {
     lockDownNetwork();
     routeDownloadsToSaveDialog();
     await mkdir(projectsDirectory(), { recursive: true });
+    await loadAssociationChoice();
+    // Before the window, so the Help menu shows the association as it really is.
+    await ensureFileAssociation();
     let mainWindow: BrowserWindow | null = null;
     protocol.handle(
       APP_SCHEME,
