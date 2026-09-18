@@ -31,6 +31,18 @@ export const PROJECT_FILE_EXTENSION = ".icproj";
  */
 export const PROJECT_FILE_EXTENSIONS = ["icproj", "icproj.json", "json"];
 
+/**
+ * A file the shell was handed — a double-click, or a path on the command line.
+ *
+ * The renderer polls for it over this same bridge rather than being pushed a
+ * path, because there is no preload script and the editor already owns the
+ * "replace the open Project?" question.
+ */
+export interface PendingProjectOpen {
+  /** The waiting path, forgotten as it is handed over; null when there is none. */
+  take(): string | null;
+}
+
 export interface ProjectFileDialogs {
   /** Ask which file to open; null when the person cancels. */
   promptOpen(): Promise<string | null>;
@@ -89,11 +101,22 @@ async function openPath(path: string): Promise<Response> {
 export async function handleProjectFileApi(
   request: Request,
   pathname: string,
-  dialogs: ProjectFileDialogs,
+  deps: {
+    dialogs: ProjectFileDialogs;
+    /** Absent in a plain browser, where nothing can hand the editor a file. */
+    pendingOpen?: PendingProjectOpen;
+  },
 ): Promise<Response | null> {
   if (!pathname.startsWith("/api/file/")) return null;
   if (request.method !== "POST")
     return json({ error: "method-not-allowed" }, 405);
+
+  if (pathname === "/api/file/pending") {
+    const path = deps.pendingOpen?.take() ?? null;
+    return path === null
+      ? json({ status: "idle" })
+      : json({ status: "requested", path });
+  }
 
   const body = (await request.json().catch(() => null)) as {
     path?: unknown;
@@ -105,7 +128,7 @@ export async function handleProjectFileApi(
   if (pathname === "/api/file/open") {
     let chosen: string | null;
     try {
-      chosen = await dialogs.promptOpen();
+      chosen = await deps.dialogs.promptOpen();
     } catch (error) {
       return failed(error, "The open dialog failed");
     }
@@ -137,7 +160,7 @@ export async function handleProjectFileApi(
     let target = body?.saveAs === true ? null : currentPath;
     if (target === null) {
       try {
-        target = await dialogs.promptSave({ name, currentPath });
+        target = await deps.dialogs.promptSave({ name, currentPath });
       } catch (error) {
         return failed(error, "The save dialog failed");
       }

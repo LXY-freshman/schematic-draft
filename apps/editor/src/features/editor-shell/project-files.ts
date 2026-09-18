@@ -106,6 +106,34 @@ export async function readProjectFileAt(
 }
 
 /**
+ * The DOM event the shell's main process dispatches when a file arrives while
+ * the editor is already running — a second double-click. It carries nothing;
+ * the path is collected over the bridge like any other read. The name matches
+ * `PROJECT_OPEN_REQUEST_EVENT` in `apps/desktop/src/open-request.ts`.
+ */
+export const PROJECT_OPEN_REQUEST_EVENT = "schematic-draft:open-request";
+
+/**
+ * The file the shell was asked to open — a double-click in Explorer, or a path
+ * on the command line — taken once, so a later re-check does not reopen it.
+ *
+ * Null in a plain browser, where nothing can hand the editor a file.
+ */
+export async function takeRequestedProjectPath(): Promise<string | null> {
+  try {
+    const body = (await post("/pending")) as {
+      status?: unknown;
+      path?: unknown;
+    } | null;
+    return body?.status === "requested" && typeof body.path === "string"
+      ? body.path
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Write arbitrary Project text to a file the person picks — a recovery copy
  * or a backup, neither of which should rebind the Project being edited.
  */

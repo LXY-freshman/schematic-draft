@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { mkdirSync, statSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
@@ -24,6 +24,10 @@ import {
   PROJECTS_FOLDER,
   resolveInstallRoot,
 } from "./install-paths.js";
+import {
+  PROJECT_OPEN_REQUEST_EVENT,
+  projectPathFromArgv,
+} from "./open-request.js";
 import {
   PROJECT_FILE_EXTENSION,
   PROJECT_FILE_EXTENSIONS,
@@ -349,13 +353,50 @@ async function createWindow(): Promise<BrowserWindow> {
   return window;
 }
 
+/**
+ * The Project a double-click (or a command line) asked for, until the editor
+ * collects it over the file bridge.
+ */
+let requestedOpenPath: string | null = null;
+
+/**
+ * Record the file an invocation named, if it named one.
+ *
+ * Both the first launch and every later double-click arrive as an argument
+ * list; the answer is the same either way, so both go through here.
+ */
+function noteRequestedOpen(
+  argv: readonly string[],
+  workingDirectory: string,
+): boolean {
+  const path = projectPathFromArgv(argv, {
+    packaged: app.isPackaged,
+    workingDirectory,
+    isFile: (candidate) =>
+      statSync(candidate, { throwIfNoEntry: false })?.isFile() === true,
+  });
+  if (path === null) return false;
+  requestedOpenPath = path;
+  return true;
+}
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.setAppUserModelId(APP_USER_MODEL_ID);
-  app.on("second-instance", () => {
+  noteRequestedOpen(process.argv, process.cwd());
+
+  app.on("second-instance", (_event, argv, workingDirectory) => {
     const [window] = BrowserWindow.getAllWindows();
     if (!window) return;
+    if (noteRequestedOpen(argv, workingDirectory)) {
+      // There is no preload bridge, so the renderer is only told that something
+      // is waiting; it collects the path over `/api/file/pending` itself.
+      void window.webContents.executeJavaScript(
+        `window.dispatchEvent(new Event(${JSON.stringify(PROJECT_OPEN_REQUEST_EVENT)}))`,
+        true,
+      );
+    }
     if (window.isMinimized()) window.restore();
     window.focus();
   });
@@ -370,6 +411,13 @@ if (!app.requestSingleInstanceLock()) {
       await createAppProtocolHandler({
         editorRoot: editorRoot(),
         dialogs: projectFileDialogs(() => mainWindow),
+        pendingOpen: {
+          take: () => {
+            const path = requestedOpenPath;
+            requestedOpenPath = null;
+            return path;
+          },
+        },
       }),
     );
     mainWindow = await createWindow();

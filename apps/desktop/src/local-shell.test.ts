@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { APP_ORIGIN, createAppProtocolHandler } from "./app-protocol.js";
 import { canWriteDirectory, resolveInstallRoot } from "./install-paths.js";
+import { projectPathFromArgv } from "./open-request.js";
 import {
   projectNameFromPath,
   type ProjectFileDialogs,
@@ -44,7 +45,19 @@ async function shell() {
   await writeFile(join(editorRoot, "app.js"), "export {};");
   const workspace = await mkdtemp(join(tmpdir(), "sd-files-"));
   const dialogs = stubDialogs();
-  const handle = await createAppProtocolHandler({ editorRoot, dialogs });
+  // What the shell was asked to open, as the main process would hold it.
+  const requested: { path: string | null } = { path: null };
+  const handle = await createAppProtocolHandler({
+    editorRoot,
+    dialogs,
+    pendingOpen: {
+      take: () => {
+        const path = requested.path;
+        requested.path = null;
+        return path;
+      },
+    },
+  });
   const request = (path: string, init?: RequestInit) =>
     handle(new Request(`${APP_ORIGIN}${path}`, init));
   const post = (path: string, body?: unknown) =>
@@ -53,7 +66,7 @@ async function shell() {
       headers: { "content-type": "application/json" },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
-  return { handle, request, post, dialogs, workspace };
+  return { handle, request, post, dialogs, requested, workspace };
 }
 
 const PROJECT_TEXT = '{"schemaVersion":57,"name":"Low-pass filter"}';
@@ -112,6 +125,27 @@ describe("desktop app protocol", () => {
         await post("/api/file/read", { path: join(workspace, "gone.json") })
       ).json(),
     ).toEqual(expect.objectContaining({ status: "failed" }));
+  });
+
+  it("hands over a file the shell was asked to open, exactly once", async () => {
+    const { request, post, requested, workspace } = await shell();
+
+    expect(await (await post("/api/file/pending")).json()).toEqual({
+      status: "idle",
+    });
+
+    const path = join(workspace, "Double-clicked.icproj");
+    requested.path = path;
+    expect(await (await post("/api/file/pending")).json()).toEqual({
+      status: "requested",
+      path,
+    });
+    // Taken: a later check must not reopen the same file behind the person's
+    // back, and the editor reads the bytes over `/read` like any other path.
+    expect(await (await post("/api/file/pending")).json()).toEqual({
+      status: "idle",
+    });
+    expect((await request("/api/file/pending")).status).toBe(405);
   });
 
   it("saves in place and only prompts without a path or for Save As", async () => {
@@ -211,6 +245,58 @@ describe("project file names", () => {
     expect(projectNameFromPath(join("D:", "C", "amp.icproj.bak"))).toBe(
       "amp.icproj.bak",
     );
+  });
+});
+
+describe("open requests", () => {
+  // Absolute paths under the platform's own temporary root: a relative argument
+  // is resolved against the launching shell's directory, so the distinction has
+  // to be real on whichever machine runs this.
+  const circuits = join(tmpdir(), "sd-argv", "Circuits");
+  const project = join(circuits, "Low-pass filter.icproj");
+  const exe = join(tmpdir(), "sd-argv", "Schematic Draft", "app.exe");
+  const installed = (
+    argv: readonly string[],
+    files: readonly string[] = [project],
+  ) =>
+    projectPathFromArgv(argv, {
+      packaged: true,
+      workingDirectory: circuits,
+      isFile: (path) => files.includes(path),
+    });
+
+  it("takes the file a double-click or a command line names", () => {
+    expect(installed([exe, project])).toBe(project);
+    // Chromium's own switches ride along in the same list.
+    expect(installed([exe, "--no-sandbox", project, "--disable-gpu"])).toBe(
+      project,
+    );
+    // Explorer passes an absolute path; a command line need not.
+    expect(installed([exe, "Low-pass filter.icproj"])).toBe(project);
+    expect(installed([exe])).toBeNull();
+    expect(installed([exe, "--no-sandbox"])).toBeNull();
+  });
+
+  it("ignores a path that is not a file there", () => {
+    // A stale shortcut, a deleted file, a stray argument: the editor stays on
+    // the Project it has rather than reporting a failure nobody asked for.
+    expect(installed([exe, join(circuits, "gone.icproj")])).toBeNull();
+    expect(installed([exe, project], [])).toBeNull();
+  });
+
+  it("does not mistake a development run's application directory for a file", () => {
+    // `electron .` puts the app directory in argv[1]; only a packaged launch
+    // starts its arguments there.
+    const repo = join(tmpdir(), "sd-argv", "repo");
+    const electron = join(repo, "node_modules", "electron", "electron");
+    const development = (argv: readonly string[]) =>
+      projectPathFromArgv(argv, {
+        packaged: false,
+        workingDirectory: repo,
+        isFile: (path) => path === project || path === join(repo, "apps"),
+      });
+    expect(development([electron, join(repo, "apps")])).toBeNull();
+    expect(development([electron, join(repo, "apps"), project])).toBe(project);
   });
 });
 

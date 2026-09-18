@@ -37,6 +37,11 @@ interface FileBridge {
   openPick: string | null;
   /** Where the Save dialog puts the file; `null` cancels. */
   savePick: string | null;
+  /**
+   * A file handed to the shell — a double-click in Explorer — which the editor
+   * collects once, exactly as the main process hands it over once.
+   */
+  requestedOpen: string | null;
 }
 
 function baseName(path: string): string {
@@ -49,6 +54,7 @@ async function mockFileBridge(page: Page): Promise<FileBridge> {
     saves: [],
     openPick: null,
     savePick: null,
+    requestedOpen: null,
   };
   const read = (path: string) => {
     const text = bridge.files.get(path);
@@ -67,6 +73,13 @@ async function mockFileBridge(page: Page): Promise<FileBridge> {
   await page.route("**/api/file/read", (route) => {
     const { path } = route.request().postDataJSON() as { path: string };
     return route.fulfill({ json: read(path) });
+  });
+  await page.route("**/api/file/pending", (route) => {
+    const path = bridge.requestedOpen;
+    bridge.requestedOpen = null;
+    return route.fulfill({
+      json: path === null ? { status: "idle" } : { status: "requested", path },
+    });
   });
   await page.route("**/api/file/save", (route) => {
     const body = route.request().postDataJSON() as SaveRequest;
@@ -304,6 +317,43 @@ test("opens a file and then saves over it without a dialog", async ({
   expect(saved.documents[0]!.instances).toHaveLength(1);
   expect(bridge.files.get(path)).not.toBe(minimalProjectText);
   await expect(page.getByTestId("status")).toHaveText(`Saved ${path}`);
+});
+
+/**
+ * The double-click path, end to end through the renderer.
+ *
+ * Explorer hands the file to the shell, which queues it; the editor collects it
+ * over the same bridge it reads any other path with. A second double-click
+ * reaches the running copy, which asks the editor to look again — the event
+ * carries no data, so this is the only way the path can arrive.
+ */
+test("opens the file the shell was handed, at launch and while running", async ({
+  page,
+}) => {
+  const bridge = await mockFileBridge(page);
+  const first = "C:\\circuits\\double-clicked.icproj";
+  const second = "C:\\circuits\\another.icproj";
+  bridge.files.set(first, minimalProjectText);
+  bridge.files.set(second, minimalProjectText);
+  bridge.requestedOpen = first;
+
+  await page.goto("/editor");
+  await expect(page.getByTestId("status")).toHaveText(`Opened ${first}`);
+
+  // Save now belongs to that file, with no dialog: it is a bound Project, not
+  // an import.
+  const fileMenu = await openMenu(page, "File");
+  await expect(fileMenu.getByTestId("save-project-file")).toHaveAttribute(
+    "title",
+    `Save to ${first}`,
+  );
+  await page.keyboard.press("Escape");
+
+  bridge.requestedOpen = second;
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event("schematic-draft:open-request"));
+  });
+  await expect(page.getByTestId("status")).toHaveText(`Opened ${second}`);
 });
 
 test("Save As writes a second file and rebinds the Project to it", async ({

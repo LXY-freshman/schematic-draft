@@ -41,7 +41,11 @@ import {
 import type { HierarchyFrame } from "@icm/derived";
 import { createEmptyProject, flattenRichText } from "@icm/model";
 import { tryParseProjectWithMetadata } from "@icm/project-protocol";
-import { openProjectFileFromDisk } from "../features/editor-shell/project-files";
+import {
+  openProjectFileFromDisk,
+  PROJECT_OPEN_REQUEST_EVENT,
+  takeRequestedProjectPath,
+} from "../features/editor-shell/project-files";
 import {
   resolveReviewedExternalBinding,
   reviewedExternalModelSuggestions,
@@ -597,11 +601,52 @@ export function App({ project: initialProject }: AppProps) {
         search.get("new") === "1"
       );
     })();
+  // A file handed to the shell — double-clicked in Explorer, or named on the
+  // command line — is explicit intent, so it outranks reopening the last file.
+  // `undefined` means the shell has not answered yet; the reopen effect below
+  // waits for that rather than racing it.
+  const [requestedProjectPath, setRequestedProjectPath] = useState<
+    string | null | undefined
+  >(undefined);
+  useEffect(() => {
+    // Collecting the path takes it from the shell, so an answer is never
+    // dropped: React ignores a state update for a tree that is really gone, and
+    // the development double-mount keeps this component's state.
+    const collect = () => {
+      void takeRequestedProjectPath().then((path) => {
+        // Stand the last-file reopen down before it can start.
+        if (path !== null) startupReopenAttemptedRef.current = true;
+        // An empty answer only settles "nothing was handed to us"; it never
+        // discards a path still waiting to be opened, which a second check
+        // (React's development double-mount) would otherwise do.
+        setRequestedProjectPath((current) =>
+          path === null && typeof current === "string" ? current : path,
+        );
+      });
+    };
+    collect();
+    // Double-clicking a second file reaches the running copy, which asks the
+    // editor to look again.
+    window.addEventListener(PROJECT_OPEN_REQUEST_EVENT, collect);
+    return () => {
+      window.removeEventListener(PROJECT_OPEN_REQUEST_EVENT, collect);
+    };
+  }, []);
+  useEffect(() => {
+    if (!requestedProjectPath) return;
+    // Taken once: a re-render must not reopen the file, and unsaved work is the
+    // replacement guard's question, not this effect's.
+    setRequestedProjectPath(null);
+    setStatus(`Opening ${requestedProjectPath}…`);
+    void reopenProjectPath(requestedProjectPath);
+  }, [reopenProjectPath, requestedProjectPath, setStatus]);
   // Reopening the last file is a convenience, so it yields to anything more
-  // specific: an explicit boot target, unsaved work, or a pending recovery.
+  // specific: a file the shell was handed, an explicit boot target, unsaved
+  // work, or a pending recovery.
   useEffect(() => {
     if (
       startupReopenAttemptedRef.current ||
+      requestedProjectPath === undefined ||
       !canRestoreStartupProject ||
       hasExplicitBootTarget ||
       !startupProjectPath
@@ -615,6 +660,7 @@ export function App({ project: initialProject }: AppProps) {
     canRestoreStartupProject,
     hasExplicitBootTarget,
     reopenProjectPath,
+    requestedProjectPath,
     startupProjectPath,
   ]);
   const [boxPreview, setBoxPreview] = useState<BoxPreview | null>(null);

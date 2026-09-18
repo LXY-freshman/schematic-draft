@@ -54,6 +54,11 @@ needed a server.
 - **Save** and `Ctrl+S` overwrite that file in place, with no dialog. The File
   menu shows the exact path so overwriting is never a guess. A new Project has
   no file yet, so its first **Save** asks once and then remembers.
+- A Project file handed to the application — named on the command line, or
+  opened with it from Explorer — loads at launch. Handing it a second file while
+  it is running opens that file in the window already open instead of starting a
+  rival copy, and replacing unsaved work asks first, exactly as **Open
+  Project…** does.
 - **Import Cell** copies a Cell out of any other Project file on disk.
 - Only the main process touches the filesystem; the editor asks it to read and
   write and cannot widen that scope on its own.

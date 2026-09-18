@@ -4,6 +4,7 @@ import { extname, isAbsolute, relative, resolve } from "node:path";
 
 import {
   handleProjectFileApi,
+  type PendingProjectOpen,
   type ProjectFileDialogs,
 } from "./project-files.js";
 
@@ -35,6 +36,8 @@ const TYPES: Readonly<Record<string, string>> = {
 export interface AppProtocolOptions {
   editorRoot: string;
   dialogs: ProjectFileDialogs;
+  /** A file the launch was asked to open, for the editor to collect. */
+  pendingOpen?: PendingProjectOpen;
 }
 
 function inside(root: string, requested: string): string {
@@ -102,11 +105,12 @@ export async function createAppProtocolHandler(
     const pathname = decodeURIComponent(url.pathname);
 
     if (pathname.startsWith("/api/")) {
-      const response = await handleProjectFileApi(
-        request,
-        pathname,
-        options.dialogs,
-      );
+      const response = await handleProjectFileApi(request, pathname, {
+        dialogs: options.dialogs,
+        ...(options.pendingOpen === undefined
+          ? {}
+          : { pendingOpen: options.pendingOpen }),
+      });
       if (response) {
         for (const [name, value] of Object.entries(secureHeaders)) {
           response.headers.set(name, value);
