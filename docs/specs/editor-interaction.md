@@ -305,13 +305,15 @@ Wire defaults to orthogonal. While Wire is active, a middle-button click
 switches only the unresolved leg between orthogonal, 45-degree octilinear, and
 any angle ([Routing rationale](../adr/routing.md));
 a middle-button drag pans as usual. F3 opens Wire options including corner
-order. Existing authored legs are immutable under mode switches; Backspace
-removes the latest authored step rather than an automatically compiled elbow.
+order. Legs the wire has already drawn are immutable under mode switches: a
+switch reshapes only the leg still being drawn.
 A fresh automatic orthogonal connection compares both right-angle corners and
 simple one-grid-clear corridors around symbol ink, then uses the shortest path
 that does not cross a component. A visible pin on the original path remains an
-intentional electrical contact. Any fixed point, explicit corner order,
-45-degree mode, or free-angle mode bypasses this assistance.
+intentional electrical contact. An explicit corner order, 45-degree mode, or
+free-angle mode bypasses this assistance. Because every click draws, each leg is
+planned on its own: a leg leaving a Pin escapes along that Pin's outward
+direction before it turns, which is what the preview drew before the click.
 
 Wire hover and primary clicks on Pins, Routes, and the canvas use one electrical
 target resolver. Capture follows the drawing at seven document units, bounded
@@ -320,8 +322,10 @@ visible endpoint circles are indicators, not a separate electrical hit policy.
 Route capture and ranking use the closest point on the actual conductor;
 grid/arrival quantization happens only after selecting it. A captured target
 has a distinct preview marker and one click completes the connection. A free
-canvas click fixes a step; double-click or Enter finishes a free end. Alt
-suppresses electrical capture, and ambiguous coincident Nets require a clearer
+canvas click is not a deferred bend either: it commits the leg being previewed
+and re-anchors the wire on the Route it just created, so a wire is geometry from
+its first drawn leg onward and a double-click or Enter only stops the session
+after the current one. Alt suppresses electrical capture, and ambiguous coincident Nets require a clearer
 target instead of an arbitrary connection. A Junction and every Route arm that
 meets it, including two collinear arms, are one target, so a wire starts or
 ends on an existing Junction dot.

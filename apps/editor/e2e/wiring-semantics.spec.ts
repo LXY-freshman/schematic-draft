@@ -304,83 +304,119 @@ test("the wire tool starts a new branch from an existing junction dot", async ({
   await expect(dot).toHaveCount(1);
 });
 
-for (const fixedVerticalLeg of [false, true]) {
-  test(`middle clicks reach 45 degrees after one corner flip${fixedVerticalLeg ? " after a fixed vertical leg" : ""}`, async ({
-    page,
-  }) => {
-    await page.goto("/editor");
-    await clickDrawTool(page, "wire");
-    const canvas = page.getByTestId("schematic-canvas");
-    await awaitCanvasSettled(canvas);
-    const [start, bend, end] = await onScreen(canvas, [
-      { x: 100, y: 100 },
-      { x: 100, y: 140 },
-      { x: 260, y: 200 },
-    ]);
-    await page.mouse.click(start!.x, start!.y);
-    if (fixedVerticalLeg) await page.mouse.click(bend!.x, bend!.y);
-    await page.mouse.move(end!.x, end!.y);
-    const preview = page.getByTestId("wire-preview");
-    const points = () =>
-      preview.evaluate((element) =>
-        Array.from((element as SVGPolylineElement).points).map(({ x, y }) => ({
-          x,
-          y,
-        })),
-      );
-    await expect(preview).toBeVisible();
-    const original = await points();
-    const middle = () => page.mouse.click(end!.x, end!.y, { button: "middle" });
-
-    await middle();
-    await expect(page.getByTestId("status")).toContainText(
-      fixedVerticalLeg ? "horizontal first" : "vertical first",
+test("middle clicks reach 45 degrees after one corner flip", async ({
+  page,
+}) => {
+  await page.goto("/editor");
+  await clickDrawTool(page, "wire");
+  const canvas = page.getByTestId("schematic-canvas");
+  await awaitCanvasSettled(canvas);
+  const [start, end] = await onScreen(canvas, [
+    { x: 100, y: 100 },
+    { x: 260, y: 200 },
+  ]);
+  await page.mouse.click(start!.x, start!.y);
+  await page.mouse.move(end!.x, end!.y);
+  const preview = page.getByTestId("wire-preview");
+  const points = () =>
+    preview.evaluate((element) =>
+      Array.from((element as SVGPolylineElement).points).map(({ x, y }) => ({
+        x,
+        y,
+      })),
     );
-    const flipped = await points();
-    expect(flipped).not.toEqual(original);
-    expect(
-      flipped.every(
-        (point, index) =>
-          index === 0 ||
-          point.x === flipped[index - 1]!.x ||
-          point.y === flipped[index - 1]!.y,
-      ),
-    ).toBe(true);
+  await expect(preview).toBeVisible();
+  const original = await points();
+  const middle = () => page.mouse.click(end!.x, end!.y, { button: "middle" });
 
-    await middle();
-    await expect(page.getByTestId("status")).toContainText("45° diagonal");
-    const diagonal = await points();
-    expect(
-      diagonal.some((point, index) => {
-        if (!index) return false;
-        const dx = Math.abs(point.x - diagonal[index - 1]!.x);
-        const dy = Math.abs(point.y - diagonal[index - 1]!.y);
-        return dx > 0 && dx === dy;
-      }),
-    ).toBe(true);
-    await middle();
-    await expect(page.getByTestId("status")).toContainText("any angle");
-    await middle();
-    await expect(page.getByTestId("status")).toContainText("auto");
-    expect(await points()).toEqual(original);
-    await expect(page.getByTestId("revision")).toHaveText("0");
-    await expect(page.locator('[data-canvas-hit-kind="route"]')).toHaveCount(0);
+  await middle();
+  await expect(page.getByTestId("status")).toContainText("vertical first");
+  const flipped = await points();
+  expect(flipped).not.toEqual(original);
+  expect(
+    flipped.every(
+      (point, index) =>
+        index === 0 ||
+        point.x === flipped[index - 1]!.x ||
+        point.y === flipped[index - 1]!.y,
+    ),
+  ).toBe(true);
 
-    await middle();
-    await middle();
-    await page.mouse.dblclick(end!.x, end!.y);
-    await expect(page.locator('[data-layer="routes"] polyline')).toHaveCount(1);
-    const committed = await page
-      .locator('[data-layer="routes"] polyline')
-      .evaluate((element) =>
-        Array.from((element as SVGPolylineElement).points).map(({ x, y }) => ({
-          x,
-          y,
-        })),
-      );
-    expect(committed).toEqual(diagonal);
-  });
-}
+  await middle();
+  await expect(page.getByTestId("status")).toContainText("45° diagonal");
+  const diagonal = await points();
+  expect(
+    diagonal.some((point, index) => {
+      if (!index) return false;
+      const dx = Math.abs(point.x - diagonal[index - 1]!.x);
+      const dy = Math.abs(point.y - diagonal[index - 1]!.y);
+      return dx > 0 && dx === dy;
+    }),
+  ).toBe(true);
+  await middle();
+  await expect(page.getByTestId("status")).toContainText("any angle");
+  await middle();
+  await expect(page.getByTestId("status")).toContainText("auto");
+  expect(await points()).toEqual(original);
+  // The middle button only reshapes the leg being drawn; nothing is committed
+  // until the primary button draws it.
+  await expect(page.getByTestId("revision")).toHaveText("0");
+  await expect(page.locator('[data-canvas-hit-kind="route"]')).toHaveCount(0);
+
+  await middle();
+  await middle();
+  await page.mouse.click(end!.x, end!.y);
+  await expect(page.locator('[data-layer="routes"] polyline')).toHaveCount(1);
+  const committed = await page
+    .locator('[data-layer="routes"] polyline')
+    .evaluate((element) =>
+      Array.from((element as SVGPolylineElement).points).map(({ x, y }) => ({
+        x,
+        y,
+      })),
+    );
+  expect(committed).toEqual(diagonal);
+});
+
+test("each wire click draws its leg and the wire draws on from there", async ({
+  page,
+}) => {
+  // Virtuoso's wire command: one click per vertex, each one leaving real
+  // geometry behind. Waiting for a double-click before anything appeared was
+  // the reported defect.
+  await page.goto("/editor");
+  await clickDrawTool(page, "wire");
+  const canvas = page.getByTestId("schematic-canvas");
+  await awaitCanvasSettled(canvas);
+  const [start, bend, end] = await onScreen(canvas, [
+    { x: 100, y: 100 },
+    { x: 100, y: 140 },
+    { x: 200, y: 140 },
+  ]);
+  const routes = page.locator('[data-canvas-hit-kind="route"]');
+
+  await page.mouse.click(start!.x, start!.y);
+  await expect(page.getByTestId("status")).toContainText("Wire source");
+  await expect(routes).toHaveCount(0);
+
+  await page.mouse.click(bend!.x, bend!.y);
+  await expect(page.getByTestId("status")).toContainText("Drawing on from");
+  await expect(routes).toHaveCount(1);
+  await expect(page.getByTestId("revision")).toHaveText("1");
+
+  // The wire draws on from the leg it just committed, so the next click
+  // extends that same conductor rather than starting a disconnected one.
+  await page.mouse.click(end!.x, end!.y);
+  await expect(page.getByTestId("revision")).toHaveText("2");
+  await expect(routes).toHaveCount(1);
+  await expect(routes).toHaveAttribute("points", "100,100 100,140 200,140");
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("statusbar-issues")).toHaveText("Not checked");
+  await clickNetlistWorkflowCommand(page, "check-and-save");
+  await expect(page.getByTestId("statusbar-issues")).toHaveText(
+    "No issues found",
+  );
+});
 
 test("middle click cycles the wire corner and never commits the wire", async ({
   page,
@@ -972,8 +1008,11 @@ test("the preview draws the wire the release commits, contacts and all", async (
   // rather than passing over them.
   await expect(page.getByTestId("wire-preview-contact")).toHaveCount(2);
 
+  // The click that opens the double-click draws the run; the second click only
+  // stops the wire, so one gesture still leaves exactly one commit behind.
   await page.mouse.dblclick(end!.x, end!.y);
-  await expect(page.getByTestId("status")).toContainText("Committed route");
+  await expect(page.getByTestId("status")).toContainText("Wire finished");
+  await expect(page.getByTestId("revision")).toHaveText("1");
 
   // Every leg of this gesture lies on one horizontal line, so ordering the
   // committed vertices by x reassembles the single conductor the author drew.

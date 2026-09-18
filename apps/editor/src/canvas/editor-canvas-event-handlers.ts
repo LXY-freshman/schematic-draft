@@ -10,7 +10,6 @@ import type {
   Point,
   SchematicDocument,
 } from "@icm/model";
-import type { WireSource } from "@icm/edit-engine";
 import type { SymbolResolver } from "@icm/symbols";
 
 import type { EditorTool } from "../interaction/interaction-state";
@@ -103,20 +102,12 @@ interface CanvasEventHandlerDependencies {
     cancelCreate: () => void;
   };
   wiring: {
-    source: WireSource | null;
-    draftStepCount: number;
     applyCanvasPoint: (
       point: Point,
       canvas: SVGSVGElement,
       alternate: boolean,
-      finish: boolean,
     ) => void;
-    resolveCanvasSnap: (
-      point: Point,
-      canvas: SVGSVGElement,
-      alternate: boolean,
-    ) => { point: Point };
-    complete: () => void;
+    endSession: () => void;
     cancel: () => void;
   };
   netLabelPlacement: {
@@ -179,11 +170,8 @@ export function createEditorCanvasEventHandlers({
     cancelCreate: cancelDraftingCreate,
   },
   wiring: {
-    source: wireSource,
-    draftStepCount: wireDraftStepCount,
     applyCanvasPoint: applyWireCanvasPoint,
-    resolveCanvasSnap: resolveWireCanvasSnap,
-    complete: completeWire,
+    endSession: endWireSession,
     cancel: cancelWire,
   },
   netLabelPlacement,
@@ -229,7 +217,6 @@ export function createEditorCanvasEventHandlers({
             ),
             event.currentTarget,
             event.altKey,
-            false,
           );
         }
         return;
@@ -450,52 +437,10 @@ export function createEditorCanvasEventHandlers({
         return;
       }
       if (tool !== "wire") return;
-      if (!wireSource) {
-        // The first click already committed a captured endpoint/route. The
-        // second click must finish quietly rather than opening another run.
-        setStatus("Wire finished · Esc exits");
-        return;
-      }
-      if (wireSource && wireDraftStepCount === 0) {
-        completeWire();
-        setStatus("Wire finished · Esc exits");
-        return;
-      }
-      if (target !== event.currentTarget && target.tagName !== "rect") return;
-      const point = pointFromClient(
-        event.clientX,
-        event.clientY,
-        event.currentTarget,
-        false,
-      );
-      const resolved = resolveWireCanvasSnap(
-        point,
-        event.currentTarget,
-        event.altKey,
-      );
-      if (
-        wireSource &&
-        wireDraftStepCount === 0 &&
-        wireSource.connection.contactPoint.x === resolved.point.x &&
-        wireSource.connection.contactPoint.y === resolved.point.y
-      ) {
-        completeWire();
-        setStatus("Wire finished · Esc exits");
-        return;
-      }
-      if (
-        wireSource?.endpoint.kind === "junction" &&
-        wireSource.preludeEdits.some(
-          (edit) => edit.kind === "add_junction" && edit.createNet,
-        ) &&
-        wireSource.connection.contactPoint.x === resolved.point.x &&
-        wireSource.connection.contactPoint.y === resolved.point.y
-      ) {
-        setStatus("Wire finished · Esc exits");
-        completeWire();
-        return;
-      }
-      applyWireCanvasPoint(point, event.currentTarget, event.altKey, true);
+      // The ordinary click this double-click opened with has already drawn its
+      // leg, so there is nothing left to commit here: the second click only
+      // stops the wire and leaves the tool armed for the next one.
+      endWireSession();
     },
     onContextMenu(event: CanvasMouseEvent) {
       event.preventDefault();

@@ -110,6 +110,7 @@ export interface UseWireCanvasControllerOptions {
     commitWire: (source: WireSource) => void;
     fixWirePoint: (point: Point) => void;
     finishWireAtPoint: (point: Point) => void;
+    completeWire: () => void;
     setStatus: (status: string) => void;
   };
 }
@@ -153,12 +154,29 @@ export function useWireCanvasController({
     sourceForTarget,
   },
   viewport: { pointFromClient, logicalRadiusForPixels, paintSnapGuides },
-  commands: { commitWire, fixWirePoint, finishWireAtPoint, setStatus },
+  commands: {
+    commitWire,
+    fixWirePoint,
+    finishWireAtPoint,
+    completeWire,
+    setStatus,
+  },
 }: UseWireCanvasControllerOptions) {
   const lastWireShapeRef = useRef<{
     routingMode: WireRoutingMode;
     cornerOrder: WireCornerOrder;
   }>({ routingMode: "orthogonal", cornerOrder: "auto" });
+  /**
+   * The point a just-committed leg has to keep drawing from.
+   *
+   * A click draws, so the conductor is already in the Document by the time
+   * the next leg starts; the continuation has to attach to that new geometry,
+   * which only exists in the next render. The effect below re-resolves this
+   * point against the fresh Document and re-anchors the wire there.
+   */
+  const continueFromRef = useRef<{ point: Point; svg: SVGSVGElement } | null>(
+    null,
+  );
   const wireCanvasSnapIndex = useMemo(
     () => buildWireCanvasSnapIndex(wiringEndpoints, routeGeometryRecords),
     [routeGeometryRecords, wiringEndpoints],
@@ -224,18 +242,22 @@ export function useWireCanvasController({
     setStatus(`Wire corner: ${next.label}`);
   };
 
+  /**
+   * One primary click on the canvas, a Pin or a Route.
+   *
+   * The first click anchors the wire; every later one draws the leg it has
+   * been previewing and keeps drawing from there, the way Virtuoso does. No
+   * gesture waits for a double-click to become real geometry — the
+   * double-click only stops the wire.
+   */
   const applyWireCanvasPoint = (
     rawPoint: Point,
     svg: SVGSVGElement,
     suppressSnap: boolean,
-    finish: boolean,
   ): void => {
     const resolved = resolveWireCanvasSnap(rawPoint, svg, suppressSnap);
     paintSnapGuides([]);
     const liveSource = readCurrentWireSession().source;
-    // A double-click ends an existing wire and never starts a fresh one after
-    // the first click has already committed onto an endpoint or Route.
-    if (finish && !liveSource) return;
     if (resolved.ambiguous) {
       setStatus(
         "Ambiguous connection: choose one endpoint or conductor away from the overlap",
@@ -247,35 +269,26 @@ export function useWireCanvasController({
     // click acts on.
     const target = wireDraftTargetFromSnap(resolved);
     if (target.kind === "free") {
-      // The active endpoint is excluded from capture. Clicking it again
-      // must not turn that exclusion into a zero-length authored step.
       const wire = readCurrentWireSession();
+      if (!wire.source) {
+        // The first click only anchors the wire; there is nothing to draw yet.
+        fixWirePoint(target.point);
+        return;
+      }
+      // The active endpoint is excluded from capture, so this is a click on
+      // the point the wire is already drawing from. A zero-length leg is not
+      // geometry, so the wire simply keeps waiting for a real one.
       if (
-        !finish &&
-        wire.source &&
         wire.steps.length === 0 &&
         target.point.x === wire.source.connection.gridLanding.x &&
         target.point.y === wire.source.connection.gridLanding.y
       )
         return;
-      if (finish) {
-        // A browser double-click dispatches one ordinary click before its
-        // dblclick event. The ordinary click fixes this exact point as a wire
-        // step, which disables automatic routing and can swap the elbow from
-        // the previewed vertical-first path to horizontal-first at commit.
-        // Remove only that trailing duplicate; an intentional earlier step at
-        // the same point remains immediately before it.
-        const wire = readCurrentWireSession();
-        const lastStep = wire.steps.at(-1);
-        if (
-          lastStep?.point.x === target.point.x &&
-          lastStep.point.y === target.point.y
-        ) {
-          setWireDraftSteps(wire.steps.slice(0, -1));
-        }
-        finishWireAtPoint(target.point);
-      } else {
-        fixWirePoint(target.point);
+      finishWireAtPoint(target.point);
+      // `finishWireAtPoint` clears the session on a successful commit; the
+      // effect below picks the wire back up on the leg it just created.
+      if (readCurrentWireSession().source === null) {
+        continueFromRef.current = { point: target.point, svg };
       }
       return;
     }
@@ -300,6 +313,44 @@ export function useWireCanvasController({
       return;
     }
     commitWire(candidate);
+  };
+
+  // Re-anchor a drawing wire on the leg its own click just committed. The
+  // commit bumped the revision, so this render is the first one whose
+  // connectivity contains the new Route endpoint to attach to.
+  useEffect(() => {
+    const pending = continueFromRef.current;
+    if (!pending) return;
+    if (tool !== "wire" || wireSource !== null) {
+      // Esc, a tool change or an unrelated edit got here first.
+      continueFromRef.current = null;
+      return;
+    }
+    continueFromRef.current = null;
+    const resolved = resolveWireCanvasSnap(pending.point, pending.svg, false);
+    if (resolved.ambiguous) return;
+    const target = wireDraftTargetFromSnap(resolved);
+    const source = target.kind === "free" ? null : sourceForTarget(target);
+    if (!source) return;
+    setWireSource(source, document.revision);
+    setWirePreview(freeWireDraftTarget(pending.point));
+    setWireDraftSteps([]);
+    setStatus(
+      `Committed route at revision ${document.revision} · Drawing on from here · double-click, Enter or Esc ends the wire`,
+    );
+  });
+
+  /**
+   * Stop the wire after the leg the current gesture has already drawn.
+   *
+   * The double-click that ends a wire arrives while the continuation its own
+   * first click scheduled may still be pending, so this reads the live session
+   * and drops that continuation instead of trusting the last rendered source.
+   */
+  const endWireSession = (): void => {
+    continueFromRef.current = null;
+    if (readCurrentWireSession().source) completeWire();
+    setStatus("Wire finished · Esc exits");
   };
 
   const handleRoutePointerDown = (
@@ -378,6 +429,7 @@ export function useWireCanvasController({
     resolveWireCanvasSnap,
     cycleWireCornerShape,
     applyWireCanvasPoint,
+    endWireSession,
     handleRoutePointerDown,
   };
 }

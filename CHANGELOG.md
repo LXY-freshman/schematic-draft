@@ -29,6 +29,19 @@ needed a server.
   no web app manifest. The installed application is the installation, so there
   is nothing to install from a page and no cached copy that can go stale.
 
+### Wiring
+
+- Draw each wire leg on its own click. The first click anchors the wire, every
+  later click lays down the leg it was previewing and keeps drawing from that
+  point, the way Virtuoso's wire command does. Nothing waits for a double-click
+  to become real geometry any more; a double-click or `Enter` only stops the
+  wire after the leg it has already drawn.
+- Because each click now commits what it previewed, a leg leaving a Pin keeps
+  the escape along that Pin's lead that the preview always drew. Under the
+  hosted editor an intermediate click discarded that escape when the wire was
+  finally committed, so wires drawn against a Pin's lead may take a different
+  shape than before.
+
 ### Real files instead of Cloud Projects
 
 - **Open Project…** and **Save As…** use the operating system's own file

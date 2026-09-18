@@ -2072,6 +2072,7 @@ export function App({ project: initialProject }: AppProps) {
     resolveWireCanvasSnap,
     cycleWireCornerShape,
     applyWireCanvasPoint,
+    endWireSession,
     handleRoutePointerDown,
   } = useWireCanvasController({
     model: {
@@ -2118,7 +2119,13 @@ export function App({ project: initialProject }: AppProps) {
       logicalRadiusForPixels,
       paintSnapGuides,
     },
-    commands: { commitWire, fixWirePoint, finishWireAtPoint, setStatus },
+    commands: {
+      commitWire,
+      fixWirePoint,
+      finishWireAtPoint,
+      completeWire,
+      setStatus,
+    },
   });
   const {
     compositeSelectionOwnsHit,
@@ -3438,11 +3445,8 @@ export function App({ project: initialProject }: AppProps) {
       cancelCreate: clearDraftingCreate,
     },
     wiring: {
-      source: wireSource,
-      draftStepCount: wireDraftSteps.length,
       applyCanvasPoint: applyWireCanvasPoint,
-      resolveCanvasSnap: resolveWireCanvasSnap,
-      complete: completeWire,
+      endSession: endWireSession,
       cancel: () => {
         setWireSource(null, null);
         setWirePreview(null);

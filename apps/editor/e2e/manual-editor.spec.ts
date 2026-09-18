@@ -2187,7 +2187,9 @@ test("places free wire bends and finishes at an arbitrary grid point", async ({
   await page.getByTestId("terminal-R1-2").click();
   const canvas = page.getByTestId("schematic-canvas");
   await canvas.click({ position: { x: 500, y: 260 } });
-  await expect(page.getByTestId("wire-preview")).toBeVisible();
+  // The click drew its leg and the wire draws on from there, so there is no
+  // previewed leg left under a pointer that has not moved yet.
+  await expect(page.getByTestId("status")).toContainText("Drawing on from");
   await canvas.dblclick({ position: { x: 650, y: 340 } });
   await expect(page.locator('[data-layer="routes"] polyline')).toHaveCount(1);
   await expect(page.locator('[data-layer="junctions"] circle')).toHaveCount(0);
@@ -4175,7 +4177,9 @@ test("connects every compatible pin crossed by one wire", async ({ page }) => {
   await page.mouse.click(screenPoints[0]!.x, screenPoints[0]!.y);
   await page.mouse.dblclick(screenPoints[1]!.x, screenPoints[1]!.y);
 
-  await expect(page.getByTestId("status")).toContainText("Committed route");
+  // The press that opened the double-click drew the run; the second one only
+  // stopped the wire.
+  await expect(page.getByTestId("status")).toContainText("Wire finished");
   await expect(page.locator('[data-layer="routes"] polyline')).toHaveCount(4);
   await expect(
     page.locator('[data-layer="junctions"] [data-node-kind="contact"]'),
@@ -5633,18 +5637,15 @@ test("carries the connection point when a column and its wire move", async ({
     .evaluateAll((elements) =>
       elements.map((element) => element.getAttribute("data-object-id")),
     );
+  // Source down to the drain below it: each lead points at the other, so
+  // automatic routing has no reason to escape around either device and every
+  // column is one straight run.
   for (const [top, bottom] of [
     [ids[0], ids[2]],
     [ids[1], ids[3]],
   ] as const) {
     await clickDrawTool(page, "wire");
-    await page.getByTestId(`terminal-${top}-D`).click();
-    await canvas.click({
-      position: {
-        x: top === ids[0] ? 250 : 570,
-        y: 300,
-      },
-    });
+    await page.getByTestId(`terminal-${top}-S`).click();
     await page.getByTestId(`terminal-${bottom}-D`).click();
     await page.keyboard.press("Escape");
   }
@@ -5810,7 +5811,7 @@ test("double-click ends the wire even when it lands on another wire", async ({
 
   await canvas.click({ position: { x: 200, y: 160 } });
   await canvas.dblclick({ position: { x: 420, y: 160 } });
-  await expect(page.getByTestId("status")).toContainText("Committed route");
+  await expect(page.getByTestId("status")).toContainText("Wire finished");
 
   // Finishing onto an existing wire commits on the first press; the second
   // press used to open a fresh wire at that spot, so drafting continued.
@@ -5832,9 +5833,10 @@ test("double-click preserves the previewed corner order from a transistor pin", 
   await clickDrawTool(page, "wire");
   await page.getByTestId("terminal-M1-D").click();
 
-  // Automatic routing respects the drain's downward outward direction. The
-  // reported failure previews this correctly, then swaps to horizontal-first
-  // when the first click inside the double-click becomes a fixed waypoint.
+  // Automatic routing respects the drain's downward outward direction, and the
+  // click that opens the double-click draws exactly the leg it previewed. The
+  // reported failure previewed this correctly, then swapped to horizontal-first
+  // because that first click only fixed a waypoint the commit re-planned.
   const target = { x: 360, y: 430 };
   await canvas.hover({ position: target });
   const preview = await page.getByTestId("wire-preview").evaluate((element) =>
@@ -5845,7 +5847,7 @@ test("double-click preserves the previewed corner order from a transistor pin", 
   );
 
   await canvas.dblclick({ position: target });
-  await expect(page.getByTestId("status")).toContainText("Committed route");
+  await expect(page.getByTestId("status")).toContainText("Wire finished");
   const committed = await readRoutePoints(page, await onlyRouteId(page));
   expect(committed).toEqual(preview);
 });

@@ -1045,8 +1045,20 @@ export function useWireInteraction(capabilities: UseWireInteractionOptions) {
   };
 
   const finishWireAtPoint = (point: Point): void => {
-    if (!options.readCurrentWireSession().source) {
+    const wire = options.readCurrentWireSession();
+    if (!wire.source) {
       fixWirePoint(point);
+      return;
+    }
+    // Enter with the pointer still on the point the wire draws from has no leg
+    // to commit; a zero-length Route is not geometry, so the wire just ends.
+    if (
+      wire.steps.length === 0 &&
+      point.x === wire.source.connection.gridLanding.x &&
+      point.y === wire.source.connection.gridLanding.y
+    ) {
+      options.completeWire();
+      options.setStatus("Wire finished · Esc exits");
       return;
     }
     commitWire(sourceForTarget(freeWireDraftTarget(point))!);

@@ -60,9 +60,12 @@ is defined.
   Passing across a conductor remains a Crossing; ending on one creates a
   Junction automatically. An exact multi-route intersection is rejected as
   ambiguous instead of silently merging Nets.
-- While wiring, click blank canvas to fix bends; double-click blank canvas or
-  press `Enter` to finish at any grid point. `Backspace` removes the latest
-  uncommitted bend and `Escape` cancels the session.
+- While wiring, every click draws. The first click anchors the wire; each later
+  click lays down the leg it was previewing and keeps drawing on from that
+  point, the way Virtuoso does. Double-click or press `Enter` to stop after the
+  current leg, and `Escape` leaves the wire. The wire you get is the one the
+  preview drew, so a leg starting at a Pin still leaves along that Pin's lead
+  before it turns.
 - Select any route segment to expose its movement handle. Drag the handle
   perpendicular to that segment to stretch adjacent geometry without rerouting
   the rest of the wire. If the moved segment lands exactly on a component pin,
