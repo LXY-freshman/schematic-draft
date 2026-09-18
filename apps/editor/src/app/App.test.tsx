@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { createEmptyProject, createSimulationFolder } from "@icm/model";
+import { createEmptyProject } from "@icm/model";
 import { serializeProject } from "@icm/project-protocol";
 import { EditTransactionSchema } from "@icm/edit-engine";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -122,16 +122,11 @@ describe("editor shell", () => {
     expect(markup).toContain('data-testid="netlist-panel-toggle"');
     expect(markup).toContain('data-testid="project-code-toggle"');
     expect(markup).toContain("Check Report…");
-    expect(netlistMenu).not.toContain('data-testid="open-analog-simulation"');
-    expect(markup).toContain('data-testid="open-analog-simulation"');
+    expect(markup).not.toContain('data-testid="open-analog-simulation"');
     expect(netlistMenu).toContain('data-testid="check-and-save"');
     expect(markup).not.toContain("<summary>Run</summary>");
-    const agentEnd =
-      markup.indexOf("</button>", markup.indexOf('data-testid="open-agent"')) +
-      "</button>".length;
-    expect(markup.slice(agentEnd)).toMatch(
-      /^<button[^>]*data-testid="publish-gallery-button"/u,
-    );
+    expect(markup).not.toContain('data-testid="open-agent"');
+    expect(markup).not.toContain('data-testid="publish-gallery-button"');
     expect(markup).toContain("Not checked");
     expect(erc).not.toHaveBeenCalled();
     expect(checks).not.toHaveBeenCalled();
@@ -140,10 +135,12 @@ describe("editor shell", () => {
     // "Preflight" named a stage of a netlist pipeline, not the question the
     // person is asking; the Netlist menu carries the plain action.
     expect(markup).not.toContain("Preflight…");
-    // Formal Cloud Save has one File-menu entry; the retired snapshot action
-    // cannot return as a second control source.
-    expect(markup).toContain('data-testid="save-cloud-project"');
-    expect(markup).not.toContain("Save cloud snapshot");
+    // Saving is a file operation: Save writes the open path, Save As asks.
+    // Nothing in this build reaches a network store.
+    expect(markup).toContain('data-testid="open-project-file"');
+    expect(markup).toContain('data-testid="save-project-file"');
+    expect(markup).toContain('data-testid="save-project-file-as"');
+    expect(markup).not.toContain("Cloud");
     expect(markup).not.toContain("Edit Cell Interface…");
   });
 
@@ -189,90 +186,16 @@ describe("editor shell", () => {
     expect(markup).toContain('aria-haspopup="dialog"');
     // About folded into Help: one entry, not two saying the same thing.
     expect(markup).not.toContain(">About</button>");
-    expect(markup).toContain('data-testid="editor-report-bug"');
-    expect(markup).toContain("Report bug");
     expect(markup).toContain(">Help</button>");
     expect(markup).toContain('class="app-chrome-actions"');
-    expect(markup).toContain("Presented by");
-    expect(markup).toContain('href="https://tokenzhang.com"');
-    expect(markup).toContain('src="/tokenzhang-favicon.png"');
-    const navigationEnd = markup.indexOf("</nav>");
-    const helpButton = markup.indexOf(">Help</button>");
-    const ownerLink = markup.indexOf('href="https://tokenzhang.com"');
-    expect(helpButton).toBeGreaterThan(navigationEnd);
-    expect(ownerLink).toBeGreaterThan(helpButton);
+    // An offline editor points at nothing outside this computer.
+    expect(markup).not.toContain("http://");
+    expect(markup).not.toContain("https://");
+    expect(markup.indexOf(">Help</button>")).toBeGreaterThan(
+      markup.indexOf("</nav>"),
+    );
     expect(markup).not.toContain('role="dialog"');
-    // Agent connects directly from the command row; no one-item menu or
-    // connection panel appears before the user clicks it.
-    expect(markup).toContain('data-testid="open-agent" title="Connect Agent"');
-    expect(markup).toContain(">Agent</button>");
-    expect(markup).not.toContain("<summary>Agent</summary>");
-    expect(markup).not.toContain('data-testid="connect-agent-panel"');
-  });
-
-  it("removes all public Agent controls and accessibility affordances when dormant", () => {
-    const project = createEmptyProject("agent-ui-dormant", "Dormant");
-    const markup = renderToStaticMarkup(
-      <App project={project} publicAgentUiEnabled={false} />,
-    );
-
-    expect(markup).not.toContain("<summary>Agent</summary>");
-    expect(markup).not.toContain('data-testid="open-agent"');
-    expect(markup).not.toContain("Connect Agent");
-    expect(markup).not.toContain("Manage Agent");
-    expect(markup).not.toContain("agent-shelf-indicator");
-    expect(markup).not.toContain("Agent:");
-    expect(markup).not.toContain("Approve Agent file import");
-  });
-
-  it("keeps analog Simulation authoring out of a production editor without changing project data", () => {
-    const project = createEmptyProject("simulation-ui-dormant", "Dormant");
-    project.simulationFolders.push(
-      createSimulationFolder({
-        id: "saved-simulation",
-        name: "Saved Simulation",
-        profileId: "hosted-sky130-v1",
-      }),
-    );
-    const persistedSimulation = structuredClone(project.simulationFolders);
-    const markup = renderToStaticMarkup(
-      <App project={project} publicSimulationUiEnabled={false} />,
-    );
-
-    expect(markup).not.toContain('data-testid="open-analog-simulation"');
-    expect(markup).not.toContain("New Testbench Cell…");
-    expect(project.simulationFolders).toEqual(persistedSimulation);
-  });
-
-  it("keeps the timing surface behind its deployment flag", () => {
-    const project = createEmptyProject("timing-flag", "Timing Flag");
-    const localMarkup = renderToStaticMarkup(
-      <App project={project} timingUiEnabled />,
-    );
-    const productionMarkup = renderToStaticMarkup(
-      <App project={project} timingUiEnabled={false} />,
-    );
-
-    expect(localMarkup).toContain('title="Digital Simulation"');
-    expect(productionMarkup).not.toContain('title="Digital Simulation"');
-    expect(localMarkup).not.toContain('data-testid="timing-simulation-panel"');
-  });
-
-  it("links to first-party visitor analytics without crowding editor commands", () => {
-    const project = createEmptyProject("analytics-entry", "Analytics Entry");
-    const markup = renderToStaticMarkup(
-      <App project={project} visitStats={{ pv: 42, uv: 17 }} />,
-    );
-
-    // The live numbers read out in the otherwise-empty statusbar and the
-    // whole readout links to /analytics; the menubar carries no entry.
-    expect(markup).toContain('data-testid="statusbar-analytics"');
-    expect(markup).toContain('href="/analytics"');
-    expect(markup).toContain("17 visitors");
-    expect(markup).toContain("42 views");
-    expect(markup).not.toContain(">Analytics</a>");
-    const statusbar = markup.indexOf('class="app-statusbar"');
-    expect(markup.indexOf('href="/analytics"')).toBeGreaterThan(statusbar);
+    expect(markup).not.toContain(">Agent</button>");
   });
 
   it("keeps Properties docked with shapes quick-place, not a searchable catalog", () => {

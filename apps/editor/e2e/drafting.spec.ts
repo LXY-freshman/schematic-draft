@@ -10,15 +10,16 @@ import { fractionGeometry } from "@icm/derived";
 
 import {
   awaitEditorReady,
-  editComponentPropertyCode,
-  editDocumentStyleCode,
-  readComponentPropertyCode,
-  readDocumentStyleCode,
   chooseComponent,
   clickCommand,
   clickDrawTool,
-  placeText,
   downloadBytes,
+  editComponentPropertyCode,
+  editDocumentStyleCode,
+  placeText,
+  projectFileBytes,
+  readComponentPropertyCode,
+  readDocumentStyleCode,
 } from "./editor-fixtures.js";
 
 test("a Library arrow stays fully editable without occupying the toolbar", async ({
@@ -338,11 +339,7 @@ test("adds formatted drafting text and undo/redo restores it", async ({
   );
   await expect(page.getByTestId("revision")).toHaveText("2");
 
-  const projectBytes = await downloadBytes(
-    page,
-    "File",
-    "Export Project File…",
-  );
+  const projectBytes = await projectFileBytes(page);
   const project = JSON.parse(projectBytes.toString("utf8"));
   const doc = project.documents[0];
   const textObject = doc.drafting.objects.find(
@@ -396,9 +393,7 @@ test("drafting text owns an independent color override with Auto inheritance", a
   await expect(text).toHaveAttribute("fill", "#2563eb");
 
   const coloredProject = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
+    (await projectFileBytes(page)).toString("utf8"),
   );
   const coloredText = coloredProject.documents[0].drafting.objects.find(
     (object: { kind: string }) => object.kind === "text",
@@ -569,11 +564,7 @@ test("authors one validated formula through the canonical text editor", async ({
   await expect(formula.locator("path").first()).toBeVisible();
   await expect(page.locator("foreignObject", { has: formula })).toHaveCount(0);
 
-  const project = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  );
+  const project = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   const text = project.documents[0].drafting.objects.find(
     (object: { kind: string }) => object.kind === "text",
   );
@@ -727,11 +718,7 @@ test("edits an unrestricted device formula in the same visual annotation", async
   await expect(
     page.locator('[data-object-id="instance-label-R1"] [data-role="formula"]'),
   ).toHaveCount(1);
-  const project = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  );
+  const project = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   expect(project.documents[0].instances[0].reference).toBe("R1");
   const labels = project.documents[0].annotations.filter(
     (annotation: { kind: string }) => annotation.kind === "instance-label",
@@ -895,11 +882,7 @@ test("places Text at its preview after zoom and pan, then edits and undoes it", 
   await expect(texts).toHaveText("Custom text");
   await expect(page.getByTestId("revision")).toHaveText("2");
 
-  const project = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  );
+  const project = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   const textObject = project.documents[0].drafting.objects.find(
     (object: { kind: string }) => object.kind === "text",
   );
@@ -1022,7 +1005,7 @@ test("fits drafting text with F using an integer grid camera", async ({
   expect(camera.every((value) => Number.isInteger(value))).toBe(true);
   expect(camera.every((value) => value % 10 === 0)).toBe(true);
   await expect(
-    page.getByRole("heading", { name: "Analog Canvas" }),
+    page.getByRole("heading", { name: "Schematic Draft" }),
   ).toBeVisible();
 });
 
@@ -1112,30 +1095,21 @@ test("existing text drag commits once and undoes atomically", async ({
     .press("Escape");
   await expect(page.getByTestId("revision")).toHaveText("1");
 
-  const before = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ).documents[0].drafting.objects[0].anchor.position;
+  const before = JSON.parse((await projectFileBytes(page)).toString("utf8"))
+    .documents[0].drafting.objects[0].anchor.position;
   await dragLocator(page.getByTestId(/^drafting-hit-note-/), {
     x: 70,
     y: -45,
   });
   await expect(page.getByTestId("revision")).toHaveText("2");
-  const moved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ).documents[0].drafting.objects[0].anchor.position;
+  const moved = JSON.parse((await projectFileBytes(page)).toString("utf8"))
+    .documents[0].drafting.objects[0].anchor.position;
   expect(moved).not.toEqual(before);
 
   await page.keyboard.press("Control+z");
   await expect(page.getByTestId("revision")).toHaveText("3");
-  const undone = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ).documents[0].drafting.objects[0].anchor.position;
+  const undone = JSON.parse((await projectFileBytes(page)).toString("utf8"))
+    .documents[0].drafting.objects[0].anchor.position;
   expect(undone).toEqual(before);
 });
 
@@ -1384,11 +1358,7 @@ test("drafting content and anchor survive save and reopen", async ({
   await page.getByRole("button", { name: "Apply text changes" }).click();
   await expect(page.getByTestId("revision")).toHaveText("2");
 
-  const projectBytes = await downloadBytes(
-    page,
-    "File",
-    "Export Project File…",
-  );
+  const projectBytes = await projectFileBytes(page);
   const project = JSON.parse(projectBytes.toString("utf8"));
   const textObject = project.documents[0].drafting.objects.find(
     (object: { kind: string }) => object.kind === "text",
@@ -1413,11 +1383,7 @@ test("drafting content and anchor survive save and reopen", async ({
     "Opened saved-drafting.icproj.json",
   );
   await expect(page.locator('[data-kind="draft-text"]')).toHaveCount(1);
-  const reopenedBytes = await downloadBytes(
-    page,
-    "File",
-    "Export Project File…",
-  );
+  const reopenedBytes = await projectFileBytes(page);
   const reopened = JSON.parse(reopenedBytes.toString("utf8"));
   const reopenedText = reopened.documents[0].drafting.objects.find(
     (object: { kind: string }) => object.kind === "text",
@@ -1769,9 +1735,7 @@ test("drawing Properties unlocks a protected drawing and Delete overrides its lo
     code.appearance.lineStyle = "dotted";
   });
   const styledProject = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
+    (await projectFileBytes(page)).toString("utf8"),
   );
   expect(
     styledProject.documents[0].drafting.objects[0].styleOverride.lineStyle,
@@ -2109,11 +2073,7 @@ test("annotation grid pitch frees drawings from the device grid", async ({
   await page.keyboard.press("Escape");
   await expect(page.getByTestId("hit-R1")).toBeVisible();
 
-  const saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ) as {
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8")) as {
     schemaVersion: number;
     documents: Array<{
       instances: Array<{ placement?: { position: { x: number; y: number } } }>;
@@ -2207,7 +2167,7 @@ test("authors inline fractions alongside styled text and preserves them through 
   await expect(note).toContainText("R = ");
   await expect(note).toContainText(" + R");
   await expect(note.locator('[data-text-run="subscript"]')).toHaveCount(2);
-  const saved = await downloadBytes(page, "File", "Export Project File…");
+  const saved = await projectFileBytes(page);
   const project = JSON.parse(saved.toString("utf8"));
   const content = project.documents[0].drafting.objects[0].content;
   expect(content.runs.map((run: { kind: string }) => run.kind)).toContain(
@@ -2239,11 +2199,7 @@ test("authors inline fractions alongside styled text and preserves them through 
     buffer: saved,
   });
   await expect(note.locator('[data-role="fraction-bar"]')).toHaveCount(1);
-  const reopened = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  );
+  const reopened = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   expect(reopened.documents[0].drafting.objects[0].content).toEqual(content);
 });
 
@@ -2335,11 +2291,7 @@ test("places a mixed fraction in a device visual annotation without changing its
   const label = page.locator('[data-object-id="instance-label-R1"]');
   await expect(label.locator('[data-role="fraction-bar"]')).toHaveCount(1);
   await expect(label).toContainText(" + R1");
-  const project = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  );
+  const project = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   const doc = project.documents[0];
   expect(doc.instances[0].reference).toBe("R1");
   const annotation = doc.annotations.find(
@@ -2467,7 +2419,7 @@ test("centers fraction parts on a content-sized bar and defaults notes to bold",
   await apply();
   expect(await check(note)).toBeLessThan(initialWidth);
 
-  const saved = await downloadBytes(page, "File", "Export Project File…");
+  const saved = await projectFileBytes(page);
   const svg = await downloadBytes(page, "File", "Export SVG");
   const exported = await page.context().newPage();
   await exported.setContent(svg.toString("utf8"));
@@ -2529,7 +2481,7 @@ test("persists normal weight selected inside an otherwise bold text box", async 
     { text: "Plain", weight: "400" },
   ];
   expect(await renderedWeights()).toEqual(expected);
-  const saved = await downloadBytes(page, "File", "Export Project File…");
+  const saved = await projectFileBytes(page);
   await page.getByTestId("project-file").setInputFiles({
     name: "text-weight.icproj.json",
     mimeType: "application/json",
@@ -2665,7 +2617,7 @@ for (const kind of ["rectangle", "circle"] as const) {
       JSON.parse(valid),
     );
     await expect(page.getByTestId("revision")).toHaveText(lastRevision!);
-    const saved = await downloadBytes(page, "File", "Export Project File…");
+    const saved = await projectFileBytes(page);
     const svg = (await downloadBytes(page, "File", "Export SVG")).toString(
       "utf8",
     );
@@ -2855,11 +2807,7 @@ test("annotation dropdowns use typed values and disable locked or incompatible c
       .locator('option[value="outline"]'),
   ).toBeDisabled();
   await startStyle.selectOption("medium-arrow");
-  const saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  );
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   expect(saved.documents[0].drafting.objects).toEqual(
     expect.arrayContaining([
       expect.objectContaining({
@@ -2988,7 +2936,7 @@ for (const shape of ["line", "outline"] as const) {
       cy: el.getAttribute("cy"),
       r: el.getAttribute("r"),
     }));
-    const saved = await downloadBytes(page, "File", "Export Project File…");
+    const saved = await projectFileBytes(page);
     expect(
       JSON.parse(saved.toString("utf8")).documents[0].drafting.objects[0]
         .styleOverride,

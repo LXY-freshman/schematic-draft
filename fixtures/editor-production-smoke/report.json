@@ -3,10 +3,9 @@
   "consoleErrors": [],
   "nodeCryptoExternalized": false,
   "projectDataIsolation": "clean",
-  "galleryEditorCodeLoaded": false,
+  "rootMountsEditor": true,
+  "serviceWorkerRegistered": false,
   "editorCodeLoaded": true,
-  "galleryEditorStylesLoaded": false,
   "editorStylesLoaded": true,
-  "galleryPdfRuntimeLoaded": false,
   "editorPdfRuntimeLoaded": false
 }

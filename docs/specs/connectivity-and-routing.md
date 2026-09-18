@@ -29,15 +29,15 @@ differently colored ordinary Routes overlap, the Route contributing the most
 coverage to a normalized path owns its style; stable Route identity breaks a
 tie.
 
-Opening a portable Project file runs the same normalization over an imported
+Opening a Project file runs the same normalization over an in-memory
 copy so legacy overlap is repaired immediately and the result is marked dirty
-for an explicit Cloud Save or Project export. Cloud opens, recovery, and the
+for an explicit Save. Recovery and the
 project-protocol parser remain exact: they never rewrite stored geometry as a
 read side effect.
 
 An ordinary Route that resolves entirely to one exact point after a built-in
-terminal-anchor correction is redundant direct-contact geometry. File,
-Gallery-open, and Gallery-placement import copies remove it only when both
+terminal-anchor correction is redundant direct-contact geometry. File-open,
+example-open, and example-placement import copies remove it only when both
 endpoints still belong to its Base Net and no Annotation, name owner, layout
 group, or constraint owns the Route. The Net membership survives unchanged;
 owned geometry is retained for an explicit diagnostic instead of being
@@ -145,7 +145,7 @@ kernel, stable leg identity, and Route transaction.
   rename first compile one transient `RoutingOperationPlan`. The plan carries
   a stable-ID affected closure, expected electrical effect, typed edits and ID
   remap; an independent before/after projection validates the effect before
-  the same edits commit. It is not Project data or an Agent protocol.
+  the same edits commit. It is not Project data.
 - Transform classifies selected conductors once: internal Routes move rigidly,
   boundary Routes stretch only at the inside endpoint, and external Routes do
   not move. Boundary stretching and transaction endpoint-follow share one local
@@ -169,7 +169,7 @@ kernel, stable leg identity, and Route transaction.
   attachments, orphan anchors, layout references and unreferenced local Nets
   are cleaned in the same transaction.
 - `NoConnect` and Net membership are mutually exclusive.
-- Snap, selection, highlight, clipboard, undo, Agent Snapshot, and formal render
+- Snap, selection, highlight, clipboard, undo, and formal render
   consume the same resolved endpoint geometry.
 
 Routes may present as `wire`, `bulk-dashed`, or `power-rail`; presentation does
@@ -223,12 +223,12 @@ When visible Ground owners take over node `0`, the cut retires the redundant
 source-wide ground declaration: a genuinely detached unmarked terminal must
 not remain grounded merely because it retains the original Base-Net ID.
 
-File and Gallery import copies also materialize these owners. They may recover
+File and example import copies also materialize these owners. They may recover
 an unnamed Ground marker on a split imported Base Net only when that Net's
 source identity is backed by a surviving explicit global `0` declaration in
 the Document. A bare device, arbitrary source name, conflicting current name,
 or unknown supply is not recovered. The import is marked dirty and advances
-the repaired Document revision once; parsing, Cloud opens and recovery remain
+the repaired Document revision once; parsing and recovery remain
 exact. This is a bounded legacy import repair, not a runtime source-equivalence
 rule. Physical membership and authored geometry are never joined by it.
 
@@ -351,7 +351,7 @@ provide local-name isolation across Documents.
 
 `ProjectConnectivityIndex` is the shared logical/routed connectivity view.
 `ResolvedRouteGeometry` is the shared geometry for render, hit testing, drag,
-marker attachment, diagnostics, export, and Agent Snapshot. It publishes the
+marker attachment, diagnostics, and export. It publishes the
 same resolved endpoint connections consumed by those readers; consumers do not
 reconstruct terminal contacts from Symbol coordinates.
 `deriveDocumentContactEvidence` is the sole read model for confirmed same-Net
@@ -393,5 +393,5 @@ only overlap between separately authored Routes.
   Wire Junction, independent of historical role or join angle.
 - A failed multi-edit transaction changes nothing; a successful one advances
   revision once.
-- GUI and Agent use the same planners, transaction engine, derived geometry,
-  and diagnostics.
+- Every mutation path uses the same planners, transaction engine, derived
+  geometry, and diagnostics.

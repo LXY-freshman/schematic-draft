@@ -12,7 +12,7 @@ validates every edit independently without trusting the planner.
 
 ## Purpose
 
-Define the only committed mutation path for both GUI and Agent operations,
+Define the only committed mutation path for every editor operation,
 including revision checks, dry runs, atomicity, results, and diagnostics.
 
 ## Terminology
@@ -36,8 +36,9 @@ edits continue to use the ordinary transaction directly.
 
 [The edit schema](../../packages/edit-engine/src/edit-schema.ts) owns the
 transaction envelope and typed union. The envelope identifies the transaction,
-Document, expected revision, human/Agent actor, optional dry run and ordered
-edits.
+Document, expected revision, actor, optional dry run and ordered
+edits. `actor.kind` is an audit label only; its `agent` value survives from
+upstream and is now used only by the internal routing dry-run evaluator.
 
 `packages/edit-engine/src/edit-schema.ts` defines `SchematicEditSchema`
 (re-exported by `transaction.ts`), the sole executable list of typed edit
@@ -78,21 +79,16 @@ create separate mutation endpoints:
 
 <!-- schematic-edit-kinds:end -->
 
-The Agent Document transaction schema is derived from this union and applies
-its scope restrictions; Agent `undo`/`redo` use the live editor's shared
-Document/Project history and require all edit permissions. Formal-interface
-edits are submitted inside `structureEdits`, which composes the same union with
-add/remove Document operations under one Project `structureRevision`. The
-Project-level `upsert_simulation_folder` and `remove_simulation_folder` edits are
-structure edits too. They address one version-4 source folder by stable ID,
-treat an identical upsert or absent removal as no change, and preserve authored
-text and repairable references. Removing a bound Cell or source file may leave
-preparation diagnostics; it does not make the Project unsaveable. The current
-source schema and legacy configuration boundary are defined in
-[simulation](simulation.md). Agent
-capability `wire`
-advertises the mutually exclusive high-level `wireIntent` transaction form; it
-is not another `SchematicEdit` member.
+Formal-interface edits are submitted inside `structureEdits`, which composes the
+same union with add/remove Document operations under one Project
+`structureRevision`. The Project-level `upsert_simulation_folder` and
+`remove_simulation_folder` edits are structure edits too. They address one
+retained version-4 source folder by stable ID (see
+[Project file format](project-file-format.md)), treat an identical upsert or
+absent removal as no change, and preserve authored text and repairable
+references. No surface in this edition submits them; they exist so that a
+Project carrying upstream simulation folders stays editable and saveable.
+Removing a bound Cell or source file never makes the Project unsaveable.
 
 `set_instance_reference` writes the sole authored Instance Reference. Its live
 `instance-reference` annotations display that same value, and netlist extraction
@@ -154,9 +150,7 @@ atomic, browser-editor lifecycle edits planned by `cell-reset-planner.ts`:
 `reset_cell_placement` returns Instances to the tray and removes placement
 geometry/intent, and `reset_cell_body` removes non-interface content while
 retaining formal terminals and their marker/Net projection. Each advances the
-Document revision once and is restored by one Undo. The public Agent surface
-accepts these lifecycle edits, directly or through its `reset-cell` command,
-under the connectivity edit permission.
+Document revision once and is restored by one Undo.
 
 `upsert_connectivity_evidence` and `remove_connectivity_evidence` are the only
 atomic writers for the current connectivity-evidence list. Upsert replaces
@@ -176,8 +170,7 @@ of evidence-bearing candidates is deferred to the transaction boundary so
 ordered edits can still remove or replace their evidence atomically; evidence
 explicitly upserted by that transaction remains subject to final validation.
 Reset Cell Body previews and removes non-interface evidence while retaining
-assertions whose complete Net and owner closure survives. The public Agent
-surface accepts both evidence edits under the connectivity edit permission.
+assertions whose complete Net and owner closure survives.
 
 `hierarchy-planner.ts` is the shared pure orchestration boundary above these
 edits. It constructs canonical subcircuit Instances and plans Cell
@@ -188,17 +181,16 @@ contact detection and placement previews remain consumer concerns; read-only
 Cell/caller summaries are derived data owned by `@icm/derived`.
 
 `project-cell-import.ts` is the corresponding cross-Project composition
-planner. It reads two already-authorized Projects and emits only ordinary
+planner. It reads two loaded Projects and emits only ordinary
 Project structure edits: source-file records, compatible external interfaces,
 and copied Documents. The destination transaction validates the complete
 closure once. Deterministic remapping makes re-import idempotent without a
 persistent cross-Project pointer; no import lifecycle manager or live Library
 link exists.
 
-The GUI and Agent `project_cells` resource both call this planner. The Agent
-resource only discovers signed-in Cloud Projects and forwards the resulting
-edits through the live browser's ordinary Project transaction controller; it
-does not own a second Cloud store, imported-Cell format, or write path.
+Cell Manager's **Import Cell** is its only caller: the source Project arrives as
+a file the user picked, and the planned edits go through the ordinary Project
+transaction controller. There is no second imported-Cell format or write path.
 
 ## Invariants
 
@@ -212,12 +204,12 @@ does not own a second Cloud store, imported-Cell format, or write path.
 - A successful committed transaction advances revision exactly once.
 - Dry run returns a proposed revision and deterministic diff but preserves the
   current Document and revision.
-- GUI and Agent callers cannot bypass Document validation.
+- No caller can bypass Document validation.
 - Every typed-edit page Point is validated against the target Document grid;
   schema-valid integers that are not grid-aligned reject atomically with their
   edit path. Page points are enumerated by edit kind rather than found by a
   recursive `{x,y}` scan, so derived and symbol geometry are not mutation
-  coordinates. The Edit Engine never silently snaps an Agent or import payload.
+  coordinates. The Edit Engine never silently snaps an import payload.
 - Locked annotation and layout-intent records cannot be replaced or removed.
 - Moving or aligning an instance translates its attached annotations by the
   same delta in the same atomic transaction.
@@ -339,9 +331,8 @@ A transaction with `expectedRevision: 8` against revision 9 returns
 ## Contract evolution
 
 The current strict edit union is the only accepted authoring contract. Changing
-an existing kind or adding a kind requires coordinated model, Agent schema,
-permission, transaction, and parity validation. There is no compatibility edit
-adapter.
+an existing kind or adding a kind requires coordinated model, transaction, and
+validation changes. There is no compatibility edit adapter.
 
 The [schematic model](schematic-model.md) defines annotation ownership. The annotation
 protocol exposes only `upsert_schematic_annotation` and
@@ -352,7 +343,7 @@ protocol exposes only `upsert_schematic_annotation` and
 - stale revision and Document mismatch tests
 - schema rejection before apply
 - atomic no-op and dry-run tests
-- GUI/Agent parity tests for authoring operations
+- planner-to-transaction parity tests for authoring operations
 
 ## Session history
 

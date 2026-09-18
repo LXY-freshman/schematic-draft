@@ -10,8 +10,8 @@ Author each built-in component once and generate runtime projections.
 [Symbol DSL](../specs/symbol-dsl.md) and the
 [component definition contract](../../packages/components/README.md) own the
 resource shape; the [Razavi visual contract](../specs/razavi-visual-contract.md)
-owns reviewed evidence. [Research sources](../../references/README.md) remain
-pinned inputs, not product dependencies.
+owns reviewed evidence. The pinned Razavi reference manifest under
+`fixtures/visual-reference/` remains a review input, not a product dependency.
 
 ## Context
 

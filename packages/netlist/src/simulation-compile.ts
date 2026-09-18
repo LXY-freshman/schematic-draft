@@ -80,7 +80,24 @@ import {
   resolveDocumentLogicalNets,
   resolveMosBulkConnection,
 } from "@icm/derived";
-import type { SimulationAnalysis, SimulationRequest } from "@icm/spice-run";
+/**
+ * Analysis kinds and the request shape a compiled plan produces. This fork
+ * runs no simulator, so the contract lives with its only remaining caller:
+ * the schema-48 source migration.
+ */
+export type SimulationAnalysis = "op" | "dc" | "ac" | "tran" | "noise";
+
+export interface SimulationRequest {
+  /** Circuit netlist: subcircuits and device cards only. */
+  netlist: string;
+  /** The author's testbench: stimulus, loads, analysis, prints. */
+  testbench: string;
+  analyses: readonly SimulationAnalysis[];
+  /** Wall-clock ceiling for the simulator process, in milliseconds. */
+  timeoutMs?: number;
+  /** Opaque caller revision, echoed so stale results can be rejected. */
+  inputRevision?: string;
+}
 
 import { analyzeDesignNetlist } from "./extract.js";
 import {

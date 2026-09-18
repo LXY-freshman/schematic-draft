@@ -10,10 +10,26 @@ import {
   type SimulationExpression,
   type SimulationSourceExpression,
 } from "@icm/model";
-import { deckRequestsRawfile } from "@icm/spice-run";
 import { unquoteSimulationToken } from "@icm/spice";
 import { buildSimulationPlan } from "./simulation-compile.js";
 import { inspectSimulationSourceGraph } from "./simulation-source-graph.js";
+
+/**
+ * Whether a legacy deck promised a numeric rawfile.
+ *
+ * This is an expectation about the saved text, not an attempt to understand
+ * SPICE. It exists only to give a migrated folder the collection setting its
+ * author's deck implied.
+ */
+function deckRequestsRawfile(deck: string): boolean {
+  for (const raw of deck.split(/\r?\n/u)) {
+    const line = raw.trim();
+    if (line.length === 0 || line.startsWith("*")) continue;
+    if (/^\.save\b/iu.test(line)) return true;
+    if (/(^|\s|;)write(\s|$)/iu.test(line)) return true;
+  }
+  return false;
+}
 
 export interface SimulationSourceMigration {
   folder: ProjectSimulationFolder;

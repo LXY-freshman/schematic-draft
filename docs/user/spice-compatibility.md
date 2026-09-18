@@ -1,6 +1,6 @@
 # SPICE Compatibility
 
-Analog Canvas imports circuit structure; importing does not simulate the
+Schematic Draft imports circuit structure; importing does not simulate the
 netlist. Every source byte, continuation, include relation, typed statement,
 and unresolved statement remains available to the compiler pipeline. Spectre
 `.scs` entries are converted to SPICE in the browser before this import.
@@ -34,11 +34,11 @@ The ordinary PNP symbol similarly offers the exact fixed
 prints a three-node external X call, and relies on that wrapper's internal
 substrate-to-collector connection. The exact
 `sky130_fd_pr__npn_05v5_W1p00L1p00` interface instead exposes its real fourth S
-terminal as a `Substrate Net` property and is structural only in the hosted
-Profile. Clearing its `netlistTarget`, or choosing an ordinary model name,
-restores the ordinary three-node Q card and removes the model-only substrate
-membership. The generic Diode remains model-bearing structural only; this
-hosted environment does not claim a qualified SKY130 diode or NPN target.
+terminal as a `Substrate Net` property and is structural only. Clearing its
+`netlistTarget`, or choosing an ordinary model name, restores the ordinary
+three-node Q card and removes the model-only substrate membership. The generic
+Diode remains model-bearing structural only; this editor does not claim a
+qualified SKY130 diode or NPN target.
 
 This convenience is structural only. It does not install SKY130, resolve a
 local `.include`, supply foundry models or corners, or make the exported

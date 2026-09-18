@@ -207,7 +207,7 @@ that clears membership, NoConnect, owned annotation, and unlocked layout
 references before removing the Instance.
 
 Mutation occurs only through atomic Edit Engine transactions against an exact
-Document revision. GUI and Agent writes use the same schema and invariants.
+Document revision. Every writer uses the same schema and invariants.
 Formal-interface edits and add/remove Document operations are composed with
 ordinary Schematic edits inside one Project structural transaction. The
 Project's `structureRevision` protects this cross-Document boundary and the
@@ -217,7 +217,7 @@ The [Project file format](project-file-format.md) owns the current schema,
 supported compatibility floor and read/write boundary. Migration transforms
 preserve authored intent before handing current-only data to this model;
 their implementation and tests, not a second chronology here, own the steps.
-[Simulation](simulation.md) owns Project-level source folders and repairable
-references; removing a referenced Cell may diagnose preparation without
-invalidating the saved Project. Simulation output labels never name or join
-circuit Nets.
+Project-level simulation source folders are retained upstream data with
+repairable references (see
+[Project file format](project-file-format.md)); removing a referenced Cell never
+invalidates the saved Project.

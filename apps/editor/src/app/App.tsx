@@ -6,20 +6,9 @@ import {
   DEFAULT_ARROW_PRESET,
   type ArrowPreset,
 } from "../features/drafting/arrow-presets";
-import {
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import "../styles/editor-entry.css";
-import type {
-  AgentHostSemanticIntentRequest,
-  AgentHostSemanticIntentResult,
-} from "@icm/agent-adapter";
 import {
   planProjectCellImport,
   planSetDeviceModelTarget,
@@ -34,7 +23,6 @@ import {
 } from "@icm/edit-engine";
 import {
   buildProjectConnectivityIndex,
-  computeNetHighlight,
   annotationOwningInstanceId,
   deriveProjectNetNameProjection,
   deriveRoutingAffectedClosure,
@@ -52,6 +40,8 @@ import {
 } from "@icm/derived";
 import type { HierarchyFrame } from "@icm/derived";
 import { createEmptyProject, flattenRichText } from "@icm/model";
+import { tryParseProjectWithMetadata } from "@icm/project-protocol";
+import { openProjectFileFromDisk } from "../features/editor-shell/project-files";
 import {
   resolveReviewedExternalBinding,
   reviewedExternalModelSuggestions,
@@ -59,7 +49,6 @@ import {
 import type {
   CircuitProject,
   DerivedPoint,
-  DraftingObject,
   GridRect,
   LayoutGroup,
   Point,
@@ -93,12 +82,6 @@ import {
 } from "../canvas/canvas-drag-session";
 import { startCanvasDragVisual } from "../canvas/canvas-drag-visual";
 import { instanceVisibleHitBox } from "../canvas/instance-geometry";
-import {
-  loadReleaseChannel,
-  projectStoreCopy,
-  type ReleaseChannel,
-} from "../document/release-channel";
-import { resolveSimulationTransport } from "../features/simulation/deployment-transport";
 import { createCanvasHitController } from "../canvas/canvas-hit-controller";
 import { screenScaleHitRadius } from "../canvas/canvas-hit-resolver";
 import { buildDiagnosticMarkers } from "../canvas/diagnostic-markers";
@@ -127,21 +110,6 @@ import {
 import { EditorStatusbar } from "../features/editor-shell/editor-statusbar";
 import { documentSettingsCodeValue } from "../features/editor-shell/document-settings-code";
 import { normalizedStyleOverrides } from "../features/editor-shell/style-knobs";
-import {
-  deriveSimulationProbeOptions,
-  simulationProbeHierarchyPath,
-} from "../features/simulation/simulation-probe-options";
-import {
-  sameSimulationOccurrence,
-  terminalCurrentDirectionPartners,
-} from "../features/simulation/terminal-current-pick";
-import { TimingSimulationPanel } from "../features/simulation/timing-simulation-panel";
-import { TIMING_UI_ENABLED } from "../features/simulation/timing-ui";
-import { PUBLIC_SIMULATION_UI_ENABLED } from "../features/simulation/public-simulation-ui";
-import {
-  waveformDraftingObjects,
-  type TimingWaveformLayout,
-} from "../features/simulation/timing-waveform";
 import { useCellSymbolLayout } from "../features/hierarchy/use-cell-symbol-layout";
 import {
   cellInsertLaunch,
@@ -181,8 +149,6 @@ import {
   formatProjectCode,
   planProjectCodeCommit,
 } from "../features/project-code/project-code";
-import { LazySpiceSimulationSurface } from "./lazy-editor-dialogs";
-import { recoverSourceDrafts } from "../features/simulation/source-draft-cache";
 import { useProjectCheck } from "./use-project-check";
 import { summarizeVisualDiagnostics } from "../features/selection/selection-inspector-details";
 import {
@@ -195,25 +161,9 @@ import {
   ShapesPanel,
 } from "../features/editor-shell/shapes-panel";
 import { ExamplesPanel } from "../features/editor-shell/examples-panel";
-import { createGalleryExampleCommands } from "../features/editor-shell/gallery-example-commands";
+import { createExampleCommands } from "../features/editor-shell/example-commands";
 import { createEditorNavigationController } from "../features/hierarchy/editor-navigation-controller";
 import { createProjectStructureCommands } from "../features/hierarchy/project-structure-commands";
-import { loadCloudProjectForCellImport } from "../features/hierarchy/cloud-cell-import";
-import type { PublishGalleryDraft } from "../features/editor-shell/publish-gallery-dialog";
-import {
-  publishProjectToGallery,
-  updateGalleryEntry,
-} from "../features/editor-shell/gallery-publish";
-import {
-  announceGalleryChange,
-  primeGalleryPreview,
-  subscribeGalleryRefresh,
-} from "../gallery-client";
-import { fetchSessionUser, type SessionUser } from "../components/account";
-import {
-  evaluateSubmissionGates,
-  type SubmissionGateReport,
-} from "@icm/derived";
 import {
   createLibraryExampleProject,
   libraryProjectExamples,
@@ -222,7 +172,6 @@ import { useDocumentController } from "../document/document-controller";
 import { useProjectFileLifecycle } from "../document/use-project-file-lifecycle";
 import { useUnsavedWorkGuard } from "../document/use-unsaved-work-guard";
 import { authoredObjectCount } from "../document/project-content";
-import { translateDraftingObject } from "../features/drafting/drafting-manipulation";
 import {
   draftingGroupScaleRange,
   scaleDraftingGroup,
@@ -243,17 +192,6 @@ import {
 import { createEditorCommandRouter } from "../commands/editor-command";
 import { createEditorTransactionCommands } from "./editor-transaction-commands";
 import { recoveryStateLabel } from "../components/recovery-banners";
-import { BrowserAgentHost } from "../agent/browser-agent-host";
-import { BrowserAgentFileHost } from "../agent/browser-agent-file-host";
-import { BrowserAgentSimulationHost } from "../agent/browser-agent-simulation-host";
-import { BrowserAgentProjectHost } from "../agent/browser-agent-project-host";
-import { BrowserSimulationSession } from "../features/simulation/browser-simulation-session";
-import { ProjectRunHistory } from "../features/simulation/project-run-history";
-import { createAgentSemanticIntentHandler } from "../agent/agent-semantic-intent-handler";
-import { PUBLIC_AGENT_UI_ENABLED } from "../agent/public-agent-ui";
-import { useAgentSession } from "../agent/use-agent-session";
-import { peekAgentSessionRecovery } from "../agent/session-recovery";
-import type { AgentFileCandidateSummary } from "@icm/agent-adapter";
 import { referencedDocumentId } from "../document/editor-session";
 import { useInteractionState } from "../interaction/interaction-state";
 import type {
@@ -263,12 +201,6 @@ import type {
 import { resolveTextEditingTarget } from "../features/text-editing/text-editing";
 import { planMosBulkDefaultUpdate } from "../features/component-insert/mos-bulk-defaults";
 import { logicalNetChoices } from "../features/logical-net-choices";
-import {
-  CLOUD_PROJECT_LIMIT,
-  deleteCloudProject,
-  listCloudProjects,
-  type CloudProjectSummary,
-} from "../features/editor-shell/cloud-projects";
 import {
   defaultRazaviSymbolVariantId,
   materializeRazaviProjectBulkConnections,
@@ -336,33 +268,14 @@ import { buildSceneSnapTargetIndex } from "../snap/candidates";
 import { snapCoordinate } from "../snap/engine";
 import type { SnapGuideLine } from "../snap/engine";
 
-interface PendingWaveformPlacement {
-  groupId: string;
-  objects: DraftingObject[];
-  traceCount: number;
-}
-
 const DEFAULT_VIEWBOX: GridRect = { x: 0, y: 0, width: 960, height: 640 };
 const RECENT_COMPONENTS_STORAGE_KEY = "icm.recent-components.v1";
 const LIBRARY_PANEL_STORAGE_KEY = "icm.library-panel-open.v1";
 const LIBRARY_WIDTH_STORAGE_KEY = "icm.library-panel-width.v1";
 const PROPERTIES_WIDTH_STORAGE_KEY = "icm.properties-panel-width.v1";
-const SIMULATION_WIDTH_STORAGE_KEY = "icm.simulation-panel-width.v2";
 const PROPERTIES_WIDTH_MIN = 280;
 const PROPERTIES_WIDTH_MAX = 760;
 const PROPERTIES_WIDTH_RATIO = 0.24;
-const SIMULATION_WIDTH_MIN = 320;
-const SIMULATION_WIDTH_MAX = 1200;
-const SIMULATION_WIDTH_RATIO = 0.4;
-
-function defaultSimulationWidth(viewportWidth: number): number {
-  return Math.round(
-    Math.min(
-      SIMULATION_WIDTH_MAX,
-      Math.max(SIMULATION_WIDTH_MIN, viewportWidth * SIMULATION_WIDTH_RATIO),
-    ),
-  );
-}
 
 function defaultPropertiesWidth(viewportWidth: number): number {
   return Math.round(
@@ -384,25 +297,9 @@ const NET_LABEL_SNAP_CAPTURE_RADIUS_PX = 12;
 // and its arrow head from the same latest control point before pointer-up.
 export interface AppProps {
   project?: CircuitProject;
-  visitStats?: { pv: number; uv: number } | null;
-  /** Override the deployment's Agent UI capability in tests. */
-  publicAgentUiEnabled?: boolean;
-  /** Override the deployment's analog Simulation UI capability in tests. */
-  publicSimulationUiEnabled?: boolean;
-  /** Test/staging seam; production Cloudflare builds keep timing tools hidden. */
-  timingUiEnabled?: boolean;
-  /** `/g/<id>` deep link: load this gallery entry after boot. */
-  initialGalleryEntryId?: string | null;
 }
 
-export function App({
-  project: initialProject,
-  visitStats,
-  publicAgentUiEnabled = PUBLIC_AGENT_UI_ENABLED,
-  publicSimulationUiEnabled = PUBLIC_SIMULATION_UI_ENABLED,
-  timingUiEnabled = TIMING_UI_ENABLED,
-  initialGalleryEntryId = null,
-}: AppProps) {
+export function App({ project: initialProject }: AppProps) {
   const [preparedInitialProject] = useState(
     () =>
       materializeRazaviProjectBulkConnections(
@@ -413,10 +310,6 @@ export function App({
   const helpButtonRef = useRef<HTMLButtonElement>(null);
   const helpCloseRef = useRef<HTMLButtonElement>(null);
   const libraryResizeOriginRef = useRef<{
-    pointerX: number;
-    width: number;
-  } | null>(null);
-  const simulationResizeOriginRef = useRef<{
     pointerX: number;
     width: number;
   } | null>(null);
@@ -448,30 +341,6 @@ export function App({
       // Resizing remains available when browser storage is unavailable.
     }
   };
-  const [simulationWidth, setSimulationWidthState] = useState(() => {
-    if (typeof window === "undefined") return defaultSimulationWidth(1100);
-    try {
-      const stored = Number(
-        window.localStorage.getItem(SIMULATION_WIDTH_STORAGE_KEY),
-      );
-      return Number.isFinite(stored) && stored > 0
-        ? Math.min(SIMULATION_WIDTH_MAX, Math.max(SIMULATION_WIDTH_MIN, stored))
-        : defaultSimulationWidth(window.innerWidth);
-    } catch {
-      return defaultSimulationWidth(window.innerWidth);
-    }
-  });
-  const setSimulationWidth = (width: number): void => {
-    const next = Math.round(
-      Math.min(SIMULATION_WIDTH_MAX, Math.max(SIMULATION_WIDTH_MIN, width)),
-    );
-    setSimulationWidthState(next);
-    try {
-      window.localStorage.setItem(SIMULATION_WIDTH_STORAGE_KEY, String(next));
-    } catch {
-      // Resizing remains available when browser storage is unavailable.
-    }
-  };
   const {
     libraryPanelOpen,
     libraryWidth,
@@ -488,12 +357,6 @@ export function App({
     setSearchOpen,
     searchQuery,
     setSearchQuery,
-    agentPanelOpen,
-    setAgentPanelOpen,
-    agentDetailsOpen,
-    setAgentDetailsOpen,
-    agentStatusDismissed,
-    setAgentStatusDismissed,
     closeHelp,
     closeSearch,
     toggleExamplesPanel: toggleExamplesPanelFromShell,
@@ -509,15 +372,6 @@ export function App({
   const visibleLibraryPanelOpen = compactLayout
     ? compactLibraryPanelOpen
     : libraryPanelOpen;
-  const [, setGalleryRefreshSignal] = useState(0);
-  const galleryLoadGenerationRef = useRef(0);
-  useEffect(() => {
-    if (!visibleLibraryPanelOpen) return;
-    return subscribeGalleryRefresh(() => {
-      galleryLoadGenerationRef.current += 1;
-      setGalleryRefreshSignal((previous) => previous + 1);
-    });
-  }, [visibleLibraryPanelOpen]);
 
   const [recoveryFailureDismissed, setRecoveryFailureDismissed] =
     useState(false);
@@ -538,19 +392,6 @@ export function App({
     readSessionProject: readRecoveryProject,
     deleteSession: deleteRecoverySession,
   } = useRecoveryCoordinator(setStatus);
-  const [agentStartupRecovery] = useState(() => {
-    if (typeof window === "undefined") return null;
-    const search = new URLSearchParams(window.location.search);
-    if (
-      initialGalleryEntryId !== null ||
-      search.has("example") ||
-      search.has("project") ||
-      search.get("new") === "1"
-    )
-      return null;
-    const saved = peekAgentSessionRecovery(window.sessionStorage);
-    return saved?.projectSessionId === recoveryWorkingCopyId ? saved : null;
-  });
   const {
     project,
     document,
@@ -564,7 +405,6 @@ export function App({
     transact: transactDocument,
     controller: editorDocumentController,
     projectSessionId,
-    synchronizeExternalCommit,
   } = useDocumentController(preparedInitialProject, (project) => {
     // A commit landing outside the active pointer session invalidates it:
     // the session's completion would otherwise plan on the pointer-down
@@ -572,27 +412,11 @@ export function App({
     // (audit #8). The session's own commit runs after its cleanup, so this
     // is a no-op for ordinary drags.
     canvasDragSessionRef.current?.cancel();
-    stageRecovery(project, { cloudBinding });
+    stageRecovery(project, { fileBinding });
   });
   const projectConnectivityIndex = useMemo(
     () => buildProjectConnectivityIndex(project, resolver),
     [project, resolver],
-  );
-  const agentSemanticIntentRef = useRef<
-    (request: AgentHostSemanticIntentRequest) => AgentHostSemanticIntentResult
-  >(() => ({
-    ok: false,
-    code: "SEMANTIC_CONTROL_UNAVAILABLE",
-    message: "The editor is still initializing semantic controls",
-  }));
-  const browserAgentHost = useMemo(
-    () =>
-      new BrowserAgentHost(
-        editorDocumentController,
-        synchronizeExternalCommit,
-        (request) => agentSemanticIntentRef.current(request),
-      ),
-    [editorDocumentController, projectSessionId],
   );
   const [documentStack, setDocumentStack] = useState<HierarchyFrame[]>([]);
   const {
@@ -614,10 +438,6 @@ export function App({
     () => createSelectionPolicy(document, selectionFilter),
     [document, selectionFilter],
   );
-  const unfilteredSelectionPolicy = useMemo(
-    () => createSelectionPolicy(document, DEFAULT_SELECTION_FILTER),
-    [document],
-  );
   const uniqueSuffixCounter = useRef(0);
   const [viewBox, setRawViewBox] = useState<GridRect>(DEFAULT_VIEWBOX);
   const cameraRuntimeRef = useRef<CameraRuntime | null>(null);
@@ -630,24 +450,6 @@ export function App({
   const cameraRuntime = cameraRuntimeRef.current;
   useEffect(() => () => cameraRuntime.dispose(), [cameraRuntime]);
   const [gridDotsVisible, setGridDotsVisible] = useState(true);
-  // Which channel serves this build (Deployment rationale). Asked once; anything but a
-  // clear "preview" is production, so the public site never wears its badge.
-  const [releaseChannel, setReleaseChannel] =
-    useState<ReleaseChannel>("production");
-  useEffect(() => {
-    let cancelled = false;
-    void loadReleaseChannel().then((channel) => {
-      if (!cancelled) setReleaseChannel(channel);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  const projectStore = projectStoreCopy(releaseChannel);
-  const simulationTransport = resolveSimulationTransport(
-    releaseChannel,
-    import.meta.env.VITE_ICM_SIMULATION_TRANSPORT,
-  );
   // Annotations and drafting place on their own pitch; the Document grid
   // stays the electrical contract for devices, wires, and junctions.
   const [annotationGrid, setAnnotationGridState] = useState<1 | 5 | 10>(() => {
@@ -705,16 +507,6 @@ export function App({
   );
   const [importReviewOpen, setImportReviewOpen] = useState(false);
   const [cellManagerOpen, setCellManagerOpen] = useState(false);
-  const [activeSimulationFolderId, setActiveSimulationFolderId] = useState<
-    string | null
-  >(null);
-  const activeSimulationFolder =
-    project.simulationFolders.find(
-      (folder) => folder.id === activeSimulationFolderId,
-    ) ?? project.simulationFolders[0];
-  useEffect(() => {
-    setActiveSimulationFolderId(null);
-  }, [projectSessionId]);
   const [canvasContextMenu, setCanvasContextMenu] = useState<{
     x: number;
     y: number;
@@ -730,242 +522,24 @@ export function App({
   const netlistPreferences = useNetlistExportPreferences();
   const [documentSettingsOpen, setDocumentSettingsOpen] = useState(false);
   const [projectNameDraft, setProjectNameDraft] = useState<string | null>(null);
-  const [publishGalleryOpen, setPublishGalleryOpen] = useState(false);
-  const [versionHistoryOpen, setVersionHistoryOpen] = useState(false);
-  const [publishSession, setPublishSession] = useState<SessionUser | null>(
-    null,
-  );
-  /** The signed-in account's private formal Projects, newest first. */
-  const [cloudProjects, setCloudProjects] = useState<
-    readonly CloudProjectSummary[]
-  >([]);
-  const [cloudProjectsReady, setCloudProjectsReady] = useState(false);
-  const cloudListRequestRef = useRef(0);
-  const cloudListMutationRef = useRef(0);
-  const reloadCloudProjects = useCallback(async (): Promise<void> => {
-    const request = ++cloudListRequestRef.current;
-    const mutationAtStart = cloudListMutationRef.current;
-    const outcome = await listCloudProjects();
-    if (request !== cloudListRequestRef.current) return;
-    setCloudProjectsReady(true);
-    if (outcome.status !== "listed") return;
-    // A Save or Delete acknowledged after this request began is newer than
-    // the response, so the stale list must not erase that mutation.
-    if (mutationAtStart !== cloudListMutationRef.current) return;
-    setCloudProjects(outcome.projects);
-  }, []);
-  const [galleryEntryContext, setGalleryEntryContext] = useState<{
-    id: string;
-    name: string;
-    /** The opened Project's id: the context is only valid while that
-     * exact Project is still the active one. */
-    projectId: string;
-    ownerUserId: string | null;
-    author: string;
-    description: string;
-    tags: readonly string[];
-  } | null>(null);
-  // The moment any OTHER Project replaces the opened gallery entry (new
-  // circuit, bundled example, import, …), the update offer must vanish —
-  // otherwise a later publish silently overwrites the stale entry.
-  const activeProjectId = project.id;
-  useEffect(() => {
-    setGalleryEntryContext((previous) =>
-      previous && previous.projectId !== activeProjectId ? null : previous,
-    );
-  }, [activeProjectId]);
-  // The Examples panel reads the same community gallery as the landing
-  // feed; null means unreachable, so the bundled list stands in.
-  const [publishGates, setPublishGates] = useState<SubmissionGateReport | null>(
-    null,
-  );
-  // Account state owns publishing authority and the private Cloud Project
-  // list shown by the File menu.
-  useEffect(() => {
-    let cancelled = false;
-    void fetchSessionUser().then(async (user) => {
-      if (cancelled) return;
-      setPublishSession(user);
-      if (!user) {
-        setCloudProjectsReady(true);
-        return;
-      }
-      await reloadCloudProjects();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadCloudProjects]);
-
-  useEffect(() => {
-    if (!publishSession) return;
-    const refreshAfterReturning = () => void reloadCloudProjects();
-    window.addEventListener("focus", refreshAfterReturning);
-    return () => window.removeEventListener("focus", refreshAfterReturning);
-  }, [publishSession, reloadCloudProjects]);
-
-  useEffect(() => {
-    if (!publishGalleryOpen) return;
-    let cancelled = false;
-    void fetchSessionUser().then((user) => {
-      if (!cancelled) setPublishSession(user);
-    });
-    // The same evaluator the worker enforces, run live on the open Project.
-    setPublishGates(evaluateSubmissionGates(project, resolver));
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- evaluated once per dialog open
-  }, [publishGalleryOpen]);
-  const [agentFileCandidate, setAgentFileCandidate] =
-    useState<AgentFileCandidateSummary | null>(null);
-  const browserAgentFileHost = useMemo(
-    () =>
-      new BrowserAgentFileHost({
-        getProjectSessionId: () => editorDocumentController.projectSessionId,
-        getProject: () => editorDocumentController.project,
-        getDocument: (documentId) =>
-          editorDocumentController.project.documents.find(
-            (candidate) => candidate.id === documentId,
-          ) ?? null,
-        getResolver: () => editorDocumentController.resolver,
-        onApprovalRequested: setAgentFileCandidate,
-        dispatchProjectTransaction: (request) =>
-          browserAgentHost.dispatchProjectTransaction(request),
-      }),
-    [editorDocumentController, projectSessionId],
-  );
-  const projectRunHistory = useMemo(
-    () => new ProjectRunHistory(editorDocumentController.project.id),
-    [editorDocumentController, projectSessionId],
-  );
-  useEffect(() => {
-    projectRunHistory.activate();
-    return () => projectRunHistory.dispose();
-  }, [projectRunHistory]);
-  const browserAgentSimulationHost = useMemo(
-    () =>
-      new BrowserAgentSimulationHost({
-        runHistory: projectRunHistory,
-        owner: "agent",
-        files: browserAgentFileHost.simulationFiles,
-        getProjectSessionId: () => editorDocumentController.projectSessionId,
-        getProject: () => editorDocumentController.project,
-        transport: simulationTransport,
-      }),
-    [
-      browserAgentFileHost.simulationFiles,
-      projectRunHistory,
-      editorDocumentController,
-      projectSessionId,
-      simulationTransport,
-    ],
-  );
-  const browserAgentProjectHost = useMemo(
-    () =>
-      new BrowserAgentProjectHost({
-        getProjectSessionId: () => editorDocumentController.projectSessionId,
-        getProject: () => editorDocumentController.project,
-        dispatchProjectTransaction: (request) =>
-          browserAgentHost.dispatchProjectTransaction(request),
-      }),
-    [browserAgentHost, editorDocumentController, projectSessionId],
-  );
-  const [analogSimulationState, setAnalogSimulationState] = useState<
-    "closed" | "open" | "maximized" | "minimized"
-  >("closed");
-  const simulationSourceBuffer = useRef<{
-    dirty: boolean;
-    flush(): Promise<boolean>;
-  } | null>(null);
-  const analogSimulationOpened = analogSimulationState !== "closed";
-  const analogSimulationOpen =
-    analogSimulationState === "open" || analogSimulationState === "maximized";
-  const analogSimulationMaximized = analogSimulationState === "maximized";
-  const humanSimulationSession = useMemo(
-    () =>
-      analogSimulationOpened
-        ? new BrowserSimulationSession({
-            runHistory: projectRunHistory,
-            owner: "human",
-            getProjectSessionId: () =>
-              editorDocumentController.projectSessionId,
-            getProject: () => editorDocumentController.project,
-            projectFiles: createSimulationProjectFileHost({
-              getProject: () => editorDocumentController.project,
-              getProjectSessionId: () =>
-                editorDocumentController.projectSessionId,
-              dispatch: (request) => dispatchProjectTransaction(request),
-              actor: { kind: "human", id: "human-local" },
-            }),
-            transport: simulationTransport,
-          })
-        : null,
-    [
-      analogSimulationOpened,
-      projectRunHistory,
-      editorDocumentController,
-      projectSessionId,
-      simulationTransport,
-    ],
-  );
-  useEffect(
-    () => () => {
-      void humanSimulationSession?.clear();
-    },
-    [humanSimulationSession],
-  );
-  const openAnalogSimulation = (): void => {
-    if (!publicSimulationUiEnabled) return;
-    setAnalogSimulationState("open");
-  };
-  const minimizeAnalogSimulation = (): void => {
-    setSimulationPickModeState(null);
-    setAnalogSimulationState("minimized");
-  };
-  const toggleAnalogSimulationMaximized = (): void => {
-    setAnalogSimulationState((current) =>
-      current === "maximized" ? "open" : "maximized",
-    );
-  };
-  const exitAnalogSimulation = (): void => {
-    setSimulationPickModeState(null);
-    void humanSimulationSession?.clear();
-    setAnalogSimulationState("closed");
-  };
-  const captureAuthoredProject = async () => {
-    if (
-      simulationSourceBuffer.current &&
-      !(await simulationSourceBuffer.current.flush())
-    ) {
-      setStatus(
-        "Source edits need attention; open Code. No work was discarded.",
-      );
-      return null;
-    }
-    return editorDocumentController.project;
-  };
   const {
-    cloudBinding,
+    fileBinding,
     savedProjectBaseline,
     replaceGuard,
     replaceGuardSaving,
     recoveryDialogOpen,
     startupRecovery,
-    startupCloudProjectId,
-    canRestoreStartupCloudProject,
+    startupProjectPath,
+    canRestoreStartupProject,
     restoreAfterRefresh,
-    startupRestoreReady,
     setRecoveryDialogOpen,
     isDirtyWork,
     hasUnsafeWork,
-    noteProjectSnapshotSafe,
     replaceActiveProject,
-    saveProjectToCloud,
+    saveProject,
     isSaveInFlight,
     saveBusy,
-    exportProjectFile,
-    downloadCurrentProjectBackup,
+    saveProjectBackup,
     guardDirtyReplacement,
     cancelReplaceGuard,
     confirmReplaceGuard,
@@ -975,29 +549,18 @@ export function App({
     revertToSavedProjectBaseline,
     openRecoveryDialog,
     restoreRecoverySession,
-    downloadRecoveryBackup,
+    saveRecoveryBackup,
     deleteRecoverySessionFromDialog,
     refreshApp,
     openProjectFile,
-    openCloudProjectById,
+    openProjectFromDisk,
+    reopenProjectPath,
   } = useProjectFileLifecycle({
-    restoreWorkingSession: agentStartupRecovery !== null,
-    hasPendingEdits: () => simulationSourceBuffer.current?.dirty === true,
-    beforeSnapshot: captureAuthoredProject,
-    onRecoverBuffers: recoverSourceDrafts,
     project,
     projectSessionId,
     viewBox,
     defaultViewBox: DEFAULT_VIEWBOX,
     setStatus,
-    projectStoreCopy: projectStore,
-    onCloudProjectSaved: (saved) => {
-      cloudListMutationRef.current += 1;
-      setCloudProjects((current) => [
-        saved,
-        ...current.filter((candidate) => candidate.id !== saved.id),
-      ]);
-    },
     recovery: {
       ready: recoveryReady,
       sessions: recoverySessions,
@@ -1012,11 +575,8 @@ export function App({
       deleteSession: deleteRecoverySession,
     },
     installProject: (nextProject, nextViewBox) => {
-      browserAgentFileHost.clear();
-      setAgentFileCandidate(null);
       setImportReport(null);
       setImportReviewOpen(false);
-      setGalleryEntryContext(null);
       const nextDocument = replaceProject(nextProject);
       documentViewBoxes.current = new Map();
       setDocumentStack([]);
@@ -1026,67 +586,37 @@ export function App({
     },
   });
   const allowNextBrowserUnload = useUnsavedWorkGuard(hasUnsafeWork());
-  const startupCloudRestoreAttemptedRef = useRef(false);
+  const startupReopenAttemptedRef = useRef(false);
   const hasExplicitBootTarget =
-    initialGalleryEntryId !== null ||
-    (typeof window !== "undefined" &&
-      (() => {
-        const search = new URLSearchParams(window.location.search);
-        return (
-          search.has("example") ||
-          search.has("project") ||
-          search.get("new") === "1"
-        );
-      })());
+    typeof window !== "undefined" &&
+    (() => {
+      const search = new URLSearchParams(window.location.search);
+      return (
+        search.has("example") ||
+        search.has("project") ||
+        search.get("new") === "1"
+      );
+    })();
+  // Reopening the last file is a convenience, so it yields to anything more
+  // specific: an explicit boot target, unsaved work, or a pending recovery.
   useEffect(() => {
     if (
-      startupCloudRestoreAttemptedRef.current ||
-      !cloudProjectsReady ||
-      !publishSession ||
-      !canRestoreStartupCloudProject ||
+      startupReopenAttemptedRef.current ||
+      !canRestoreStartupProject ||
       hasExplicitBootTarget ||
-      !startupCloudProjectId
+      !startupProjectPath
     ) {
       return;
     }
-    startupCloudRestoreAttemptedRef.current = true;
-    setStatus("Opening recent Cloud Project…");
-    void openCloudProjectById(startupCloudProjectId);
+    startupReopenAttemptedRef.current = true;
+    setStatus(`Reopening ${startupProjectPath}…`);
+    void reopenProjectPath(startupProjectPath);
   }, [
-    canRestoreStartupCloudProject,
-    cloudProjectsReady,
+    canRestoreStartupProject,
     hasExplicitBootTarget,
-    openCloudProjectById,
-    publishSession,
-    startupCloudProjectId,
+    reopenProjectPath,
+    startupProjectPath,
   ]);
-  const agentSession = useAgentSession({
-    recover: !hasExplicitBootTarget,
-    beforeConnect: async () => {
-      const snapshot = await captureAuthoredProject();
-      if (snapshot) {
-        stageRecovery(snapshot, {
-          unsavedAtSnapshot: isDirtyWork() || snapshot !== project,
-          cloudBinding,
-        });
-        await flushRecovery();
-      }
-    },
-    enabled:
-      publicAgentUiEnabled &&
-      (startupRestoreReady ||
-        recoveryWorkingCopyId !== agentStartupRecovery?.projectSessionId),
-    project,
-    projectSessionId: recoveryWorkingCopyId,
-    host: browserAgentHost,
-    fileHost: browserAgentFileHost,
-    simulationHost: browserAgentSimulationHost,
-    projectHost: browserAgentProjectHost,
-  });
-  useEffect(() => {
-    if (!publicAgentUiEnabled) return;
-    setAgentStatusDismissed(false);
-  }, [agentSession.status, publicAgentUiEnabled]);
   const [boxPreview, setBoxPreview] = useState<BoxPreview | null>(null);
   const [panPreview, setPanPreview] = useState<PanPreview | null>(null);
   const [wireOptionsOpen, setWireOptionsOpen] = useState(false);
@@ -1201,19 +731,17 @@ export function App({
       return uniqueSuffixCounter.current;
     },
   });
-  const { openGalleryEntryById, openLibraryExample, insertGalleryEntryById } =
-    createGalleryExampleCommands({
-      defaultViewBox: DEFAULT_VIEWBOX,
-      replaceActiveProject,
-      guardDirtyReplacement,
-      beginCopyPlacement: (clipboard, anchor) => {
-        prepareProjectCopy(project, document, clipboard);
-        beginCopyPlacementInteraction(clipboard, anchor);
-      },
-      cancelAllTransientInteraction,
-      setGalleryEntryContext,
-      setStatus,
-    });
+  const { openLibraryExample } = createExampleCommands({
+    defaultViewBox: DEFAULT_VIEWBOX,
+    replaceActiveProject,
+    guardDirtyReplacement,
+    beginCopyPlacement: (clipboard, anchor) => {
+      prepareProjectCopy(project, document, clipboard);
+      beginCopyPlacementInteraction(clipboard, anchor);
+    },
+    cancelAllTransientInteraction,
+    setStatus,
+  });
   const [draftingInspectorSegment, setDraftingInspectorSegment] = useState<{
     objectId: string;
     index: number;
@@ -1221,10 +749,6 @@ export function App({
   const [selectedRouteSegmentIndex, setSelectedRouteSegmentIndex] = useState<
     number | null
   >(null);
-  /** Survives the dialog closing, so a mistaken dismissal loses nothing. */
-  const [publishDraft, setPublishDraft] = useState<PublishGalleryDraft | null>(
-    null,
-  );
   /**
    * A verb key pressed with nothing selected arms that verb: the next
    * object pointed at is the one acted on (Cadence-style verb-first).
@@ -1244,67 +768,6 @@ export function App({
   );
   const [highlightedNetOrigin, setHighlightedNetOrigin] =
     useState<HighlightedNetOrigin | null>(null);
-  const [codeNetPreview, setCodeNetPreview] =
-    useState<HighlightedNetOrigin | null>(null);
-  const [simulationWindowOpen, setSimulationWindowOpen] = useState(false);
-  const [simulationPickMode, setSimulationPickModeState] = useState<
-    "net" | "terminal" | null
-  >(null);
-  const simulationPickNetsActive = simulationPickMode === "net";
-  const simulationPickTerminalsActive = simulationPickMode === "terminal";
-  const simulationPickActive = simulationPickMode !== null;
-  const [simulationHoverNetId, setSimulationHoverNetId] = useState<
-    string | null
-  >(null);
-  const [simulationSavedNetIds, setSimulationSavedNetIds] = useState<
-    Set<string>
-  >(() => new Set());
-  const [analogPickedNet, setAnalogPickedNet] = useState<{
-    sequence: number;
-    documentId: string;
-    netId: string;
-    occurrence?: readonly string[];
-  } | null>(null);
-  const [analogPickedTerminal, setAnalogPickedTerminal] = useState<{
-    sequence: number;
-    documentId: string;
-    instanceId: string;
-    pinName: string;
-    directionPinName?: string;
-    occurrence?: readonly string[];
-  } | null>(null);
-  const [simulationTerminalPickStart, setSimulationTerminalPickStart] =
-    useState<{
-      documentId: string;
-      instanceId: string;
-      pinName: string;
-      partnerPinNames: readonly string[];
-      occurrence?: readonly string[];
-    } | null>(null);
-  const [pendingWaveformPlacement, setPendingWaveformPlacement] =
-    useState<PendingWaveformPlacement | null>(null);
-  const [waveformPlacementPoint, setWaveformPlacementPoint] =
-    useState<Point | null>(null);
-  useEffect(() => {
-    // Net-pick is a hierarchy traversal mode: keep it armed while the author
-    // enters a DUT Cell, so an internal Net can be picked with its occurrence
-    // path intact. Closing/minimising Simulation still cancels it explicitly.
-    if (!analogSimulationOpen) setSimulationPickModeState(null);
-    setSimulationTerminalPickStart(null);
-    setSimulationHoverNetId(null);
-    setSimulationSavedNetIds(new Set());
-    setPendingWaveformPlacement(null);
-    setWaveformPlacementPoint(null);
-  }, [document.id]);
-  useEffect(() => {
-    setSimulationPickModeState(null);
-    setAnalogPickedNet(null);
-    setAnalogPickedTerminal(null);
-    setSimulationTerminalPickStart(null);
-  }, [projectSessionId]);
-  useEffect(() => {
-    setSimulationTerminalPickStart(null);
-  }, [activeSimulationFolderId]);
   const routeCounter = useRef(0);
   const canvasDragSessionRef = useRef<CanvasDragSession | null>(null);
   /**
@@ -1358,29 +821,8 @@ export function App({
         },
       };
     }
-    if (pendingWaveformPlacement && waveformPlacementPoint) {
-      const previewObjects = pendingWaveformPlacement.objects.map((object) =>
-        translateDraftingObject(
-          object,
-          waveformPlacementPoint,
-          document.presentation.grid,
-        ),
-      );
-      rendered = {
-        ...rendered,
-        drafting: {
-          objects: [...(rendered.drafting?.objects ?? []), ...previewObjects],
-        },
-      };
-    }
     return rendered;
-  }, [
-    document,
-    draftingHandlePreview,
-    pendingWaveformPlacement,
-    projectedMovePreviewDocument,
-    waveformPlacementPoint,
-  ]);
+  }, [document, draftingHandlePreview, projectedMovePreviewDocument]);
   const lastGoodSceneRef = useRef<ReturnType<typeof buildSvgScene> | null>(
     null,
   );
@@ -1615,22 +1057,6 @@ export function App({
     bulkDrawInstanceId,
   });
   const netChoices = useMemo(() => logicalNetChoices(document), [document]);
-  useEffect(() => {
-    setSimulationSavedNetIds((current) => {
-      const canonical = new Set<string>();
-      for (const netId of current) {
-        const group = logicalNets.byBaseNetId.get(netId);
-        if (group) canonical.add(group.baseNetIds[0]!);
-      }
-      if (
-        canonical.size === current.size &&
-        [...canonical].every((netId) => current.has(netId))
-      ) {
-        return current;
-      }
-      return canonical;
-    });
-  }, [logicalNets]);
   const selectedNetNameAnnotation =
     selectedAnnotation?.binding?.kind === "net-name" &&
     (selectedAnnotation.kind === "net-label" ||
@@ -1676,8 +1102,10 @@ export function App({
     sessionId: projectSessionId,
     resolver,
     index: projectConnectivityIndex,
-    save: saveProjectToCloud,
-    beforeCheck: captureAuthoredProject,
+    // The controller holds the freshest committed Project, even before React
+    // has re-rendered with it.
+    save: (candidate) => saveProject({}, candidate),
+    beforeCheck: () => Promise.resolve(editorDocumentController.project),
     isSaving: isSaveInFlight,
     openIssues: openIssuesPanel,
   });
@@ -1756,233 +1184,6 @@ export function App({
     setSelectionOpen(true);
     setIssuesFocusToken((token) => token + 1);
   }
-  const simulationPickHighlight = useMemo(
-    () =>
-      simulationPickNetsActive && simulationHoverNetId
-        ? computeNetHighlight(
-            projectConnectivityIndex,
-            document.id,
-            simulationHoverNetId,
-            undefined,
-            documentStack,
-          )
-        : undefined,
-    [
-      document.id,
-      documentStack,
-      projectConnectivityIndex,
-      simulationHoverNetId,
-      simulationPickMode,
-    ],
-  );
-  const codeNetHighlight = useMemo(
-    () =>
-      analogSimulationOpen &&
-      codeNetPreview &&
-      codeNetPreview.documentId === document.id &&
-      JSON.stringify(codeNetPreview.hierarchyPath) ===
-        JSON.stringify(documentStack)
-        ? computeNetHighlight(
-            projectConnectivityIndex,
-            document.id,
-            codeNetPreview.netId,
-            undefined,
-            documentStack,
-          )
-        : undefined,
-    [
-      analogSimulationOpen,
-      codeNetPreview,
-      document.id,
-      documentStack,
-      projectConnectivityIndex,
-    ],
-  );
-  const canonicalSimulationNetId = (netId: string): string | null => {
-    const group =
-      logicalNets.byBaseNetId.get(netId) ??
-      logicalNets.groups.find((candidate) => candidate.id === netId);
-    return group?.baseNetIds[0] ?? null;
-  };
-  const simulationPickRootDocumentId =
-    activeSimulationFolder?.input.circuitBindings.find(
-      (binding) => binding.emission === "top-level",
-    )?.documentId;
-  const simulationPickOccurrence: readonly string[] | undefined =
-    documentStack.length > 0
-      ? documentStack.map((frame) => frame.instanceId)
-      : simulationPickRootDocumentId === document.id
-        ? []
-        : undefined;
-  const activeSimulationPickOccurrence = (): readonly string[] | undefined =>
-    simulationPickOccurrence;
-  const simulationCurrentProbeOptions = useMemo(
-    () =>
-      simulationPickTerminalsActive && simulationPickRootDocumentId
-        ? deriveSimulationProbeOptions(project, simulationPickRootDocumentId)
-            .terminalCurrent
-        : [],
-    [project, simulationPickRootDocumentId, simulationPickTerminalsActive],
-  );
-  const simulationCurrentTargetsInView = useMemo(
-    () =>
-      simulationCurrentProbeOptions.filter(
-        ({ target }) =>
-          target.documentId === document.id &&
-          (simulationPickOccurrence === undefined ||
-            sameSimulationOccurrence(
-              target.occurrence,
-              simulationPickOccurrence,
-            )),
-      ),
-    [document.id, simulationCurrentProbeOptions, simulationPickOccurrence],
-  );
-  const simulationCurrentPinNamesByInstance = useMemo(() => {
-    const result = new Map<string, string[]>();
-    for (const { target } of simulationCurrentTargetsInView) {
-      const pins = result.get(target.instanceId) ?? [];
-      if (!pins.includes(target.pinName)) pins.push(target.pinName);
-      result.set(target.instanceId, pins);
-    }
-    return result;
-  }, [simulationCurrentTargetsInView]);
-  const simulationCurrentEndpointKeys = useMemo(
-    () =>
-      new Set(
-        simulationCurrentTargetsInView.map(
-          ({ target }) => `${target.instanceId}\u0000${target.pinName}`,
-        ),
-      ),
-    [simulationCurrentTargetsInView],
-  );
-  const toggleSimulationSavedNet = (netId: string): void => {
-    const baseNetId = canonicalSimulationNetId(netId);
-    if (!baseNetId) {
-      setStatus(`Could not resolve Net ${netId}`);
-      return;
-    }
-    const group = logicalNets.byBaseNetId.get(baseNetId);
-    if (analogSimulationOpen) {
-      const occurrence = activeSimulationPickOccurrence();
-      setAnalogPickedNet((current) => ({
-        sequence: (current?.sequence ?? 0) + 1,
-        documentId: document.id,
-        netId: baseNetId,
-        ...(occurrence === undefined ? {} : { occurrence }),
-      }));
-      setStatus(`Added voltage Output ${group?.name ?? baseNetId}`);
-      return;
-    }
-    setSimulationSavedNetIds((current) => {
-      const next = new Set(current);
-      if (next.has(baseNetId)) next.delete(baseNetId);
-      else next.add(baseNetId);
-      return next;
-    });
-    setStatus(`Toggled saved Net ${group?.name ?? baseNetId}`);
-  };
-  const pickSimulationTerminal = (endpoint: WireSource): void => {
-    if (endpoint.endpoint.kind !== "terminal" || !analogSimulationOpen) return;
-    const terminal = endpoint.endpoint;
-    const occurrence = activeSimulationPickOccurrence();
-    const referenceFor = (instanceId: string): string =>
-      document.instances.find((instance) => instance.id === instanceId)
-        ?.reference ?? instanceId;
-    const clickedKey = `${terminal.instanceId}\u0000${terminal.pinName}`;
-    if (!simulationCurrentEndpointKeys.has(clickedKey)) {
-      setStatus(
-        `${referenceFor(terminal.instanceId)}.${terminal.pinName} is not a measurable current terminal in this Testbench occurrence`,
-      );
-      return;
-    }
-    const commitPick = (
-      picked: {
-        documentId: string;
-        instanceId: string;
-        pinName: string;
-        occurrence?: readonly string[];
-      },
-      directionPinName?: string,
-    ): void => {
-      setAnalogPickedTerminal((current) => ({
-        sequence: (current?.sequence ?? 0) + 1,
-        ...picked,
-        ...(directionPinName ? { directionPinName } : {}),
-      }));
-      setSimulationTerminalPickStart(null);
-      const reference = referenceFor(picked.instanceId);
-      setStatus(
-        directionPinName
-          ? `Added current ${reference}.${picked.pinName} → ${reference}.${directionPinName} · positive current enters ${picked.pinName}`
-          : `Added terminal current ${reference}.${picked.pinName} · positive current enters the terminal`,
-      );
-    };
-    if (
-      simulationTerminalPickStart &&
-      simulationTerminalPickStart.documentId === document.id &&
-      simulationTerminalPickStart.instanceId === terminal.instanceId &&
-      sameSimulationOccurrence(
-        simulationTerminalPickStart.occurrence,
-        occurrence,
-      )
-    ) {
-      if (simulationTerminalPickStart.pinName === terminal.pinName) {
-        setSimulationTerminalPickStart(null);
-        setStatus("Current direction cancelled · choose the first terminal");
-        return;
-      }
-      if (
-        simulationTerminalPickStart.partnerPinNames.includes(terminal.pinName)
-      ) {
-        commitPick(simulationTerminalPickStart, terminal.pinName);
-        return;
-      }
-    }
-
-    const instance = document.instances.find(
-      (candidate) => candidate.id === terminal.instanceId,
-    );
-    const measurablePins =
-      simulationCurrentPinNamesByInstance.get(terminal.instanceId) ?? [];
-    const partnerPinNames = instance
-      ? terminalCurrentDirectionPartners(
-          instance,
-          terminal.pinName,
-          measurablePins,
-        )
-      : [];
-    const picked = {
-      documentId: document.id,
-      instanceId: terminal.instanceId,
-      pinName: terminal.pinName,
-      ...(occurrence === undefined ? {} : { occurrence }),
-    };
-    if (partnerPinNames.length === 0) {
-      commitPick(picked);
-      return;
-    }
-    setSimulationTerminalPickStart({ ...picked, partnerPinNames });
-    setStatus(
-      `Current starts at ${referenceFor(terminal.instanceId)}.${terminal.pinName} · choose ${partnerPinNames.join(" or ")} to confirm direction`,
-    );
-  };
-  const setSimulationPickMode = (mode: "net" | "terminal" | null): void => {
-    if (mode) activateTool("pointer");
-    setSimulationPickModeState(mode);
-    if (mode !== "terminal") setSimulationTerminalPickStart(null);
-    if (mode !== "net") setSimulationHoverNetId(null);
-    setStatus(
-      mode === "net"
-        ? "Pick Nets: click a wire, label, junction, or connected pin · Esc exits"
-        : mode === "terminal"
-          ? "Pick current: choose a device terminal, then its direction · Esc exits"
-          : "Finished picking simulation Outputs",
-    );
-  };
-  const setSimulationNetPickMode = (active: boolean): void =>
-    setSimulationPickMode(active ? "net" : null);
-  const setSimulationTerminalPickMode = (active: boolean): void =>
-    setSimulationPickMode(active ? "terminal" : null);
   const {
     enabled: cellSymbolLayoutEnabled,
     layout: selectedCellSymbolLayout,
@@ -2721,7 +1922,7 @@ export function App({
     0,
   );
   // Fit and auto-fit describe committed content, never a transient move,
-  // handle, copy, or waveform preview. The committed formal scene already
+  // handle, or copy preview. The committed formal scene already
   // measured those exact bounds, so keep that single successful derivation
   // instead of rebuilding the complete SVG solely to read its viewBox.
   const contentSceneBounds = committedSceneState.degraded
@@ -2938,12 +2139,10 @@ export function App({
         (pendingSymbolId && pendingComponentPlacement) ||
         vddRailMode ||
         copyPlacement !== null ||
-        pendingWaveformPlacement !== null ||
         netLabelPlacement?.phase === "placing",
       ),
       tool,
       cellSymbolLayoutEnabled,
-      simulationPickMode,
     },
     actions: {
       beginInstanceMove: beginMoveFromSelection,
@@ -2973,19 +2172,6 @@ export function App({
       setStatus,
       suppressNextClick: () => {
         suppressInstanceClick.current = true;
-      },
-      pickSimulationNet: (kind, id) => {
-        const netId =
-          kind === "route"
-            ? document.routes.find((route) => route.id === id)?.netId
-            : kind === "annotation"
-              ? document.annotations.find((annotation) => annotation.id === id)
-                  ?.netId
-              : kind === "junction"
-                ? document.junctions.find((junction) => junction.id === id)
-                    ?.netId
-                : undefined;
-        if (netId) toggleSimulationSavedNet(netId);
       },
       consumeArmedVerb: (kind, id) => {
         if (kind === "instance") return consumeArmedVerbOnInstance(id);
@@ -3079,12 +2265,6 @@ export function App({
       setVddRailPreviewPoint,
       copyPlacementPending: copyPlacement !== null,
       setCopyPreviewPoint,
-      waveformPlacementPending: pendingWaveformPlacement !== null,
-      setWaveformPreviewPoint: (point) =>
-        setWaveformPlacementPoint({
-          x: snapCoordinate(point.x, document.presentation.grid),
-          y: snapCoordinate(point.y, document.presentation.grid),
-        }),
     },
     drafting: {
       tool,
@@ -3107,7 +2287,7 @@ export function App({
     },
   });
 
-  // Every opened schematic lands fitted — shelf, gallery, examples,
+  // Every opened schematic lands fitted — opened files, examples,
   // imports, and recoveries alike — exactly as if F were pressed once the
   // new document's content bounds exist. An empty project keeps the
   // default camera.
@@ -3160,16 +2340,13 @@ export function App({
     switchDocument,
     selectDocumentFromHierarchy,
     jumpToCaller,
-    navigateToLocator,
     navigateToNetlistDiagnostic,
-    fitDocument,
     enterHierarchy,
     enterSelectedHierarchy,
     returnToParentDocument,
     returnToTopDocument,
     selectSearchResult,
     jumpToProjectDiagnostic,
-    highlightNet,
     toggleHighlightedNet,
     navigateTraceHop,
   } = createEditorNavigationController({
@@ -3199,22 +2376,6 @@ export function App({
     selectedInstance,
     setStatus,
   });
-  const applyAgentSemanticIntent = createAgentSemanticIntentHandler({
-    project,
-    resolver,
-    connectivityIndex: projectConnectivityIndex,
-    navigateToLocator,
-    fitDocument,
-    clearFocus: () => {
-      resetInteractionState();
-      setHighlightedNetOrigin(null);
-      setSelectionOpen(false);
-      setStatus("Agent cleared semantic focus");
-    },
-    highlightNet,
-  });
-  agentSemanticIntentRef.current = applyAgentSemanticIntent;
-
   useEffect(() => {
     if (!selectedRouteId) setSelectedRouteSegmentIndex(null);
   }, [selectedRouteId]);
@@ -3315,24 +2476,11 @@ export function App({
     const exampleId = new URLSearchParams(window.location.search).get(
       "example",
     );
-    // A tile on the shelf opens straight into its Project.
-    const shelfProjectId = new URLSearchParams(window.location.search).get(
-      "project",
-    );
     const requestsNewProject =
       new URLSearchParams(window.location.search).get("new") === "1";
-    if (initialGalleryEntryId) {
-      void openGalleryEntryById(initialGalleryEntryId, false);
-      return;
-    }
     if (requestsNewProject) {
       replaceActiveProject(preparedInitialProject, DEFAULT_VIEWBOX);
       setStatus("Created a new Project");
-      return;
-    }
-    if (shelfProjectId) {
-      setStatus("Opening your Cloud Project…");
-      void openCloudProjectById(shelfProjectId);
       return;
     }
     if (exampleId) {
@@ -3345,7 +2493,7 @@ export function App({
         setStatus(`Opened example: ${example.name}`);
       }
     }
-  }, [initialGalleryEntryId, restoreAfterRefresh]);
+  }, [restoreAfterRefresh]);
 
   function resetInteractionState(): void {
     exitCellSymbolLayout();
@@ -3432,32 +2580,6 @@ export function App({
   function commitProjectName(): void {
     setProjectNameDraft(null);
     renameProject(projectNameDraft);
-  }
-
-  function approveAgentFileCandidate(): void {
-    if (!agentFileCandidate) return;
-    const meta = agentFileCandidate;
-    void guardDirtyReplacement(`Accept Agent ${meta.kind} candidate`, () => {
-      const candidate = browserAgentFileHost.consumeApproved(meta.candidateId);
-      setAgentFileCandidate(null);
-      if (!candidate) {
-        setStatus(
-          "Agent file candidate expired; ask the Agent to stage it again",
-        );
-        return;
-      }
-      replaceActiveProject(candidate, DEFAULT_VIEWBOX, {
-        source: "opened-file",
-      });
-      setStatus(`Accepted Agent ${meta.kind} candidate: ${candidate.name}`);
-    });
-  }
-
-  function rejectAgentFileCandidate(): void {
-    if (!agentFileCandidate) return;
-    browserAgentFileHost.discard(agentFileCandidate.candidateId);
-    setAgentFileCandidate(null);
-    setStatus("Rejected Agent file candidate");
   }
 
   function commitManagedCellReset(
@@ -3943,14 +3065,6 @@ export function App({
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
-      // The source workbench owns its keyboard scope, including portalled menus.
-      if (
-        event.target instanceof Element &&
-        event.target.closest(
-          ".simulation-code-workspace, [data-workspace-interaction]",
-        )
-      )
-        return;
       // File flyout arrows navigate the focused menu, never pan the canvas.
       if (
         event.target instanceof Element &&
@@ -3962,18 +3076,6 @@ export function App({
         event.preventDefault();
         cancelNetLabelEditing();
         paintSnapGuides([]);
-        return;
-      }
-      if (event.key === "Escape" && simulationPickActive) {
-        event.preventDefault();
-        setSimulationPickMode(null);
-        return;
-      }
-      if (event.key === "Escape" && pendingWaveformPlacement) {
-        event.preventDefault();
-        setPendingWaveformPlacement(null);
-        setWaveformPlacementPoint(null);
-        setStatus("Waveform placement cancelled");
         return;
       }
       if (event.key === "Escape" && searchOpen) {
@@ -4069,10 +3171,10 @@ export function App({
           setStatus("Browser bookmark shortcut blocked while editing");
           return;
         case "save":
-          void saveProjectToCloud();
+          void saveProject();
           return;
         case "open":
-          projectInputRef.current?.click();
+          void openProjectFromDisk();
           return;
         case "edit-net-label":
           activateTool("pointer");
@@ -4155,72 +3257,7 @@ export function App({
     return () => window.removeEventListener("keydown", onKeyDown, true);
   });
 
-  const beginWaveformPlacement = (layout: TimingWaveformLayout): void => {
-    const objects = waveformDraftingObjects(
-      layout,
-      { x: 0, y: 0 },
-      (prefix) => {
-        uniqueSuffixCounter.current += 1;
-        return `${prefix}-${uniqueSuffixCounter.current}`;
-      },
-    );
-    uniqueSuffixCounter.current += 1;
-    const groupId = `waveform-group-${uniqueSuffixCounter.current}`;
-    setSimulationPickMode(null);
-    setPendingWaveformPlacement({
-      groupId,
-      objects,
-      traceCount: layout.rows.length,
-    });
-    const pointer = lastCanvasPointRef.current;
-    setWaveformPlacementPoint(
-      pointer
-        ? {
-            x: snapCoordinate(pointer.x, document.presentation.grid),
-            y: snapCoordinate(pointer.y, document.presentation.grid),
-          }
-        : null,
-    );
-    setStatus("Place waveform: move over the canvas and click · Esc cancels");
-  };
-
-  const commitWaveformPlacement = (point: Point): void => {
-    if (!pendingWaveformPlacement) return;
-    const snapped = {
-      x: snapCoordinate(point.x, document.presentation.grid),
-      y: snapCoordinate(point.y, document.presentation.grid),
-    };
-    const objects = pendingWaveformPlacement.objects.map((object) =>
-      translateDraftingObject(object, snapped, document.presentation.grid),
-    );
-    const placed = transact([
-      ...objects.map((object) => ({
-        kind: "upsert_drafting_object" as const,
-        object,
-      })),
-      {
-        kind: "set_layout_group" as const,
-        group: {
-          id: pendingWaveformPlacement.groupId,
-          kind: "custom" as const,
-          objectIds: objects.map((object) => object.id),
-          locked: false,
-        },
-      },
-    ]);
-    if (!placed.ok) return;
-    selectOnly(
-      "drafting",
-      objects.map((object) => object.id),
-    );
-    setPendingWaveformPlacement(null);
-    setWaveformPlacementPoint(null);
-    setStatus(
-      `Placed a grouped timing snapshot with ${pendingWaveformPlacement.traceCount} trace${pendingWaveformPlacement.traceCount === 1 ? "" : "s"}`,
-    );
-  };
-
-  const beginWaveformGroupScale = (
+  const beginLayoutGroupScale = (
     event: ReactPointerEvent<SVGElement>,
     group: LayoutGroup,
     bounds: Rect,
@@ -4235,7 +3272,7 @@ export function App({
     const originalRadius = Math.max(1, Math.hypot(bounds.width, bounds.height));
     const scaleRange = draftingGroupScaleRange(document, group.objectIds);
     if (!scaleRange) {
-      setStatus("This waveform group cannot scale");
+      setStatus("This layout group cannot scale");
       return;
     }
     const factorAt = (client: Point): number => {
@@ -4267,7 +3304,7 @@ export function App({
           factor,
         );
         if (!objects) {
-          setStatus("This waveform group contains an object that cannot scale");
+          setStatus("This layout group contains an object that cannot scale");
           return;
         }
         if (
@@ -4278,7 +3315,7 @@ export function App({
             })),
           ).ok
         ) {
-          setStatus(`Scaled waveform to ${Math.round(factor * 100)}%`);
+          setStatus(`Scaled group to ${Math.round(factor * 100)}%`);
         }
       },
       onCancel: () => {
@@ -4327,7 +3364,6 @@ export function App({
         if (
           canvasContextMenuSuppressed.current ||
           canvasDragSessionRef.current !== null ||
-          simulationPickActive ||
           target.closest('[data-testid="canvas-text-editor"]')
         )
           return;
@@ -4367,19 +3403,16 @@ export function App({
       pendingSymbolId,
       pendingComponentPlacement: Boolean(pendingComponentPlacement),
       vddRailMode,
-      waveformPlacementActive: pendingWaveformPlacement !== null,
       snapPlacementPoint: (point, svg) =>
         resolvePendingPlacementPoint(point, svg).point,
       commitCopyPlacement: commitCopyPlacementFromSelection,
       commitPendingPlacement: commitPendingPlacementAtFromHook,
-      commitWaveformPlacement,
       clearComponentPreview: () => setComponentPreviewPoint(null),
       clearVddRailPreview: () => setVddRailPreviewPoint(null),
       clearCopyPreview: () => {
         setCopyPreviewPoint(null);
         paintSnapGuides([]);
       },
-      clearWaveformPreview: () => setWaveformPlacementPoint(null),
     },
     gesture: {
       begin: beginCanvasGesture,
@@ -4441,55 +3474,19 @@ export function App({
     },
   });
 
-  const openAgentConnection = () => {
-    setAgentPanelOpen(true);
-    if (
-      agentSession.status === "idle" ||
-      agentSession.status === "revoked" ||
-      agentSession.status === "expired" ||
-      (agentSession.status === "waiting-for-agent" &&
-        agentSession.claimExpiresAt !== null &&
-        agentSession.claimExpiresAt <= Date.now())
-    ) {
-      void agentSession.newConnection();
-    }
-  };
-
   return (
     <main className="app-shell">
       {renderCrashRequested() ? <RenderCrashProbe /> : null}
       <EditorAppChrome
-        {...(publicSimulationUiEnabled
-          ? { simulationAction: openAnalogSimulation }
-          : {})}
-        simulationState={analogSimulationState}
-        releaseChannel={releaseChannel}
         projectName={project.name}
-        projectSchemaVersion={project.schemaVersion}
         projectNameDraft={projectNameDraft}
         hasUnsavedWork={isDirtyWork()}
         documentName={document.name}
         onProjectNameDraftChange={setProjectNameDraft}
         onProjectNameCommit={commitProjectName}
         onProjectNameCancel={() => setProjectNameDraft(null)}
-        onOpenGallery={() => {
-          void guardDirtyReplacement("Go to Gallery", async () => {
-            const snapshot = await captureAuthoredProject();
-            if (!snapshot) return;
-            stageRecovery(snapshot, {
-              unsavedAtSnapshot: isDirtyWork() || snapshot !== project,
-              cloudBinding,
-            });
-            await flushRecovery();
-            allowNextBrowserUnload();
-            window.location.assign("/");
-          });
-        }}
         fileCommands={{
-          projectStoreLabel: projectStore.plural,
-          projectStoreItemLabel: projectStore.singular,
-          cloudProjects,
-          activeCloudProjectId: cloudBinding?.id ?? null,
+          openFilePath: fileBinding?.path ?? null,
           canRevert: savedProjectBaseline !== null && isDirtyWork(),
           hasRecoverySessions: recoverySessions.some(
             (session) =>
@@ -4498,30 +3495,9 @@ export function App({
           ),
           projectInputRef,
           onNewProject: createNewProject,
-          onSave: () => void saveProjectToCloud(),
-          onRefreshCloudProjects: () => void reloadCloudProjects(),
-          onOpenCloudProject: (summary) =>
-            void openCloudProjectById(summary.id),
-          onDeleteCloudProject: (summary) => {
-            if (
-              !window.confirm(
-                `Delete ${projectStore.singular} "${summary.name}"?`,
-              )
-            ) {
-              return;
-            }
-            void deleteCloudProject(summary.id).then((outcome) => {
-              if (outcome.status === "deleted") {
-                cloudListMutationRef.current += 1;
-                setCloudProjects(outcome.projects);
-                setStatus(`Deleted ${projectStore.singular} ${summary.name}`);
-                return;
-              }
-              setStatus(
-                `Could not delete ${projectStore.singular} (${outcome.message})`,
-              );
-            });
-          },
+          onOpenProject: () => void openProjectFromDisk(),
+          onSave: () => void saveProject(),
+          onSaveAs: () => void saveProject({ saveAs: true }),
           onRefresh: () => {
             allowNextBrowserUnload();
             refreshApp();
@@ -4529,7 +3505,6 @@ export function App({
           onImportProject: (file) => void openProjectFile(file),
           onImportSpice: (files, namingProfile) =>
             void importSpiceFiles(files, namingProfile),
-          onExportProject: exportProjectFile,
           onExportSvg: exportSvg,
           onExportRaster: (format) => void exportRaster(format),
           onRevert: revertToSavedProjectBaseline,
@@ -4636,29 +3611,6 @@ export function App({
         }}
         onOpenNetlistPreflight={() => setNetlistPreflightOpen(true)}
         onExportNetlist={exportDesignNetlist}
-        agentAction={
-          publicAgentUiEnabled
-            ? {
-                label:
-                  agentSession.status === "idle"
-                    ? "Connect Agent"
-                    : "Manage Agent",
-                execute: openAgentConnection,
-              }
-            : null
-        }
-        publishGalleryOpen={publishGalleryOpen}
-        onPublishGallery={() => {
-          // The preview reads the gallery and never writes it (Deployment rationale);
-          // saying so here beats a sign-in dialog with nowhere to sign in.
-          if (releaseChannel === "preview") {
-            setStatus(
-              "Preview builds cannot publish to the gallery; publish from the production site.",
-            );
-            return;
-          }
-          setPublishGalleryOpen(true);
-        }}
         helpButtonRef={helpButtonRef}
         helpOpen={helpOpen}
         onOpenHelp={() => setHelpOpen(true)}
@@ -4697,19 +3649,6 @@ export function App({
             setProjectPanel(null);
             setSelectionOpen(true);
           },
-          ...(timingUiEnabled
-            ? {
-                simulation: {
-                  open: simulationWindowOpen,
-                  onToggle: () => {
-                    setSimulationWindowOpen((open) => {
-                      if (open) setSimulationPickMode(null);
-                      return !open;
-                    });
-                  },
-                },
-              }
-            : {}),
         }}
         hierarchyToolbar={{
           documents: project.documents,
@@ -4767,7 +3706,7 @@ export function App({
           !recoveryFailureDismissed
             ? {
                 state: recoveryState,
-                onDownload: downloadCurrentProjectBackup,
+                onSaveCopy: saveProjectBackup,
                 onDismiss: () => setRecoveryFailureDismissed(true),
               }
             : null
@@ -4778,15 +3717,15 @@ export function App({
                 projectName: startupRecovery.projectName,
                 updatedAt: startupRecovery.latest.updatedAt,
                 onRestore: () => {
-                  startupCloudRestoreAttemptedRef.current = true;
+                  startupReopenAttemptedRef.current = true;
                   dismissStartupRecovery();
                   restoreRecoverySession(
                     startupRecovery.workingCopyId,
                     "latest",
                   );
                 },
-                onDownload: () =>
-                  downloadRecoveryBackup(
+                onSaveCopy: () =>
+                  void saveRecoveryBackup(
                     startupRecovery.workingCopyId,
                     "latest",
                   ),
@@ -4799,7 +3738,8 @@ export function App({
             ? {
                 sessions: recoverySessions,
                 onRestore: restoreRecoverySession,
-                onDownloadBackup: downloadRecoveryBackup,
+                onSaveBackup: (workingCopyId, generation) =>
+                  void saveRecoveryBackup(workingCopyId, generation),
                 onDeleteSession: deleteRecoverySessionFromDialog,
                 onClose: () => setRecoveryDialogOpen(false),
               }
@@ -4809,7 +3749,7 @@ export function App({
           replaceGuard !== null
             ? {
                 intent: replaceGuard.intent,
-                cloudProjectLimit: CLOUD_PROJECT_LIMIT,
+                openFilePath: fileBinding?.path ?? null,
                 saving: replaceGuardSaving,
                 onCancel: cancelReplaceGuard,
                 onSaveAndContinue: saveAndContinueReplaceGuard,
@@ -4880,10 +3820,30 @@ export function App({
                 externalDefinitions: project.externalSubcircuitDefinitions,
                 onSetExternalDefinition: setExternalSubcircuitDefinition,
                 onReset: commitManagedCellReset,
-                cloudProjects,
-                activeCloudProjectId: cloudBinding?.id ?? null,
-                onLoadCloudProject: loadCloudProjectForCellImport,
-                onImportCloudCell: async (source, sourceDocumentId) => {
+                onPickSourceProject: async () => {
+                  const picked = await openProjectFileFromDisk();
+                  if (picked.status === "cancelled") {
+                    return { ok: false, cancelled: true, message: "" };
+                  }
+                  if (picked.status === "failed") {
+                    return { ok: false, message: picked.message };
+                  }
+                  const parsed = tryParseProjectWithMetadata(picked.file.text);
+                  if (!parsed.ok) {
+                    return {
+                      ok: false,
+                      message:
+                        parsed.diagnostics[0]?.message ??
+                        "That file is not a readable Project",
+                    };
+                  }
+                  return {
+                    ok: true,
+                    project: parsed.project,
+                    name: picked.file.name,
+                  };
+                },
+                onImportCell: async (source, sourceDocumentId) => {
                   const plan = planProjectCellImport(
                     project,
                     source,
@@ -4903,7 +3863,7 @@ export function App({
                     };
                   }
                   const committed = commitStructure(
-                    "import-cloud-cell",
+                    "import-cell",
                     [...plan.edits],
                     plan.rootDocumentId,
                   );
@@ -4945,171 +3905,21 @@ export function App({
               }
             : null
         }
-        publishGallery={
-          publishGalleryOpen
-            ? {
-                draft: publishDraft,
-                onDraftChange: setPublishDraft,
-                defaultName: galleryEntryContext?.name ?? project.name,
-                session: publishSession,
-                gateReport: publishGates,
-                updateTarget:
-                  galleryEntryContext &&
-                  publishSession &&
-                  (publishSession.isAdmin ||
-                    publishSession.role === "moderator" ||
-                    (galleryEntryContext.ownerUserId !== null &&
-                      publishSession.id === galleryEntryContext.ownerUserId))
-                    ? {
-                        id: galleryEntryContext.id,
-                        name: galleryEntryContext.name,
-                      }
-                    : null,
-                updateDefaults: galleryEntryContext
-                  ? {
-                      description: galleryEntryContext.description,
-                      tags: galleryEntryContext.tags,
-                    }
-                  : null,
-                publish: (fields) => publishProjectToGallery(project, fields),
-                ...(galleryEntryContext
-                  ? {
-                      publishUpdate: (fields) =>
-                        updateGalleryEntry(
-                          galleryEntryContext.id,
-                          project,
-                          fields,
-                        ),
-                    }
-                  : {}),
-                onPublished: ({
-                  id,
-                  name,
-                  description,
-                  tags,
-                  updated,
-                  previewRevision,
-                }) => {
-                  // The gallery now holds these exact bytes: leaving or
-                  // refreshing loses nothing until the next edit.
-                  noteProjectSnapshotSafe();
-                  // Publishing establishes the same update-in-place binding
-                  // as opening an existing Gallery entry. Keep it attached to
-                  // this Project only; replacing the Project clears it above.
-                  setGalleryEntryContext({
-                    id,
-                    name,
-                    projectId: project.id,
-                    ownerUserId: updated
-                      ? (galleryEntryContext?.ownerUserId ??
-                        publishSession?.id ??
-                        null)
-                      : (publishSession?.id ?? null),
-                    author: updated
-                      ? (galleryEntryContext?.author ??
-                        publishSession?.displayName ??
-                        "")
-                      : (publishSession?.displayName ?? ""),
-                    description,
-                    tags,
-                  });
-                  void primeGalleryPreview(id, previewRevision);
-                  announceGalleryChange({
-                    entryId: id,
-                    ...(previewRevision === undefined
-                      ? {}
-                      : { previewRevision }),
-                  });
-                  galleryLoadGenerationRef.current += 1;
-                  setGalleryRefreshSignal((previous) => previous + 1);
-                  setPublishGalleryOpen(false);
-                  setPublishDraft(null);
-                  setStatus(
-                    updated
-                      ? `Updated "${name}" in the gallery`
-                      : `Published "${name}" to the gallery`,
-                  );
-                },
-                ...(galleryEntryContext
-                  ? {
-                      onShowHistory: () => {
-                        setPublishGalleryOpen(false);
-                        setVersionHistoryOpen(true);
-                      },
-                    }
-                  : {}),
-                onClose: () => setPublishGalleryOpen(false),
-              }
-            : null
-        }
-        versionHistory={
-          versionHistoryOpen && galleryEntryContext
-            ? {
-                entryId: galleryEntryContext.id,
-                entryName: galleryEntryContext.name,
-                onRestored: ({ previewRevision }) => {
-                  void primeGalleryPreview(
-                    galleryEntryContext.id,
-                    previewRevision,
-                  );
-                  galleryLoadGenerationRef.current += 1;
-                  setGalleryRefreshSignal((previous) => previous + 1);
-                  setVersionHistoryOpen(false);
-                  setStatus("Version restored — reloading the entry");
-                  void openGalleryEntryById(galleryEntryContext.id);
-                },
-                onClose: () => setVersionHistoryOpen(false),
-              }
-            : null
-        }
-        agentConnection={
-          publicAgentUiEnabled && agentPanelOpen
-            ? {
-                open: agentPanelOpen,
-                status: agentSession.status,
-                claimCode: agentSession.claimCode,
-                claimExpiresAt: agentSession.claimExpiresAt,
-                scopes: agentSession.scopes,
-                expiresAt: agentSession.expiresAt,
-                error: agentSession.error,
-                now: Date.now(),
-                onPause: agentSession.pause,
-                onResume: agentSession.resume,
-                onReconnect: agentSession.reconnect,
-                onNewConnection: agentSession.newConnection,
-                onRevoke: agentSession.revoke,
-                onClose: () => setAgentPanelOpen(false),
-              }
-            : null
-        }
-        agentFileApproval={
-          publicAgentUiEnabled && agentFileCandidate
-            ? {
-                candidate: agentFileCandidate,
-                onReject: rejectAgentFileCandidate,
-                onApprove: approveAgentFileCandidate,
-              }
-            : null
-        }
       />
       <div
         className={
-          analogSimulationOpen
-            ? `app-workspace simulation-mode${!visibleLibraryPanelOpen ? " library-collapsed" : ""}${analogSimulationMaximized ? " simulation-maximized" : ""}`
-            : visibleLibraryPanelOpen
-              ? "app-workspace"
-              : "app-workspace library-collapsed"
+          visibleLibraryPanelOpen
+            ? "app-workspace"
+            : "app-workspace library-collapsed"
         }
         style={
           {
             "--icm-shapes-width": `${libraryWidth}px`,
             "--icm-properties-width": `${propertiesWidth}px`,
-            "--icm-simulation-width": `${simulationWidth}px`,
           } as CSSProperties
         }
       >
-        {(selectionOpen || projectPanel !== null) &&
-        !analogSimulationMaximized ? (
+        {selectionOpen || projectPanel !== null ? (
           <div
             className="properties-resize-handle"
             role="separator"
@@ -5151,48 +3961,6 @@ export function App({
             }}
           />
         ) : null}
-        {analogSimulationOpen && !analogSimulationMaximized ? (
-          <div
-            className="simulation-resize-handle"
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize the Simulation panel"
-            aria-valuenow={simulationWidth}
-            aria-valuemin={SIMULATION_WIDTH_MIN}
-            aria-valuemax={SIMULATION_WIDTH_MAX}
-            tabIndex={0}
-            data-testid="simulation-resize-handle"
-            onPointerDown={(event) => {
-              event.preventDefault();
-              event.currentTarget.setPointerCapture(event.pointerId);
-              simulationResizeOriginRef.current = {
-                pointerX: event.clientX,
-                width: simulationWidth,
-              };
-            }}
-            onPointerMove={(event) => {
-              const origin = simulationResizeOriginRef.current;
-              if (!origin) return;
-              setSimulationWidth(
-                origin.width - (event.clientX - origin.pointerX),
-              );
-            }}
-            onPointerUp={(event) => {
-              simulationResizeOriginRef.current = null;
-              event.currentTarget.releasePointerCapture(event.pointerId);
-            }}
-            onKeyDown={(event) => {
-              const step = event.shiftKey ? 32 : 8;
-              if (event.key === "ArrowLeft") {
-                event.preventDefault();
-                setSimulationWidth(simulationWidth + step);
-              } else if (event.key === "ArrowRight") {
-                event.preventDefault();
-                setSimulationWidth(simulationWidth - step);
-              }
-            }}
-          />
-        ) : null}
         {leftPanelMode === "library" ? (
           <ShapesPanel
             styleProfileId={document.presentation.styleProfileId}
@@ -5204,7 +3972,6 @@ export function App({
         ) : (
           <ExamplesPanel
             open={visibleLibraryPanelOpen}
-            onOpenGalleryExample={(id) => void insertGalleryEntryById(id)}
             onOpenExample={openLibraryExample}
           />
         )}
@@ -5249,165 +4016,6 @@ export function App({
           />
         ) : null}
         <EditorRightDock
-          simulationOpen={analogSimulationOpen}
-          simulationOpened={analogSimulationOpened}
-          maximized={analogSimulationMaximized}
-          onRestoreSimulation={openAnalogSimulation}
-          code={
-            analogSimulationOpened && humanSimulationSession ? (
-              <Suspense fallback={null}>
-                <LazySpiceSimulationSurface
-                  key={projectSessionId}
-                  session={humanSimulationSession}
-                  runHistory={projectRunHistory}
-                  project={project}
-                  activeDocumentId={document.id}
-                  selectedCircuitObject={
-                    selectedInstance
-                      ? {
-                          documentId: document.id,
-                          instanceId: selectedInstance.id,
-                        }
-                      : undefined
-                  }
-                  selectedFolderId={activeSimulationFolder?.id ?? null}
-                  onSelectFolderId={setActiveSimulationFolderId}
-                  agentGuidance={
-                    publicAgentUiEnabled
-                      ? {
-                          status: agentSession.status,
-                          onOpen: openAgentConnection,
-                        }
-                      : undefined
-                  }
-                  onOpenExample={async (exampleProject) => {
-                    await guardDirtyReplacement(
-                      `Open ${exampleProject.name} example`,
-                      () => {
-                        replaceActiveProject(exampleProject, DEFAULT_VIEWBOX);
-                        setActiveSimulationFolderId(
-                          exampleProject.simulationFolders[0]?.id ?? null,
-                        );
-                        setAnalogSimulationState("open");
-                        setStatus(
-                          `Opened simulation example: ${exampleProject.name}`,
-                        );
-                      },
-                    );
-                  }}
-                  open={analogSimulationOpen}
-                  maximized={analogSimulationMaximized}
-                  onToggleMaximized={toggleAnalogSimulationMaximized}
-                  onMinimize={minimizeAnalogSimulation}
-                  onExit={exitAnalogSimulation}
-                  onHistoryBoundary={(direction) => {
-                    transact([{ kind: direction }]);
-                  }}
-                  onSourceBuffer={(buffer) => {
-                    simulationSourceBuffer.current = buffer;
-                  }}
-                  onSaveFolder={(
-                    folder,
-                    expectedRevision = project.structureRevision,
-                  ) => {
-                    const result = dispatchProjectTransaction({
-                      transactionId: `upsert-simulation-${crypto.randomUUID()}`,
-                      projectId: project.id,
-                      expectedStructureRevision: expectedRevision,
-                      actor: { kind: "human", id: "human-local" },
-                      edits: [{ kind: "upsert_simulation_folder", folder }],
-                    });
-                    if (result.ok) {
-                      setActiveSimulationFolderId(folder.id);
-                      setStatus(
-                        result.applied
-                          ? `Updated simulation folder ${folder.name}`
-                          : `Simulation folder ${folder.name} is already up to date`,
-                      );
-                      return {
-                        status: result.applied ? "applied" : "unchanged",
-                      };
-                    }
-                    const firstDiagnostic = result.diagnostics[0];
-                    const message =
-                      firstDiagnostic?.message ?? result.error.message;
-                    setStatus(`${result.error.code}: ${message}`);
-                    return {
-                      status: "rejected",
-                      problem: {
-                        code: result.error.code,
-                        message,
-                        stage: "input",
-                        recovery: "fix-input",
-                        ...(result.diagnostics.length
-                          ? {
-                              diagnostics: result.diagnostics.map(
-                                (diagnostic) => ({
-                                  code: diagnostic.code,
-                                  message: diagnostic.message,
-                                  severity: diagnostic.severity,
-                                  ...(diagnostic.path?.length
-                                    ? { field: diagnostic.path.join(".") }
-                                    : {}),
-                                }),
-                              ),
-                            }
-                          : {}),
-                      },
-                    };
-                  }}
-                  onDeleteFolder={(
-                    folderId,
-                    expectedRevision = project.structureRevision,
-                  ) => {
-                    const result = dispatchProjectTransaction({
-                      transactionId: `remove-simulation-folder-${crypto.randomUUID()}`,
-                      projectId: project.id,
-                      expectedStructureRevision: expectedRevision,
-                      actor: { kind: "human", id: "human-local" },
-                      edits: [{ kind: "remove_simulation_folder", folderId }],
-                    });
-                    const committed = result.ok;
-                    if (!result.ok)
-                      setStatus(
-                        `${result.error.code}: ${result.error.message}`,
-                      );
-                    if (committed && activeSimulationFolderId === folderId) {
-                      setActiveSimulationFolderId(null);
-                    }
-                    return committed;
-                  }}
-                  pickNetsActive={simulationPickNetsActive}
-                  pickedNet={analogPickedNet}
-                  onPickNetsChange={setSimulationNetPickMode}
-                  pickTerminalsActive={simulationPickTerminalsActive}
-                  pickedTerminal={analogPickedTerminal}
-                  onPickTerminalsChange={setSimulationTerminalPickMode}
-                  onFocusDiagnostic={(locator) =>
-                    navigateToLocator(locator, `Located ${locator.kind}`)
-                  }
-                  onPreviewSignal={(target) => {
-                    const hierarchyPath =
-                      target &&
-                      simulationProbeHierarchyPath(
-                        project,
-                        target.rootDocumentId,
-                        target.occurrence,
-                      );
-                    setCodeNetPreview(
-                      target && hierarchyPath
-                        ? {
-                            documentId: target.documentId,
-                            netId: target.netId,
-                            hierarchyPath,
-                          }
-                        : null,
-                    );
-                  }}
-                />
-              </Suspense>
-            ) : null
-          }
           project={
             projectPanel ? (
               <EditorProjectDock onClose={closeProjectPanel}>
@@ -5519,18 +4127,6 @@ export function App({
               }}
               summary={selectionShelfSummary}
               hasInspectableSelection={hasInspectableSelection}
-              agentIndicator={
-                publicAgentUiEnabled &&
-                agentSession.status !== "idle" &&
-                !agentStatusDismissed
-                  ? {
-                      status: agentSession.status,
-                      terminal:
-                        agentSession.status === "revoked" ||
-                        agentSession.status === "expired",
-                    }
-                  : null
-              }
               documentSettings={
                 documentSettingsOpen
                   ? {
@@ -6290,41 +4886,12 @@ export function App({
                     }
                   : null
               }
-              agent={
-                publicAgentUiEnabled &&
-                agentSession.status !== "idle" &&
-                !agentStatusDismissed
-                  ? {
-                      status: agentSession.status,
-                      claimCode: agentSession.claimCode,
-                      claimExpiresAt: agentSession.claimExpiresAt,
-                      scopes: agentSession.scopes,
-                      expiresAt: agentSession.expiresAt,
-                      error: agentSession.error,
-                      onPause: agentSession.pause,
-                      onResume: agentSession.resume,
-                      onReconnect: agentSession.reconnect,
-                      onNewConnection: agentSession.newConnection,
-                      onRevoke: agentSession.revoke,
-                      expanded: agentDetailsOpen,
-                      onToggleDetails: () =>
-                        setAgentDetailsOpen((open) => !open),
-                      onDismiss: () => {
-                        setAgentDetailsOpen(false);
-                        setAgentStatusDismissed(true);
-                      },
-                    }
-                  : null
-              }
             />
           }
         />
         <EditorCanvasSurface
           empty={canvasIsEmpty}
-          showQuickStart={
-            !analogSimulationOpen &&
-            !pendingComponentPlacement?.editAfterPlacement
-          }
+          showQuickStart={!pendingComponentPlacement?.editAfterPlacement}
           cameraRuntime={cameraRuntime}
           onWheel={handleWheel}
           onPinch={zoomAtClientPoint}
@@ -6334,7 +4901,6 @@ export function App({
             pendingSymbolId || vddRailMode || copyPlacement
               ? "component-mode"
               : "",
-            pendingWaveformPlacement ? "waveform-placement-active" : "",
             tool === "arrow" ||
             tool === "construction-line" ||
             tool === "rectangle" ||
@@ -6343,10 +4909,6 @@ export function App({
               : "",
             projectedMovePreviewDocument ? "semantic-move-preview" : "",
             panPreview ? "pan-mode" : "",
-            simulationPickNetsActive ? "simulation-net-pick-active" : "",
-            simulationPickTerminalsActive
-              ? "simulation-terminal-pick-active"
-              : "",
           ]
             .filter(Boolean)
             .join(" ")}
@@ -6379,9 +4941,7 @@ export function App({
               : null
           }
           netHighlight={{
-            highlight: simulationPickNetsActive
-              ? simulationPickHighlight
-              : (codeNetHighlight ?? highlightedNet),
+            highlight: highlightedNet,
             document,
             resolver,
             routeGeometryRecords,
@@ -6492,7 +5052,6 @@ export function App({
               wouldMoveIds,
               selectionPolicy,
               onInstanceClick: (instance, additive) => {
-                if (simulationPickActive) return;
                 if (suppressInstanceClick.current) {
                   suppressInstanceClick.current = false;
                   return;
@@ -6525,17 +5084,6 @@ export function App({
               onRoutePointerDown: (event, routeId) => {
                 // Reached only while a drawing tool is up: the pointer tool's
                 // presses are claimed and stopped by the capture-phase router.
-                if (simulationPickActive) {
-                  event.stopPropagation();
-                  event.preventDefault();
-                  if (simulationPickNetsActive) {
-                    const route = document.routes.find(
-                      (candidate) => candidate.id === routeId,
-                    );
-                    if (route) toggleSimulationSavedNet(route.netId);
-                  }
-                  return;
-                }
                 handleRoutePointerDown(event, routeId);
               },
               onInstanceContextMenu: (instance, clientX, clientY) => {
@@ -6558,53 +5106,17 @@ export function App({
                   clientY,
                 ),
               onAnnotationEdit: beginAnnotationTextEditing,
-              onNetPointerEnter: (netId) => {
-                if (simulationPickNetsActive) setSimulationHoverNetId(netId);
-              },
-              onNetPointerLeave: () => {
-                if (simulationPickNetsActive) setSimulationHoverNetId(null);
-              },
             },
             endpoints: {
               document,
-              endpoints: simulationPickTerminalsActive
-                ? wiringEndpoints.filter(
-                    (candidate) =>
-                      candidate.endpoint.kind === "terminal" &&
-                      simulationCurrentEndpointKeys.has(
-                        `${candidate.endpoint.instanceId}\u0000${candidate.endpoint.pinName}`,
-                      ),
-                  )
-                : wiringEndpoints,
+              endpoints: wiringEndpoints,
               tool,
-              selectedRoute: simulationPickActive ? undefined : selectedRoute,
+              selectedRoute,
               selectedRouteSegmentIndex,
               selectedEndpoint,
               supplementalJunctionIds: supplementalSelection.junctionIds,
-              selectionPolicy: simulationPickActive
-                ? unfilteredSelectionPolicy
-                : selectionPolicy,
+              selectionPolicy,
               endpointLabel: endpointTestId,
-              ...(simulationPickTerminalsActive
-                ? {
-                    terminalPickState: (terminal: {
-                      kind: "terminal";
-                      instanceId: string;
-                      pinName: string;
-                    }) =>
-                      simulationTerminalPickStart?.instanceId ===
-                        terminal.instanceId &&
-                      simulationTerminalPickStart.pinName === terminal.pinName
-                        ? ("origin" as const)
-                        : simulationTerminalPickStart?.instanceId ===
-                              terminal.instanceId &&
-                            simulationTerminalPickStart.partnerPinNames.includes(
-                              terminal.pinName,
-                            )
-                          ? ("partner" as const)
-                          : ("candidate" as const),
-                  }
-                : {}),
               onEndpointActions: (candidate, clientX, clientY) => {
                 if (
                   candidate.endpoint.kind === "junction" &&
@@ -6636,11 +5148,6 @@ export function App({
               ),
               onRouteStretch: beginRouteStretch,
               onJunctionSelect: (candidate) => {
-                if (simulationPickActive) {
-                  if (simulationPickNetsActive && candidate.netId)
-                    toggleSimulationSavedNet(candidate.netId);
-                  return;
-                }
                 if (
                   candidate.endpoint.kind === "junction" &&
                   consumeArmedDeleteOnObject(
@@ -6654,15 +5161,6 @@ export function App({
                 setStatus(`Selected ${endpointTestId(candidate.endpoint)}`);
               },
               onWireEndpoint: (event, candidate) => {
-                if (simulationPickActive) {
-                  event.stopPropagation();
-                  event.preventDefault();
-                  if (simulationPickTerminalsActive)
-                    pickSimulationTerminal(candidate);
-                  else if (candidate.netId)
-                    toggleSimulationSavedNet(candidate.netId);
-                  return;
-                }
                 // Middle press over an endpoint cycles the wire corner just
                 // like over bare canvas; it must never commit the wire.
                 if (event.button === 1 && tool === "wire") {
@@ -6679,12 +5177,6 @@ export function App({
                 } else {
                   handleWireEndpoint(event, candidate);
                 }
-              },
-              onNetPointerEnter: (netId) => {
-                if (simulationPickNetsActive) setSimulationHoverNetId(netId);
-              },
-              onNetPointerLeave: () => {
-                if (simulationPickNetsActive) setSimulationHoverNetId(null);
               },
             },
           }}
@@ -6753,7 +5245,7 @@ export function App({
                 })
               )
                 return;
-              beginWaveformGroupScale(event, group, bounds);
+              beginLayoutGroupScale(event, group, bounds);
             },
             onDeleteVertex: deleteConstructionVertex,
           }}
@@ -6845,24 +5337,6 @@ export function App({
           />
         ) : null}
       </div>
-      {timingUiEnabled ? (
-        <TimingSimulationPanel
-          key={document.id}
-          document={document}
-          open={simulationWindowOpen}
-          savedNetIds={simulationSavedNetIds}
-          pickNetsActive={simulationPickNetsActive}
-          onOpenChange={(open) => {
-            setSimulationWindowOpen(open);
-            if (!open) setSimulationPickMode(null);
-          }}
-          onPickNetsChange={setSimulationNetPickMode}
-          onToggleSavedNet={toggleSimulationSavedNet}
-          onSetSavedNets={(netIds) => setSimulationSavedNetIds(new Set(netIds))}
-          onStatus={setStatus}
-          onPlaceOnCanvas={beginWaveformPlacement}
-        />
-      ) : null}
       <SelectionFilterPopover
         open={selectionFilterOpen}
         filter={selectionFilter}
@@ -6870,7 +5344,6 @@ export function App({
         onClose={() => setSelectionFilterOpen(false)}
       />
       <EditorStatusbar
-        visitStats={visitStats}
         status={status}
         tool={tool}
         vddRailMode={vddRailMode}
@@ -6898,12 +5371,6 @@ export function App({
         onToggleWireOptions={() => setWireOptionsOpen((open) => !open)}
         onWireRoutingModeChange={setWireRoutingMode}
         onWireCornerOrderChange={setWireCornerOrder}
-        onOpenAnalytics={() => {
-          void guardDirtyReplacement("Open Analytics", () => {
-            allowNextBrowserUnload();
-            window.location.assign("/analytics");
-          });
-        }}
         onZoomOut={() => zoomViewAtCenter(1.2)}
         onZoomIn={() => zoomViewAtCenter(0.84)}
         onFitView={() => editorCommands.execute({ id: "view.fit" })}
@@ -6911,4 +5378,3 @@ export function App({
     </main>
   );
 }
-import { createSimulationProjectFileHost } from "../features/simulation/project-file-host";

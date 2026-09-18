@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { chooseComponent, downloadBytes } from "./editor-fixtures";
+import { chooseComponent, projectFileBytes } from "./editor-fixtures";
 
 async function placeComponent(
   page: Page,
@@ -31,11 +31,7 @@ function routePoints(page: Page) {
 async function exportedTerminals(
   page: Page,
 ): Promise<Array<{ instanceId: string; pinName: string }>> {
-  const saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ) as {
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8")) as {
     documents: Array<{
       nets: Array<{
         terminals: Array<{ instanceId: string; pinName: string }>;

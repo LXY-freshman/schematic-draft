@@ -1,6 +1,10 @@
 // Production smoke: serve the already-built editor through Vite's real
 // preview server and inspect it in Chromium. --check is intentionally
 // read-only; normal mode refreshes the committed report.
+//
+// The desktop shell has one surface, so every path must mount the editor. The
+// things worth proving here are that it mounts without console errors, that
+// deferred runtimes stay deferred, and that nothing caches Project data.
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { chromium } from "@playwright/test";
@@ -80,12 +84,11 @@ async function main() {
   let browser;
   const consoleErrors = [];
   let mounted = false;
+  let rootMountsEditor = false;
   let projectDataIsolation = "unchecked";
-  let galleryEditorCodeLoaded = true;
+  let serviceWorkerRegistered = true;
   let editorCodeLoaded = false;
-  let galleryEditorStylesLoaded = true;
   let editorStylesLoaded = false;
-  let galleryPdfRuntimeLoaded = true;
   let editorPdfRuntimeLoaded = true;
   try {
     server = await preview({
@@ -104,24 +107,12 @@ async function main() {
       if (message.type() === "error") consoleErrors.push(message.text());
     });
     page.on("pageerror", (error) => consoleErrors.push(error.message));
-    // The production build serves two surfaces: the gallery feed at the
-    // root and the full editor at /editor. Both must mount.
+    // One surface: the root and a deep path both open the editor.
     await page.goto(url, { waitUntil: "networkidle" });
-    await page.waitForSelector('[data-testid="gallery-feed"]', {
+    await page.waitForSelector('[data-testid="schematic-canvas"]', {
       timeout: 10_000,
     });
-    galleryEditorCodeLoaded = await loadedJavaScriptContains(
-      page,
-      "schematic-canvas",
-    );
-    galleryEditorStylesLoaded = await loadedStylesheetContains(
-      page,
-      ".schematic-canvas",
-    );
-    galleryPdfRuntimeLoaded = await loadedJavaScriptPathContains(
-      page,
-      "browser-pdf-",
-    );
+    rootMountsEditor = true;
     await page.goto(new URL("editor", url).href, {
       waitUntil: "networkidle",
     });
@@ -147,35 +138,14 @@ async function main() {
         "CodeMirror state runtime loaded before a code editor was requested",
       );
     }
-    // The first page installs the SW; a controlled navigation must actually
-    // cache consumed JS bodies, not only the five install-time icons/shell.
-    await page.evaluate(() => navigator.serviceWorker.ready);
-    await page.reload({ waitUntil: "networkidle" });
-    await page.waitForSelector('[data-testid="schematic-canvas"]');
-    const cachedEditorScript = await page.evaluate(async () => {
-      const script = performance
-        .getEntriesByType("resource")
-        .map((entry) => entry.name)
-        .find((url) => /\/assets\/App-[^/]+\.js$/.test(url));
-      for (let attempt = 0; attempt < 50; attempt++) {
-        // Inspect the stored request, including its Vary headers; a synthetic
-        // Request here lacks the module request's Origin header.
-        for (const name of await caches.keys()) {
-          const cache = await caches.open(name);
-          const key = (await cache.keys()).find(
-            (request) => request.url === script,
-          );
-          if (key && (await cache.match(key))) return true;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 20));
-      }
-      return false;
-    });
-    if (!cachedEditorScript)
-      throw new Error("Service worker did not cache the editor script");
+    // The shell bundles its own files, so a production build installs no
+    // service worker: no stale-cache class of bug, and no cache to inspect
+    // for leaked circuits.
+    serviceWorkerRegistered = await page.evaluate(
+      async () => (await navigator.serviceWorker.getRegistrations()).length > 0,
+    );
     mounted = true;
-    // Browser recovery is Project data and must never leak into the PWA
-    // asset caches (Cache Storage) or the service-worker precache.
+    // Browser recovery is Project data and must never leak into Cache Storage.
     projectDataIsolation = await page.evaluate(async () => {
       if (typeof caches === "undefined") return "caches-unavailable";
       for (const name of await caches.keys()) {
@@ -218,11 +188,10 @@ async function main() {
     consoleErrors,
     nodeCryptoExternalized,
     projectDataIsolation,
-    galleryEditorCodeLoaded,
+    rootMountsEditor,
+    serviceWorkerRegistered,
     editorCodeLoaded,
-    galleryEditorStylesLoaded,
     editorStylesLoaded,
-    galleryPdfRuntimeLoaded,
     editorPdfRuntimeLoaded,
   };
 
@@ -239,19 +208,19 @@ async function main() {
     await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
   }
   if (!report.mounted) throw new Error("Production editor did not mount");
-  if (report.galleryEditorCodeLoaded) {
-    throw new Error("Gallery loaded the editor route bundle eagerly");
+  if (!report.rootMountsEditor) {
+    throw new Error("The root path did not mount the editor");
+  }
+  if (report.serviceWorkerRegistered) {
+    throw new Error("The production build installed a service worker");
   }
   if (!report.editorCodeLoaded) {
     throw new Error("Editor route did not load its editor bundle");
   }
-  if (report.galleryEditorStylesLoaded) {
-    throw new Error("Gallery loaded the editor stylesheet eagerly");
-  }
   if (!report.editorStylesLoaded) {
     throw new Error("Editor route did not load its editor stylesheet");
   }
-  if (report.galleryPdfRuntimeLoaded || report.editorPdfRuntimeLoaded) {
+  if (report.editorPdfRuntimeLoaded) {
     throw new Error("PDF runtime loaded before a PDF export was requested");
   }
   if (report.consoleErrors.length > 0) {

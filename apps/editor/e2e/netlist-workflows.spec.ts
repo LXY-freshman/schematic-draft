@@ -5,10 +5,11 @@ import { createEmptyProject } from "@icm/model";
 import {
   awaitEditorReady,
   clickCommand,
-  downloadBytes,
   copyNetlistText,
+  downloadBytes,
   expectComponentCodeField,
   openMenu,
+  projectFileBytes,
 } from "./editor-fixtures.js";
 import {
   placeComponent,
@@ -330,11 +331,7 @@ test("exports one formal visual scene as Project, SVG, PNG, and PDF", async ({
   await page.goto("/editor?example=common-source-amplifier");
   await awaitEditorReady(page);
 
-  const projectBytes = await downloadBytes(
-    page,
-    "File",
-    "Export Project File…",
-  );
+  const projectBytes = await projectFileBytes(page);
   expect(JSON.parse(projectBytes.toString("utf8")).topDocumentId).toBeTruthy();
   const svg = (await downloadBytes(page, "File", "Export SVG")).toString(
     "utf8",

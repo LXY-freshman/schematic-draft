@@ -43,8 +43,6 @@ export interface PointerDownFacts {
   readonly primaryInstanceId: string | null;
   /** A verb (rotate/copy/move/delete) was armed before a target was picked. */
   readonly armedVerbConsumesHit: boolean;
-  /** The Simulation panel owns the canvas for one probe-picking domain. */
-  readonly simulationPickMode: "net" | "terminal" | null;
 }
 
 export type PointerDownAction =
@@ -53,11 +51,6 @@ export type PointerDownAction =
   | { readonly kind: "gesture-passthrough" }
   | {
       readonly kind: "consume-armed-verb";
-      readonly hitKind: CanvasHitKind;
-      readonly id: string;
-    }
-  | {
-      readonly kind: "simulation-pick";
       readonly hitKind: CanvasHitKind;
       readonly id: string;
     }
@@ -115,28 +108,6 @@ export function resolvePointerDownAction(
   const hit = facts.hit;
   if (!hit) return { kind: "ignore", reason: "no hit under the pointer" };
   if (hit.kind === "handle") return { kind: "handle-passthrough" };
-
-  // Picking a Net for simulation reads the press for the Net it names: a
-  // conductor, a Junction, or a Net label. A part names nothing and is left
-  // alone, and so is a terminal pin, which carries no hit kind and keeps the
-  // circle handler that picks it. This used to live on the label element
-  // itself, which is how the label's pick was lost when that handler went.
-  if (facts.simulationPickMode === "net") {
-    if (
-      hit.kind === "route" ||
-      hit.kind === "annotation" ||
-      hit.kind === "junction"
-    ) {
-      return { kind: "simulation-pick", hitKind: hit.kind, id: hit.id };
-    }
-    return { kind: "ignore", reason: "picking Nets for simulation" };
-  }
-  // Terminal circles own terminal-current picks in the endpoint layer. Scene
-  // objects must remain inert so clicking a part beside its pin cannot start
-  // a move while that terminal is being targeted.
-  if (facts.simulationPickMode === "terminal") {
-    return { kind: "ignore", reason: "picking terminals for simulation" };
-  }
 
   // An armed verb owns the press: the pointed-at object is acted on rather
   // than picked up or selected.

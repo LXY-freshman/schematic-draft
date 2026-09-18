@@ -1,31 +1,21 @@
 import { useRef, useState, type ReactNode, type RefObject } from "react";
 
-import type { ProjectStoreCopy } from "../../document/release-channel";
-import {
-  CLOUD_PROJECT_LIMIT,
-  type CloudProjectSummary,
-} from "./cloud-projects";
-
 export interface FileCommandMenuProps {
-  projectStoreLabel: ProjectStoreCopy["plural"];
-  projectStoreItemLabel: ProjectStoreCopy["singular"];
-  cloudProjects: readonly CloudProjectSummary[];
-  activeCloudProjectId: string | null;
+  /** The file currently open, shown so Save's target is never a guess. */
+  openFilePath: string | null;
   canRevert: boolean;
   hasRecoverySessions: boolean;
   projectInputRef: RefObject<HTMLInputElement | null>;
   onNewProject: () => void;
+  onOpenProject: () => void;
   onSave: () => void;
-  onRefreshCloudProjects: () => void;
-  onOpenCloudProject: (project: CloudProjectSummary) => void;
-  onDeleteCloudProject: (project: CloudProjectSummary) => void;
+  onSaveAs: () => void;
   onRefresh: () => void;
   onImportProject: (file: File | null) => void;
   onImportSpice: (
     files: FileList | null,
     namingProfile?: "native" | "cadence-bang",
   ) => void;
-  onExportProject: () => void;
   onExportSvg: () => void;
   onExportRaster: (format: "png" | "pdf") => void;
   onRevert: () => void;
@@ -98,22 +88,17 @@ function ExportSubmenu({
 }
 
 export function FileCommandMenu({
-  projectStoreLabel,
-  projectStoreItemLabel,
-  cloudProjects,
-  activeCloudProjectId,
-  onOpenCloudProject,
-  onDeleteCloudProject,
+  openFilePath,
   canRevert,
   hasRecoverySessions,
   projectInputRef,
   onNewProject,
+  onOpenProject,
   onSave,
-  onRefreshCloudProjects,
+  onSaveAs,
   onRefresh,
   onImportProject,
   onImportSpice,
-  onExportProject,
   onExportSvg,
   onExportRaster,
   onRevert,
@@ -125,8 +110,7 @@ export function FileCommandMenu({
       className="command-menu"
       name="editor-command-menu"
       onToggle={(event) => {
-        if (event.currentTarget.open) onRefreshCloudProjects();
-        else setDrawingExportOpen(false);
+        if (!event.currentTarget.open) setDrawingExportOpen(false);
       }}
     >
       <summary>File</summary>
@@ -134,41 +118,37 @@ export function FileCommandMenu({
         <button type="button" onClick={onNewProject}>
           New Project
         </button>
-        <button type="button" data-testid="save-cloud-project" onClick={onSave}>
+        <button
+          type="button"
+          data-testid="open-project-file"
+          onClick={onOpenProject}
+        >
+          Open Project…
+        </button>
+        <button
+          type="button"
+          data-testid="save-project-file"
+          title={
+            openFilePath === null
+              ? "Choose where to save this Project"
+              : `Save to ${openFilePath}`
+          }
+          onClick={onSave}
+        >
           Save
         </button>
-        <span className="command-group-label">
-          {projectStoreLabel} ({cloudProjects.length}/{CLOUD_PROJECT_LIMIT})
-        </span>
-        {cloudProjects.map((project) => (
-          <div className="cloud-project-command" key={project.id}>
-            <button
-              type="button"
-              className="cloud-project-open"
-              data-testid={`cloud-project-${project.id}`}
-              title={`Open revision ${project.revision}`}
-              disabled={project.id === activeCloudProjectId}
-              onClick={() => onOpenCloudProject(project)}
-            >
-              <span className="cloud-project-name">{project.name}</span>
-              <time className="cloud-project-time" dateTime={project.updatedAt}>
-                {new Date(project.updatedAt).toLocaleString(undefined, {
-                  dateStyle: "short",
-                  timeStyle: "short",
-                })}
-              </time>
-            </button>
-            <button
-              type="button"
-              aria-label={`Delete ${projectStoreItemLabel} ${project.name}`}
-              title={`Delete this ${projectStoreItemLabel}`}
-              disabled={project.id === activeCloudProjectId}
-              onClick={() => onDeleteCloudProject(project)}
-            >
-              Delete
-            </button>
-          </div>
-        ))}
+        <button
+          type="button"
+          data-testid="save-project-file-as"
+          onClick={onSaveAs}
+        >
+          Save As…
+        </button>
+        {openFilePath === null ? null : (
+          <span className="command-group-label" title={openFilePath}>
+            {openFilePath}
+          </span>
+        )}
         <label className="file-import">
           Import Project File…
           <input
@@ -203,9 +183,6 @@ export function FileCommandMenu({
             }
           />
         </label>
-        <button type="button" onClick={onExportProject}>
-          Export Project File…
-        </button>
         <div>
           <ExportSubmenu
             title="Export drawing"

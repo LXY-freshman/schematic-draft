@@ -1,6 +1,6 @@
 # Schematic hierarchy
 
-Analog Canvas treats every Project Document as one reusable schematic Cell.
+Schematic Draft treats every Project Document as one reusable schematic Cell.
 The top Cell is the export root; other Cells may be instantiated any number of
 times or kept unreferenced while they are being authored.
 
@@ -24,11 +24,12 @@ position. **Enter Cell** opens the child of a selected hierarchical Instance.
 Opening a shared Cell from the selector has no caller context when more than
 one path reaches it, which is reported in the status bar.
 
-Use **Import Cell** in the Cell Manager to copy a Cell from another signed-in
-Cloud Project. The import includes every child Cell it calls, compatible
+Use **Import Cell** in the Cell Manager to copy a Cell out of another Project
+file: choose the `.icproj.json`, then pick the Cell from its list. The import
+includes every child Cell it calls, compatible
 external-subcircuit interfaces, formal ports, presentation, and referenced
 source metadata. It is one ordinary undoable Project transaction: the source
-Project is never modified, and the destination copy does not follow later
+file is never modified, and the destination copy does not follow later
 source changes. Identity and colliding Cell names are remapped
 deterministically; importing the same source Cell again opens the existing
 copy rather than creating another hidden duplicate. The first release requires
@@ -102,21 +103,8 @@ Cell Manager contains a collapsed **Reset Cell** section for the selected
 definition. Clear Drawing, Reset Cell Placement, and Reset Cell Body retain
 their distinct scopes, show an exact impact preview, and remain undoable.
 
-Agents use the existing `create-cell` action and `place-cell` with
-`childDocumentId`, `instanceId`, optional `reference`, and `placement`, targeting
-the parent Document. The same Project transaction owns validation and history;
-these actions do not create or modify a simulation folder.
-
-The import planner and its small Project edits are also public API contracts.
-An Agent that already holds an authorized source Project can plan the same
-independent closure and submit it through the standard structural transaction;
-the transaction remains revision-guarded and atomic. Reading a private Cloud
-Project is a separate account-authorized operation and is never implied by
-simulation permission: the Agent Project resource (`list-projects`,
-`list-cells`, `import-cell`) requires the `project.import` scope.
-
 Hierarchy presentation is saved as definition-level size and pin-placement
-intent in current Project schema 56. Schema-24 through schema-55 projects open
+intent in current Project schema 57. Schema-24 through schema-56 projects open
 through the chained upgrade; schema-23 and older files remain unsupported. The
 block uses a closed polygon body and the shared Razavi rich-text renderer for
 pin and Cell names; it is compatible with that visual grammar rather than a

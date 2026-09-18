@@ -117,7 +117,7 @@ describe("explicit Project checking", () => {
         sessionId: "session",
         resolver,
         index,
-        save: async () => ({ status: "signed-out" }),
+        save: async () => ({ status: "cancelled" }),
         isSaving: () => false,
         openIssues: () => undefined,
       });

@@ -2,7 +2,7 @@ import type { RecoveryState } from "../document/recovery-coordinator";
 
 export interface RecoveryFailureBannerProps {
   state: RecoveryState;
-  onDownload(): void;
+  onSaveCopy(): void;
   onDismiss(): void;
 }
 
@@ -10,7 +10,7 @@ export interface RecoveryAvailableBannerProps {
   projectName: string;
   updatedAt: string;
   onRestore(): void;
-  onDownload(): void;
+  onSaveCopy(): void;
   onDismiss(): void;
 }
 
@@ -27,11 +27,11 @@ function failureMessage(state: RecoveryState): string {
 
 /**
  * Persistent, dismissible warning that recovery writes are failing, with a
- * direct download so the user can secure the current Project immediately.
+ * direct save so the user can secure the current Project immediately.
  */
 export function RecoveryFailureBanner({
   state,
-  onDownload,
+  onSaveCopy,
   onDismiss,
 }: RecoveryFailureBannerProps) {
   return (
@@ -41,12 +41,10 @@ export function RecoveryFailureBanner({
       role="alert"
       aria-label="Recovery storage problem"
     >
-      <p>
-        {failureMessage(state)} Download the Project to keep your work safe.
-      </p>
+      <p>{failureMessage(state)} Save a copy to keep your work safe.</p>
       <div className="recovery-banner-actions">
-        <button type="button" onClick={onDownload}>
-          Download Backup
+        <button type="button" onClick={onSaveCopy}>
+          Save a Copy…
         </button>
         <button type="button" onClick={onDismiss} aria-label="Dismiss warning">
           Dismiss
@@ -61,7 +59,7 @@ export function RecoveryAvailableBanner({
   projectName,
   updatedAt,
   onRestore,
-  onDownload,
+  onSaveCopy,
   onDismiss,
 }: RecoveryAvailableBannerProps) {
   return (
@@ -79,8 +77,8 @@ export function RecoveryAvailableBanner({
         <button type="button" onClick={onRestore}>
           Restore
         </button>
-        <button type="button" onClick={onDownload}>
-          Download backup
+        <button type="button" onClick={onSaveCopy}>
+          Save a copy…
         </button>
         <button type="button" onClick={onDismiss}>
           Ignore
@@ -98,10 +96,10 @@ export function recoveryStateLabel(state: RecoveryState): string | null {
     case "stored":
       return null;
     case "quota-exceeded":
-      return "Recovery full — download now";
+      return "Recovery full — save a copy now";
     case "unavailable":
-      return "Recovery unavailable — download now";
+      return "Recovery unavailable — save a copy now";
     case "failed":
-      return "Recovery failed — download now";
+      return "Recovery failed — save a copy now";
   }
 }

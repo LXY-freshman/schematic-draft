@@ -12,11 +12,11 @@ describe("importChunk", () => {
     ).resolves.toBe(module);
   });
 
-  it("wraps a redeploy-vanished chunk into a named ChunkLoadError", async () => {
-    // The exact browser failure a stale tab produces: the SPA fallback
-    // answered index.html where a content-hashed module used to live.
+  it("wraps a missing chunk into a named ChunkLoadError", async () => {
+    // The exact browser failure a damaged install produces: a content-hashed
+    // module the shell's own scheme cannot answer for.
     const raw = new TypeError(
-      "Failed to fetch dynamically imported module: https://analog-canvas.tokenzhang.com/assets/browser-pdf-D-HT6q.js",
+      "Failed to fetch dynamically imported module: app://schematic-draft/assets/browser-pdf-D-HT6q.js",
     );
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const failure = await importChunk("PDF export", () =>

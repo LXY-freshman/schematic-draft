@@ -1,7 +1,59 @@
 # Changelog
 
-Notable changes to Analog Canvas. Entries describe what changed for the person
+Notable changes to Schematic Draft. Entries describe what changed for the person
 using the product, not the commits that got there.
+
+Entries at and below `0.9.2` are inherited from
+[Analog Canvas](https://github.com/cascode-ai/analog-canvas), the hosted editor
+this application was forked from. They describe the shared editing core; the
+hosted features some of them mention are gone.
+
+## Unreleased — Schematic Draft fork
+
+Schematic Draft is Analog Canvas running entirely on your own machine, packaged
+as a portable Windows application. The schematic editor, hierarchy, SPICE
+interchange, and formal export are unchanged. What is gone is everything that
+needed a server.
+
+### Offline by construction
+
+- Ship as an Electron desktop application. The main process blocks every
+  outbound network request, serves the editor from a private local scheme, and
+  opens external links in your system browser instead of loading them in the
+  application.
+- Remove accounts, Cloud Projects, the Community Gallery, moderation, the Agent
+  API and its MCP server, first-party analytics, and the hosted simulation
+  service — not disabled, removed. There is no build flag that turns them back
+  on and no code path that could contact a service.
+- Drop the progressive-web-app surface: no service worker, no offline cache, and
+  no web app manifest. The installed application is the installation, so there
+  is nothing to install from a page and no cached copy that can go stale.
+
+### Real files instead of Cloud Projects
+
+- **Open Project…** and **Save As…** use the operating system's own file
+  dialogs. A Project is the `.icproj.json` file you opened.
+- **Save** and `Ctrl+S` overwrite that file in place, with no dialog. The File
+  menu shows the exact path so overwriting is never a guess. A new Project has
+  no file yet, so its first **Save** asks once and then remembers.
+- **Import Cell** copies a Cell out of any other Project file on disk.
+- Only the main process touches the filesystem; the editor asks it to read and
+  write and cannot widen that scope on its own.
+- Local crash recovery is unchanged and still non-authoritative: bounded copies
+  in the application's own storage, reachable from **File / Recover Local
+  Work…**. The file on disk is the record.
+
+### Simulation
+
+- The editor no longer runs simulations. It still exports deterministic
+  structural SPICE and Spectre netlists for the simulator of your choice, and
+  still imports `.cir`, `.sp`, `.spi`, and `.scs` sources.
+- Projects written by the hosted editor still open, upgrade, and save without
+  losing their simulation setups and source folders. Nothing in this edition acts
+  on that data, but nothing discards it either.
+
+The Project file format is untouched: schema 57, byte-for-byte what the upstream
+editor writes. Existing Projects are not rewritten when opened.
 
 ## 0.9.2 (Preview candidate)
 

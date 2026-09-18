@@ -15,11 +15,6 @@
     "dist:win": "node scripts/build.mjs && electron-builder --win --x64"
   },
   "devDependencies": {
-    "@icm/exporters": "workspace:*",
-    "@icm/model": "workspace:*",
-    "@icm/project-protocol": "workspace:*",
-    "@icm/render-svg": "workspace:*",
-    "@icm/symbols": "workspace:*",
     "electron": "44.4.2",
     "electron-builder": "26.15.3",
     "esbuild": "0.28.2"

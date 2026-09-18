@@ -2,9 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   awaitEditorReady,
   chooseComponent,
-  downloadBytes,
   editComponentPropertyCode,
   expectComponentCodeField,
+  projectFileBytes,
 } from "./editor-fixtures.js";
 
 async function placeResistor(page: Page) {
@@ -17,11 +17,7 @@ async function placeResistor(page: Page) {
   await page.keyboard.press("Escape");
 }
 async function projectFile(page: Page) {
-  return JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  );
+  return JSON.parse((await projectFileBytes(page)).toString("utf8"));
 }
 const visual = (page: Page) =>
   page.locator(

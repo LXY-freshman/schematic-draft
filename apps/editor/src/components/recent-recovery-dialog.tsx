@@ -9,7 +9,7 @@ import type { RecoverySessionSummary } from "../document/recovery-coordinator";
 export interface RecentRecoveryDialogProps {
   sessions: RecoverySessionSummary[];
   onRestore(workingCopyId: string, generation: BrowserRecoveryGeneration): void;
-  onDownloadBackup(
+  onSaveBackup(
     workingCopyId: string,
     generation: BrowserRecoveryGeneration,
   ): void;
@@ -61,14 +61,13 @@ const SOURCE_LABELS: Record<BrowserRecoverySource, string> = {
   new: "New Project",
   "opened-file": "Opened file",
   "spice-import": "SPICE import",
-  "cloud-project": "Cloud Project",
   recovered: "Earlier restore",
 };
 
 /**
  * Pick the generation Restore installs: the newest valid one. A damaged
  * latest offers the previous generation; an incompatible schema is never
- * installable, only downloadable.
+ * installable, only savable to a file.
  */
 export function restorableGeneration(
   summary: RecoverySessionSummary,
@@ -78,7 +77,7 @@ export function restorableGeneration(
   return null;
 }
 
-export function downloadableGeneration(
+export function savableGeneration(
   summary: RecoverySessionSummary,
 ): BrowserRecoveryGeneration | null {
   const latest = reviewStatus(summary, "latest");
@@ -93,7 +92,7 @@ export function downloadableGeneration(
 export function RecentRecoveryDialog({
   sessions,
   onRestore,
-  onDownloadBackup,
+  onSaveBackup,
   onDeleteSession,
   onClose,
 }: RecentRecoveryDialogProps) {
@@ -138,13 +137,13 @@ export function RecentRecoveryDialog({
         </header>
         <div className="help-dialog-content">
           <p>
-            These copies live only in this browser and are not the formal
-            Project. Save to Cloud or download a backup for durable storage.
+            These copies live only in this app's local storage and are not the
+            formal Project. Save the Project to a file for durable storage.
           </p>
           <ul className="recovery-session-list">
             {sessions.map((session) => {
               const restorable = restorableGeneration(session);
-              const downloadable = downloadableGeneration(session);
+              const savable = savableGeneration(session);
               const latestStatus = reviewStatus(session, "latest");
               const previousStatus = reviewStatus(session, "previous");
               return (
@@ -174,7 +173,7 @@ export function RecentRecoveryDialog({
                     <p className="recovery-session-note">
                       {latestStatus === "unsupported-schema" ||
                       previousStatus === "unsupported-schema"
-                        ? "This copy uses a newer Project schema and cannot be restored here, but you can download it."
+                        ? "This copy uses a newer Project schema and cannot be restored here, but you can save it to a file."
                         : "This copy is damaged and cannot be restored."}
                     </p>
                   ) : null}
@@ -198,15 +197,15 @@ export function RecentRecoveryDialog({
                     </button>
                     <button
                       type="button"
-                      disabled={downloadable === null}
+                      disabled={savable === null}
                       onClick={() => {
-                        if (downloadable !== null) {
-                          onDownloadBackup(session.workingCopyId, downloadable);
+                        if (savable !== null) {
+                          onSaveBackup(session.workingCopyId, savable);
                         }
                       }}
-                      aria-label={`Download backup of ${session.projectName}`}
+                      aria-label={`Save a copy of ${session.projectName} to a file`}
                     >
-                      Download backup
+                      Save a copy…
                     </button>
                     <button
                       type="button"

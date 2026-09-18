@@ -13,7 +13,6 @@ import {
   isAnnotationPaletteSymbol,
 } from "./annotation-preview-symbols";
 import { vddRailPreviewSymbol } from "./vdd-rail-preview-symbol";
-import { TIMING_UI_ENABLED } from "../simulation/timing-ui";
 
 /**
  * Reach order rather than taxonomy order: the devices placed most often in a
@@ -177,19 +176,13 @@ export function libraryDescription(symbolId: string): string | undefined {
   return LIBRARY_DESCRIPTIONS[symbolId];
 }
 
-export function paletteSymbols(
-  _styleProfileId: string,
-  timingUiEnabled = TIMING_UI_ENABLED,
-): SymbolDefinition[] {
-  const symbols = [
+export function paletteSymbols(_styleProfileId: string): SymbolDefinition[] {
+  return [
     vddRailPreviewSymbol,
     ...razaviProductSymbols,
     ...annotationPreviewSymbols,
     ...expandedDeviceSymbols,
   ];
-  return timingUiEnabled
-    ? symbols
-    : symbols.filter((symbol) => symbol.id !== "pulse-voltage-source");
 }
 
 /**
@@ -288,7 +281,6 @@ export function componentCatalog(
   styleProfileId: string,
   query: string,
   recentSymbolIds: readonly string[] = [],
-  timingUiEnabled = TIMING_UI_ENABLED,
 ): ComponentCatalogGroup[] {
   const normalizedQuery = normalizeSignalFlowFormula(
     query.trim(),
@@ -296,7 +288,7 @@ export function componentCatalog(
   const recentRank = new Map(
     recentSymbolIds.map((symbolId, index) => [symbolId, index]),
   );
-  const symbols = paletteSymbols(styleProfileId, timingUiEnabled)
+  const symbols = paletteSymbols(styleProfileId)
     .filter(
       (symbol) =>
         normalizedQuery.length === 0 ||
@@ -321,9 +313,8 @@ export function componentCatalog(
 export function findPaletteSymbol(
   styleProfileId: string,
   symbolId: string,
-  timingUiEnabled = TIMING_UI_ENABLED,
 ): SymbolDefinition | undefined {
-  return paletteSymbols(styleProfileId, timingUiEnabled).find(
+  return paletteSymbols(styleProfileId).find(
     (symbol) => symbol.id === symbolId,
   );
 }

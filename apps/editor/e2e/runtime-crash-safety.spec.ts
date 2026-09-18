@@ -25,17 +25,10 @@ test("a render crash shows the recovery screen instead of a blank page", async (
     "The editor hit an unexpected problem",
   );
   await expect(crashScreen).toContainText("render crashed (test hook)");
-  const bugReportLink = crashScreen.getByTestId("crash-report-bug");
-  await expect(bugReportLink).toBeVisible();
-  await expect(bugReportLink).toHaveAttribute(
-    "href",
-    /^https:\/\/github\.com\/cascode-ai\/analog-canvas\/issues\/new\?/u,
-  );
-  const bugReportHref = await bugReportLink.getAttribute("href");
-  expect(bugReportHref).not.toBeNull();
-  const bugReportBody = new URL(bugReportHref ?? "").searchParams.get("body");
-  expect(bugReportBody).not.toContain("render crashed");
-  expect(bugReportBody).not.toContain("test hook");
+  // The crash screen is entirely local: it names the failure and offers a
+  // reload, with no outbound report path.
+  await expect(crashScreen.getByRole("link")).toHaveCount(0);
+  await expect(crashScreen).toContainText("File / Recover Local Work…");
 
   // Reloading brings the editor back without the transient crash flag.
   await crashScreen.getByRole("button", { name: "Reload editor" }).click();
@@ -51,7 +44,7 @@ test("a repeated route chunk failure is not misreported as an old build", async 
   await page.goto("/editor");
 
   // The loader retries one navigation. The second failure reaches a neutral,
-  // correctly diagnosed loading screen instead of the stale-build warning.
+  // correctly diagnosed loading screen instead of blaming the installation.
   const crashScreen = page.getByTestId("editor-crash-screen");
   await expect(crashScreen).toBeVisible();
   await expect(crashScreen).toContainText(
@@ -59,12 +52,11 @@ test("a repeated route chunk failure is not misreported as an old build", async 
   );
   await expect(crashScreen).toContainText("temporarily unavailable");
   await expect(crashScreen).not.toContainText(
-    "This page is running an old version",
+    "Part of the installation is missing",
   );
   await expect(
     crashScreen.getByRole("button", { name: "Try again" }),
   ).toBeVisible();
-  await expect(crashScreen.getByTestId("crash-reload-clean")).toBeVisible();
 });
 
 /**
@@ -73,46 +65,37 @@ test("a repeated route chunk failure is not misreported as an old build", async 
  * #529 was reported twice by the same person. Everything shipped for it so
  * far made the failure honest — an accurate message, a correct diagnosis —
  * and none of it proved the way out actually works. The unit tests show the
- * button clears the shell caches and unregisters the worker; they cannot show
- * that the page boots afterwards, which is the only part the person cares
- * about.
+ * loader reloads once and then names the diagnosis; they cannot show that the
+ * page boots again once the file is readable, which is the only part the
+ * person cares about.
+ *
+ * These specs run against source served by Vite, so the route chunk is not an
+ * `/assets/` file and the diagnosis stays deliberately unconfirmed. That is
+ * the honest half of the contract; the confirmed missing-file branch belongs
+ * to the module-load-diagnosis unit tests.
  */
-test("the recovery button gets a stuck page back into the editor", async ({
+test("a readable chunk boots the editor from the crash screen's button", async ({
   page,
 }) => {
-  // A retired chunk: the shape that genuinely means "this document can no
-  // longer boot", as distinct from the transient failure above.
-  let chunkRetired = true;
+  let chunkUnreadable = true;
   await page.route("**/src/app/App.tsx*", (route) => {
-    if (chunkRetired) return route.fulfill({ status: 404, body: "" });
+    if (chunkUnreadable) return route.fulfill({ status: 404, body: "" });
     return route.continue();
   });
   await page.goto("/editor");
 
+  // One automatic reload, then the diagnosis rather than a loop.
   const crashScreen = page.getByTestId("editor-crash-screen");
   await expect(crashScreen).toBeVisible();
-  const recover = crashScreen.getByTestId("crash-reload-clean");
-  await expect(recover).toBeVisible();
+  await expect(crashScreen).toContainText("temporarily unavailable");
+  const retry = crashScreen.getByRole("button", { name: "Try again" });
+  await expect(retry).toBeVisible();
 
-  // A shell cache from the build that can no longer boot. Without this the
-  // test would pass on an ordinary reload and prove nothing about the word
-  // "clean", which is the half that gets a genuinely stuck page unstuck.
-  await page.evaluate(async () => {
-    const cache = await caches.open("icm-static-shell-stale-build");
-    await cache.put("/stale-marker", new Response("stale"));
-  });
-
-  // Reloading with a clean copy is what a person does after a deploy has
-  // finished, so the chunk it asks for exists again.
-  chunkRetired = false;
-  await recover.click();
+  chunkUnreadable = false;
+  await retry.click();
 
   await expect(page.getByTestId("schematic-canvas")).toBeVisible();
   await expect(crashScreen).toHaveCount(0);
-  // The build's cached shell is gone, not merely bypassed by the reload.
-  expect(await page.evaluate(() => caches.keys())).not.toContain(
-    "icm-static-shell-stale-build",
-  );
 });
 
 test("a failed dialog chunk degrades to a scoped notice, not the crash screen", async ({

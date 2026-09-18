@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { clickCommand, downloadBytes } from "./editor-fixtures.js";
+import { clickCommand, projectFileBytes } from "./editor-fixtures.js";
 import { placeComponent } from "./manual-editor-fixtures.js";
 
 async function runCellCommand(
@@ -108,11 +108,7 @@ test("places an unreferenced top Cell in an ordinary new Cell", async ({
     .getByTestId("schematic-canvas")
     .click({ position: { x: 320, y: 180 } });
   await page.keyboard.press("Escape");
-  const project = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  );
+  const project = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   expect(project.topDocumentId).toBe("document-main");
   const tb = project.documents.find(
     (d: { name: string }) => d.name === "Testbench",
@@ -211,9 +207,7 @@ test("resets the Cell selected in Manager without opening it", async ({
     .click();
   await manager.getByRole("button", { name: "Close Cell Manager" }).click();
 
-  const resetProject = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(),
-  );
+  const resetProject = JSON.parse((await projectFileBytes(page)).toString());
   expect(
     resetProject.documents.find(
       (candidate: { name: string }) => candidate.name === "Child",
@@ -221,9 +215,7 @@ test("resets the Cell selected in Manager without opening it", async ({
   ).toHaveLength(0);
 
   await page.keyboard.press("Control+z");
-  const restoredProject = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(),
-  );
+  const restoredProject = JSON.parse((await projectFileBytes(page)).toString());
   expect(
     restoredProject.documents.find(
       (candidate: { name: string }) => candidate.name === "Child",
@@ -791,11 +783,7 @@ test("same-name Cell Pins stay independent while the final interface groups them
   await expect(manager).toContainText("2 markers");
   await expect(manager).toContainText("Direction conflict");
   await manager.getByRole("button", { name: "Close Cell Manager" }).click();
-  const saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ) as {
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8")) as {
     documents: Array<{
       netlist: {
         terminals: Array<{

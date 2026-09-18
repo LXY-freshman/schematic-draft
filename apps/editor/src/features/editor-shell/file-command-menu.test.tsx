@@ -3,86 +3,60 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { FileCommandMenu } from "./file-command-menu";
-import { CLOUD_PROJECT_LIMIT } from "./cloud-projects";
+
+const handlers = {
+  onNewProject: vi.fn(),
+  onOpenProject: vi.fn(),
+  onSave: vi.fn(),
+  onSaveAs: vi.fn(),
+  onRefresh: vi.fn(),
+  onImportProject: vi.fn(),
+  onImportSpice: vi.fn(),
+  onExportSvg: vi.fn(),
+  onExportRaster: vi.fn(),
+  onRevert: vi.fn(),
+  onOpenRecovery: vi.fn(),
+};
 
 describe("FileCommandMenu", () => {
-  it("presents one Cloud Save protocol and explicit local interchange", () => {
+  it("offers one file protocol: open, save in place, save a copy", () => {
     const markup = renderToStaticMarkup(
       <FileCommandMenu
-        projectStoreLabel="Cloud Projects"
-        projectStoreItemLabel="Cloud Project"
-        cloudProjects={[
-          {
-            id: "cloud-1",
-            name: "Saved Circuit",
-            updatedAt: "2026-08-28T10:00:00.000Z",
-            revision: 3,
-            schemaVersion: 28,
-          },
-        ]}
-        activeCloudProjectId={null}
+        openFilePath={"D:\\Circuits\\Low-pass filter.icproj.json"}
         canRevert
         hasRecoverySessions
         projectInputRef={createRef<HTMLInputElement>()}
-        onNewProject={vi.fn()}
-        onSave={vi.fn()}
-        onRefreshCloudProjects={vi.fn()}
-        onOpenCloudProject={vi.fn()}
-        onDeleteCloudProject={vi.fn()}
-        onRefresh={vi.fn()}
-        onImportProject={vi.fn()}
-        onImportSpice={vi.fn()}
-        onExportProject={vi.fn()}
-        onExportSvg={vi.fn()}
-        onExportRaster={vi.fn()}
-        onRevert={vi.fn()}
-        onOpenRecovery={vi.fn()}
+        {...handlers}
       />,
     );
 
-    expect(markup).not.toContain("Save as Cloud Copy");
-    expect(markup).toContain(`Cloud Projects (1/${CLOUD_PROJECT_LIMIT})`);
-    expect(markup).toContain("Saved Circuit");
-    expect(markup).toContain('class="cloud-project-time"');
-    expect(markup).toContain("cloud-project-cloud-1");
+    expect(markup).toContain("Open Project…");
+    expect(markup).toContain("Save As…");
+    // Save names its target, so overwriting in place is never a guess.
+    expect(markup).toContain(
+      "Save to D:\\Circuits\\Low-pass filter.icproj.json",
+    );
     expect(markup).toContain("Import Project File…");
     expect(markup).toContain("Import SPICE / SCS…");
     expect(markup).toContain("Import Cadence SPICE (`!` globals)…");
     expect(markup).toContain('data-testid="cadence-spice-files"');
-    expect(markup).toContain("Export Project File…");
-    expect(markup).not.toContain("Copy SPICE netlist");
-    expect(markup).not.toContain("Copy Spectre netlist");
-    expect(markup).not.toContain("Download Backup");
-    expect(markup).not.toContain("Previous Project");
-    expect(markup).not.toContain("cloud snapshot");
+    expect(markup).toContain("Recover Local Work…");
+    expect(markup).not.toContain("Cloud");
+    expect(markup).not.toContain("Export Project File…");
   });
 
-  it("identifies the isolated Preview Project store", () => {
+  it("asks where to save a Project that has no file yet", () => {
     const markup = renderToStaticMarkup(
       <FileCommandMenu
-        projectStoreLabel="Preview Projects"
-        projectStoreItemLabel="Preview Project"
-        cloudProjects={[]}
-        activeCloudProjectId={null}
+        openFilePath={null}
         canRevert={false}
         hasRecoverySessions={false}
         projectInputRef={createRef<HTMLInputElement>()}
-        onNewProject={vi.fn()}
-        onSave={vi.fn()}
-        onRefreshCloudProjects={vi.fn()}
-        onOpenCloudProject={vi.fn()}
-        onDeleteCloudProject={vi.fn()}
-        onRefresh={vi.fn()}
-        onImportProject={vi.fn()}
-        onImportSpice={vi.fn()}
-        onExportProject={vi.fn()}
-        onExportSvg={vi.fn()}
-        onExportRaster={vi.fn()}
-        onRevert={vi.fn()}
-        onOpenRecovery={vi.fn()}
+        {...handlers}
       />,
     );
 
-    expect(markup).toContain(`Preview Projects (0/${CLOUD_PROJECT_LIMIT})`);
+    expect(markup).toContain("Choose where to save this Project");
+    expect(markup).not.toContain("Recover Local Work…");
   });
 });

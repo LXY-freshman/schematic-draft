@@ -12,7 +12,7 @@ import {
   runProjectCheck,
   type ProjectCheckResult,
 } from "./project-check";
-import type { CloudProjectSaveOutcome } from "../features/editor-shell/cloud-projects";
+import type { ProjectFileSaveOutcome } from "../features/editor-shell/project-files";
 
 export function useProjectCheck({
   project,
@@ -28,7 +28,7 @@ export function useProjectCheck({
   sessionId: string;
   resolver: SymbolResolver;
   index: ProjectConnectivityIndex;
-  save(candidate: CircuitProject): Promise<CloudProjectSaveOutcome>;
+  save(candidate: CircuitProject): Promise<ProjectFileSaveOutcome>;
   isSaving(): boolean;
   openIssues(): void;
   beforeCheck?(): Promise<CircuitProject | null>;

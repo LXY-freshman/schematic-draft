@@ -1,8 +1,0 @@
-{
-  "apiVersion": "3.0",
-  "requestId": "example-render",
-  "operation": "render",
-  "documentId": "document-differential-stage",
-  "mode": "diagnostics",
-  "bounds": { "x": 20, "y": -10, "width": 430, "height": 350 }
-}

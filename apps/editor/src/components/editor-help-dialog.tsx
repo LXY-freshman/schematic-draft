@@ -1,13 +1,10 @@
 import type { RefObject } from "react";
 
 import editorPackage from "../../package.json";
-import { DESKTOP_BUILD, DESKTOP_PRODUCT_NAME } from "../desktop/desktop-mode";
+import { PRODUCT_NAME } from "../product";
 
 const REPOSITORY_URL = "https://github.com/cascode-ai/analog-canvas";
 const CHANGE_LOG_URL = `${REPOSITORY_URL}/commits/main`;
-const OWNER_URL = "https://www.tokenzhang.com";
-const PRODUCT_NAME = DESKTOP_BUILD ? DESKTOP_PRODUCT_NAME : "Analog Canvas";
-const STORE_NAME = DESKTOP_BUILD ? "Local Project" : "Cloud Project";
 
 const SHORTCUT_GROUPS = [
   {
@@ -100,9 +97,10 @@ export function EditorHelpDialog({
           <section id="help-introduction" className="help-introduction">
             <p className="help-section-label">Introduction</p>
             <p>
-              {DESKTOP_BUILD
-                ? `${PRODUCT_NAME} is an offline desktop schematic editor. Import SPICE or open a project, edit the circuit on the canvas, then export an editable project or drawing file. Nothing leaves this computer.`
-                : "Analog Canvas is a browser-based schematic editor. Import SPICE or open a project, edit the circuit on the canvas, then export an editable project or drawing file."}
+              {PRODUCT_NAME} is an offline desktop schematic editor. Open a
+              Project file or import SPICE, edit the circuit on the canvas, then
+              save the Project or export a drawing file. Nothing leaves this
+              computer.
             </p>
           </section>
           <nav className="help-index" aria-label="Help sections">
@@ -115,17 +113,16 @@ export function EditorHelpDialog({
             <p className="help-section-label">Handbook</p>
             <h3>Start, open, and save</h3>
             <p>
-              Open a private {STORE_NAME} from <strong>File</strong>, or use
-              <strong>Import Project File</strong> and
-              <strong>Import SPICE</strong> for portable inputs. Use{" "}
-              <strong>File / Save</strong> for the formal {STORE_NAME};
-              <strong>Export Project File</strong> produces a portable local
-              copy. A direct backup download appears only when browser recovery
-              cannot protect current work. Drawing export provides SVG, PNG, and
-              PDF. Because raw browser refresh shortcuts are blocked to protect
-              unsaved work, use <strong>File / Refresh app</strong> when you
-              deliberately want to reload; it saves and restores the current
-              recovery snapshot.
+              Use <strong>File / Open Project…</strong> to open a{" "}
+              <code>.icproj.json</code> file, or <strong>Import SPICE</strong>{" "}
+              for a netlist. <strong>File / Save</strong> (<kbd>Ctrl+S</kbd>)
+              writes the open file back in place; <strong>Save As…</strong> asks
+              for a new location, and a first save asks as well. A direct backup
+              download appears only when local recovery cannot protect current
+              work. Drawing export provides SVG, PNG, and PDF. Because raw
+              refresh shortcuts are blocked to protect unsaved work, use{" "}
+              <strong>File / Refresh app</strong> when you deliberately want to
+              reload; it saves and restores the current recovery snapshot.
             </p>
             <h3>Place, select, and connect</h3>
             <p>
@@ -206,39 +203,25 @@ export function EditorHelpDialog({
           <section id="help-data" className="help-data-note">
             <h3>Project data and recovery</h3>
             <p>
-              {DESKTOP_BUILD
-                ? "This editor runs inside the desktop application. After each accepted edit it"
-                : "This editor runs in your browser. After each accepted edit it"}{" "}
-              keeps a safety copy of the current Project in{" "}
-              {DESKTOP_BUILD ? "the application's local" : "this browser's"}{" "}
-              storage: at most two recent working copies, each with a current
-              and a previous generation (at most 4 MB each, 12 MB in total). Use{" "}
+              After each accepted edit the application keeps a safety copy of
+              the current Project in its local storage: at most two recent
+              working copies, each with a current and a previous generation (at
+              most 4 MB each, 12 MB in total). Use{" "}
               <strong>File / Recover Local Work…</strong> to browse, restore,
-              download, or delete those copies. They are not formal {STORE_NAME}
-              s and can be lost when {DESKTOP_BUILD ? "application" : "browser"}{" "}
-              data is cleared, and a reload within a fraction of a second of an
-              edit may miss that last edit. Save updates the private{" "}
-              {STORE_NAME}; exporting never deletes the safety copies.
-              {DESKTOP_BUILD
-                ? ""
-                : " Returning from Gallery reopens the last active Cloud Project in this browser tab unless newer local recovery needs a decision first."}
+              download, or delete those copies. They are not Project files and
+              can be lost when application data is cleared, and a reload within
+              a fraction of a second of an edit may miss that last edit. Save
+              writes the Project file; it never deletes the safety copies.
             </p>
           </section>
           <section className="help-about">
             <h3>About {PRODUCT_NAME}</h3>
-            {DESKTOP_BUILD ? (
-              <p>
-                <strong>{PRODUCT_NAME}</strong> is an offline desktop build of
-                the open-source Analog Canvas schematic editor, licensed under
-                the GNU AGPL-3.0. Projects, recovery copies and exports stay on
-                this computer; the application never connects to a server.
-              </p>
-            ) : (
-              <p>
-                <strong>Analog Canvas</strong> is a local-first schematic editor
-                for editable circuit design.
-              </p>
-            )}
+            <p>
+              <strong>{PRODUCT_NAME}</strong> is an offline desktop build of the
+              open-source Analog Canvas schematic editor, licensed under the GNU
+              AGPL-3.0. Projects, recovery copies and exports stay on this
+              computer; the application never connects to a server.
+            </p>
             <p>
               Version <strong>{editorPackage.version}</strong>
             </p>
@@ -247,16 +230,11 @@ export function EditorHelpDialog({
               aria-label={`${PRODUCT_NAME} resources`}
             >
               <a href={REPOSITORY_URL} target="_blank" rel="noreferrer">
-                {DESKTOP_BUILD ? "Upstream repository" : "Repository"}
+                Upstream repository
               </a>
               <a href={CHANGE_LOG_URL} target="_blank" rel="noreferrer">
                 Change Log
               </a>
-              {DESKTOP_BUILD ? null : (
-                <a href={OWNER_URL} target="_blank" rel="noreferrer">
-                  Owner
-                </a>
-              )}
             </nav>
           </section>
         </div>

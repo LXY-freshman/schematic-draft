@@ -12,17 +12,18 @@ describe("EditorHelpDialog", () => {
     );
 
     expect(markup).toContain('role="dialog"');
-    expect(markup).toContain("About Analog Canvas");
+    expect(markup).toContain("About Schematic Draft");
+    expect(markup).toContain("never connects to a server");
     expect(markup).toContain("Version <strong>0.9.2</strong>");
+    // AGPL attribution: the upstream source, handed to the system browser by
+    // the desktop shell rather than fetched inside the application.
     expect(markup).toContain(
       'href="https://github.com/cascode-ai/analog-canvas"',
     );
     expect(markup).toContain(
       'href="https://github.com/cascode-ai/analog-canvas/commits/main"',
     );
-    expect(markup).toContain('href="https://www.tokenzhang.com"');
     expect(markup).toContain(">Change Log</a>");
-    expect(markup).toContain(">Owner</a>");
     expect(markup).toContain('target="_blank"');
     expect(markup).toContain('rel="noreferrer"');
   });
@@ -69,7 +70,8 @@ describe("EditorHelpDialog", () => {
     );
 
     for (const boundary of [
-      "inputs. Use <strong>File / Save</strong>",
+      "netlist. <strong>File / Save</strong>",
+      "Save As…</strong> asks for a new location",
       "File / Refresh app</strong> when",
       "tool from <strong>Draw</strong>",
       "the left <strong>Library</strong>",

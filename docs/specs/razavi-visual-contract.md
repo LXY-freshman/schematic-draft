@@ -61,16 +61,19 @@ sources, and never widen an evidence file to cover geometry the source does
 not contain. A primitive the textbook never drew is a `house` entry, drawn
 openly as ours, rather than a Razavi entry with invented evidence.
 
-PDF extraction, Symbol generation, and raster comparison are separate tools:
+PDF extraction, Symbol generation, and raster comparison are separate stages:
 
 ```text
-source PDF -> tools/pdf-vector-extract -> pinned vector evidence + PNG witness
+source PDF -> extraction (upstream tooling) -> pinned vector evidence + PNG witness
 pinned vector evidence -> family generator -> Symbol DSL
-PNG witness + rendered Symbol -> tools/calibration/razavi/symbol-fidelity-diff.mjs -> report
+PNG witness + rendered Symbol -> fidelity diff (upstream tooling) -> report
 ```
 
-The PDF extractor must not import the fidelity implementation, and the
-fidelity tool remains read-only with respect to vector evidence and Symbol DSL.
+Only the middle stage lives in this fork. Extraction and fidelity diffing were
+one-time authoring tools upstream; their outputs are committed and hash-pinned
+in the authority fixture, so the family generators need nothing but that
+fixture. Adding a component the fixture does not already cover therefore means
+restoring those tools from upstream first, not inventing evidence here.
 
 Every reviewed reference target records or resolves:
 
@@ -269,9 +272,9 @@ although it writes derived reports and PNGs.
    inspect the diffs before acceptance.
 
 Commands and dependencies belong to the [component guide](../../packages/components/README.md),
-[calibration tools](../../tools/calibration/razavi/README.md) and
-[PDF extractor](../../tools/pdf-vector-extract/README.md), not a second command
-inventory here. PDF extraction remains separate from routine raster calibration.
+not a second command inventory here. Steps 1 and 7 need the upstream extraction
+and calibration tools, which this fork does not carry; PDF extraction remains
+separate from routine raster calibration.
 
 Run only the generators relevant to the changed family. Do not rewrite a
 reviewed asset merely to enlarge the palette or improve one metric at the cost

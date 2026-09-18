@@ -4,8 +4,8 @@ Status: `accepted`
 
 Primary owner: `apps/editor`
 
-The browser editor is a direct-manipulation client over one current
-`SchematicDocument`. Human and Agent mutations enter the same Edit Engine,
+The editor is a direct-manipulation client over one current
+`SchematicDocument`. Every mutation enters the same Edit Engine,
 revision, validation, undo, rendering, and recovery boundaries.
 
 ## Components and interface markers
@@ -32,8 +32,8 @@ full component catalog, Cells, and supported external masters), a `cells`
 picker, or a quick request for an already chosen Symbol. The controller clears
 the previous picker scope before it starts placement, then delegates to the
 existing component, Cell, Cell-Pin, external-master, or VDD-rail planner. This is
-an editor interaction boundary only: it does not add a persisted project type,
-an Edit Engine operation, or an Agent API endpoint.
+an editor interaction boundary only: it does not add a persisted project type
+or an Edit Engine operation.
 
 **Port** and **Filled Port** are hollow and filled visual variants of Cell Pin.
 `P`, the Library, and full Insert all enter the same placement planner. An
@@ -207,9 +207,9 @@ new interfaces use deterministic direction-aware automatic layout.
 Canonical `nmos`/`pmos` use the asset's `textbook-3terminal` visual variant by
 default while retaining D/G/S/B electrically. A manual MOS uses explicit B
 membership first, then an explicitly configured cell default; otherwise bulk
-remains unresolved in the authored connectivity graph. Strict netlist and
-simulation extraction use actual B membership or explicit NoConnect; otherwise
-they report `MISSING_PIN_NET`, without a polarity-based supply default. User-facing
+remains unresolved in the authored connectivity graph. Strict netlist
+extraction uses actual B membership or explicit NoConnect; otherwise
+it reports `MISSING_PIN_NET`, without a polarity-based supply default. User-facing
 export presets follow the same connectivity rule and do not repair missing Bulk.
 Drawing the visible `bulk-dashed` connection
 clears any configured default binding and connects B to the selected Net in the
@@ -343,8 +343,8 @@ finite-decimal ink edges rather than directional outward snapping. A 45-degree
 turn reflows a canonical label from its local side at that fixed spacing; eight
 such turns return its position and alignment to the initial values. Opening
 I cancels the current canvas interaction before showing the dialog.
-Escape, Document switch, Project replacement, Clear Canvas, restore, and Agent
-focus reset all use the same transient-cancellation boundary.
+Escape, Document switch, Project replacement, Clear Canvas, and restore
+all use the same transient-cancellation boundary.
 
 Shortcut arbitration is centralized. Escape, viewport pan/zoom, same-tool
 re-entry, and explicit creation-tool switches are valid while an interaction
@@ -366,8 +366,7 @@ Changing the filter immediately removes newly disabled classes from the
 current formal selection and dismisses their route or drafting handles.
 
 Filtering changes targetability, not the schematic model. Drawing tools,
-Simulation probe picking, visibility, connectivity, and creation remain
-unchanged. In particular, Wires and Junctions disabled in the filter still
+visibility, connectivity, and creation remain unchanged. In particular, Wires and Junctions disabled in the filter still
 follow a selected device when the movement closure requires them; this is an
 electrical consequence of moving the selected device, not a second direct
 selection. Project Search and diagnostic navigation remain explicit locator
@@ -407,8 +406,8 @@ external callers; the GUI does not call it.
 Every direct-manipulation selection move first derives one transient stable-ID
 routing closure. The editor keeps only gesture state; the Edit Engine's
 `planRoutingTransform()` is the shared authority for the semantic preview and
-the typed edits committed on pointer release. Neither object is Project data or
-an Agent API payload, and no pointer handler invents an independent follow set.
+the typed edits committed on pointer release. Neither object is Project data,
+and no pointer handler invents an independent follow set.
 
 Schematic movement follows the Virtuoso pairing. Plain `M` translates the
 selection while internal conductors follow and boundary Routes stretch without
@@ -470,8 +469,8 @@ never highlight or select labels outside the dragged rectangle.
 The editor's finite direct-manipulation vocabulary is transient only:
 `move-selection`, `stretch-segment`, `move-loose-route`, `move-power-rail`,
 the two ordinary Route endpoint resizes, and the two explicit power-rail
-endpoint resizes. It is not Project data, an Edit Engine command, or an Agent
-API extension; each intent compiles to the existing typed edits. Both ends of
+endpoint resizes. It is not Project data or an Edit Engine command;
+each intent compiles to the existing typed edits. Both ends of
 an ordinary Route offer a resize grip, including one anchored to a pin.
 
 No movement intent searches for a new path. An internal Route translates every
@@ -505,7 +504,7 @@ Pointer and drag previews may retain finite float positions. Before an editor
 gesture creates or changes a Project point, it explicitly snaps to the active
 Document grid; preview or SVG geometry is never committed directly. Camera is
 also grid-aligned: Fit expands derived visual bounds outward to the grid, and
-zoom, pan, focus, Document activation, replacement, and Agent semantic focus
+zoom, pan, focus, Document activation, and replacement
 all pass through the same camera normalizer. The viewport remains transient,
 but it cannot carry derived float bounds into the renderer's integer grid
 camera contract.
@@ -526,18 +525,18 @@ hover and preview are not electrical mutations.
 
 ## Project-aware copy
 
-Internal `C`, Gallery canvas insertion, and the existing Agent copy command
-use the same Project-aware copy planner. C retains its pointer-following ghost,
+Internal `C` and bundled-example canvas insertion use the same Project-aware
+copy planner. C retains its pointer-following ghost,
 rotation/reflection shortcuts, repeated click placement, and Escape cancellation.
-Gallery selects the source top Cell body; referenced child Cells remain hierarchy
-and are imported as dependencies. Inserting a nonempty hierarchical Gallery entry
-does not replace the current Project.
+An inserted example contributes its top Cell body; referenced child Cells remain
+hierarchy and are imported as dependencies. Inserting a nonempty hierarchical
+example does not replace the current Project.
 
 A transient copy capsule carries the selected objects, Cell parameter context,
 referenced external interfaces, child-Cell closure, symbol-library identity, and
-referenced source-file records. It is not persisted or added to the Agent API.
-Source-file records are provenance, not bundled PDK model contents. Simulation
-folders, simulator configuration, run results and unrelated Cells are not copied.
+referenced source-file records. It is not persisted.
+Source-file records are provenance, not bundled PDK model contents. Unrelated
+Cells are not copied.
 
 Every placement allocates new canvas object IDs and collision-free References.
 Compatible external definitions are reused by validated interface and presentation,
@@ -662,7 +661,7 @@ atomic Formula continues to use its existing editor.
 
 The floating RichText editor has one formula action for editable text content.
 It opens a MathLive math field plus the exact LaTeX source, lets the author
-choose inline or display intent, validates against the bounded Analog Canvas
+choose inline or display intent, validates against the bounded application
 math profile, and replaces the current RichText document with one atomic
 formula only after validation succeeds. Ordinary bold, italic, script,
 overbar, alignment, multiline, and symbol controls remain the same RichText
@@ -679,25 +678,25 @@ this formula-only decision path.
 
 ## Project sessions
 
-New, Open, SPICE import, Gallery/built-in example open, and recovery restore are
+New, Open, SPICE import, built-in example open, and recovery restore are
 Project-session transitions rather than Document edits. A dirty current Project
 always requires an explicit discard or cancel decision before one of these
-transitions commits; a successful browser-recovery write is safety evidence,
+transitions commits; a successful recovery write is safety evidence,
 not authorization to replace the foreground Project. Candidate files and
-gallery/recovery payloads are parsed and validated before that decision.
+recovery payloads are parsed and validated before that decision.
 
 The editor has no Previous Project stack: replacing a live session does not
 retain the outgoing Project in memory for a later swap, and the File menu
 offers no **Previous Project** command.
 
 Project dirty detection covers `structureRevision` and every Document revision,
-not only the active Cell, and compares the content with the last acknowledged
-Cloud baseline so Undo can return to clean. **New Project** creates a new canonical Project with
+not only the active Cell, and compares the content with the last written
+baseline so Undo can return to clean. **New Project** creates a new canonical Project with
 one empty Main Cell, no SPICE source manifest entries, and no external
 subcircuit definitions; it does not mutate the previous Project into an empty
-shell. Opening a Cloud Project binds its stable id and revision to the runtime
-session; importing a file does not. After a Cloud Save, **Revert to Last Saved**
-restores that acknowledged content through the same guard. Export and backup
+shell. Opening a file binds its path to the runtime session, so Save overwrites
+it; importing a file does not bind. After a save, **Revert to Last Saved**
+restores that written content through the same guard. Export and backup
 never establish or advance this baseline.
 
 ## Cell reset lifecycle
@@ -725,43 +724,27 @@ planner before the transaction is submitted.
 
 ## Files, recovery, and replacement
 
-Open, demo load, restore, and human-approved staged import replace the entire
+Open, demo load, and restore replace the entire
 Project through one replacement boundary; they are not Edit Engine
-transactions. Replacement cancels pending recovery for the outgoing Project
-and terminates its Agent session. A complete Project covered by the schema
+transactions. Replacement cancels pending recovery for the outgoing Project.
+A complete Project covered by the schema
 24→57 upgrade chain may be upgraded at the read boundary and then enters the
 editor only as schema-57; migrated files are marked as needing save.
 
-Selection, viewport, active tool, previews, Agent tokens, and approval UI are
+Selection, viewport, active tool, and previews are
 transient and never enter Project JSON. Recovery is scheduled only after a
-successful transaction or explicit replacement and stores no bearer token.
+successful transaction or explicit replacement.
 
 The Project-name area shows a small unsaved marker derived from the same file
-lifecycle that controls Save. While that marker is present, browser Back,
-Refresh, and tab/window close use the browser-native leave confirmation;
+lifecycle that controls Save. While that marker is present, Refresh and window
+close use the host's native leave confirmation;
 ordinary in-app navigation, selection, zoom, and panel changes do not affect
-it. New, Open, Revert, recovery restore, and approved staged replacement use
-one concise application dialog with Stay, Save to Cloud and continue, and
-Continue without saving. The dialog states the destination and distinguishes
-Cloud Save (private Cloud Projects, up to a per-account limit) from local
-Project-file export without exposing browser-recovery internals. The limit it
-shows is the editor's shared Cloud Project limit, the same value the File menu
-counts against, not a figure written into the dialog text. A startup recovery
-offer is a non-modal overlay and never silently
+it. New, Open, Revert, and recovery restore use
+one concise application dialog with Stay, Save and continue, and
+Continue without saving. The dialog names the file Save would write — or says it
+will ask when the Project has none — without exposing recovery internals. A
+startup recovery offer is a non-modal overlay and never silently
 replaces the active Project.
-
-Same-site destinations owned by the product, including Gallery and Analytics,
-enter through this application replacement guard. Their anchors retain normal
-link behavior for modified clicks, but an ordinary primary click must not fall
-through to a second native `beforeunload` prompt.
-
-## Agent semantic control
-
-API 3.0 may advertise optional `semanticControl` for transient review focus:
-select a canonical locator, highlight a Net, activate/fit an existing Cell, or
-clear focus. It cannot send pointer events, keystrokes, CSS, selectors, DOM
-queries, or arbitrary zoom matrices. Semantic control never changes revision,
-topology hash, history, recovery, or formal export.
 
 ## Deterministic validation
 
@@ -777,6 +760,5 @@ topology hash, history, recovery, or formal export.
 - move/stretch, segment tap, crossing non-connectivity, cancel, delete, and
   undo/redo tests;
 - annotation-only label rendering with no duplicates;
-- GUI/Agent transaction parity;
-- Playwright flows for insertion, wiring, transformation, save/reopen, staged
-  candidate isolation, human replacement approval, and formal export.
+- Playwright flows for insertion, wiring, transformation, open/save in place,
+  Save As, and formal export.

@@ -17,18 +17,74 @@ import {
   APP_SCHEME,
   createAppProtocolHandler,
 } from "./app-protocol.js";
-import { LocalProjectStore } from "./local-projects.js";
+import {
+  PROJECT_FILE_EXTENSION,
+  type ProjectFileDialogs,
+} from "./project-files.js";
 
 const PRODUCT_NAME = "Schematic Draft";
 const APP_USER_MODEL_ID = "com.schematicdraft.desktop";
 const EDITOR_ROUTE = `${APP_ORIGIN}/editor`;
 
 /**
- * Where a person's circuits live. Documents rather than AppData: these are
- * their files, meant to be found, copied and backed up like any other work.
+ * Where a first save is offered. Documents rather than AppData: these are a
+ * person's files, meant to be found, copied and backed up like any other work.
+ * Nothing forces a circuit to stay here — the dialogs go wherever they point.
  */
 function projectsDirectory(): string {
-  return join(app.getPath("documents"), PRODUCT_NAME, "Projects");
+  return join(app.getPath("documents"), PRODUCT_NAME);
+}
+
+const PROJECT_FILTERS = [
+  { name: "Schematic Draft Project", extensions: ["icproj.json", "json"] },
+];
+
+/**
+ * The native Open/Save dialogs behind the editor's file bridge. They belong
+ * to the window, so the editor cannot act while one is up.
+ */
+function projectFileDialogs(
+  window: () => BrowserWindow | null,
+): ProjectFileDialogs {
+  const parent = () => window() ?? BrowserWindow.getAllWindows()[0] ?? null;
+  return {
+    async promptOpen() {
+      const owner = parent();
+      const options = {
+        title: "Open Project",
+        defaultPath: projectsDirectory(),
+        filters: PROJECT_FILTERS,
+        properties: ["openFile" as const],
+      };
+      const result = owner
+        ? await dialog.showOpenDialog(owner, options)
+        : await dialog.showOpenDialog(options);
+      return result.canceled ? null : (result.filePaths[0] ?? null);
+    },
+    async promptSave({ name, currentPath }) {
+      const owner = parent();
+      const options = {
+        title: "Save Project As",
+        defaultPath:
+          currentPath ??
+          join(
+            projectsDirectory(),
+            `${safeFileName(name)}${PROJECT_FILE_EXTENSION}`,
+          ),
+        filters: PROJECT_FILTERS,
+      };
+      const result = owner
+        ? await dialog.showSaveDialog(owner, options)
+        : await dialog.showSaveDialog(options);
+      return result.canceled ? null : (result.filePath ?? null);
+    },
+  };
+}
+
+/** Project names are free text; a file name is not. */
+function safeFileName(name: string): string {
+  const cleaned = name.replace(/[\u0000-\u001f<>:"/\\|?*]/gu, " ").trim();
+  return cleaned.length > 0 ? cleaned.slice(0, 120) : "Circuit";
 }
 
 function editorRoot(): string {
@@ -187,10 +243,10 @@ function buildMenu(window: BrowserWindow): Menu {
                 "schematic editor (GNU AGPL-3.0).",
                 "",
                 "Nothing leaves this computer: the editor runs from bundled",
-                "files, Projects are saved under Documents, and every network",
-                "request is refused before a connection is made.",
+                "files, Projects are saved wherever you choose, and every",
+                "network request is refused before a connection is made.",
                 "",
-                `Projects: ${projectsDirectory()}`,
+                `Default folder: ${projectsDirectory()}`,
               ].join("\n"),
             }),
         },
@@ -257,15 +313,20 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     lockDownNetwork();
     routeDownloadsToSaveDialog();
-    const store = new LocalProjectStore(projectsDirectory());
     await mkdir(projectsDirectory(), { recursive: true });
+    let mainWindow: BrowserWindow | null = null;
     protocol.handle(
       APP_SCHEME,
-      await createAppProtocolHandler({ editorRoot: editorRoot(), store }),
+      await createAppProtocolHandler({
+        editorRoot: editorRoot(),
+        dialogs: projectFileDialogs(() => mainWindow),
+      }),
     );
-    await createWindow();
+    mainWindow = await createWindow();
     app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) void createWindow();
+      if (BrowserWindow.getAllWindows().length === 0) {
+        void createWindow().then((window) => (mainWindow = window));
+      }
     });
   });
 

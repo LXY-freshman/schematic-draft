@@ -100,16 +100,17 @@ describe("finalizeBrowserRecoveryRecord", () => {
     ).toBe(true);
   });
 
-  it("keeps the transient Cloud binding outside Project JSON", () => {
+  it("keeps the file binding outside Project JSON", () => {
+    const binding = { path: "/home/e/Filter.icproj.json", name: "Filter" };
     const record = finalizeBrowserRecoveryRecord(
-      draft({ cloudBinding: { id: "cloud-1", revision: 4 } }),
+      draft({ fileBinding: binding }),
     );
-    expect(record.cloudBinding).toEqual({ id: "cloud-1", revision: 4 });
-    expect(JSON.parse(record.projectText)).not.toHaveProperty("cloudBinding");
+    expect(record.fileBinding).toEqual(binding);
+    expect(JSON.parse(record.projectText)).not.toHaveProperty("fileBinding");
     expect(
       decodeBrowserRecoveryRecord({
         ...record,
-        cloudBinding: { id: "cloud-1", revision: 0 },
+        fileBinding: { path: "", name: "Filter" },
       }),
     ).toMatchObject({ status: "corrupt" });
   });
@@ -356,14 +357,14 @@ describe("rotateBrowserRecoverySession", () => {
     }
   });
 
-  it("updates a Cloud binding in place without consuming previous", () => {
+  it("updates a file binding in place without consuming previous", () => {
     const first = finalizeBrowserRecoveryRecord(
       draft({ recordId: "record-1" }),
     );
     const bound = finalizeBrowserRecoveryRecord(
       draft({
         recordId: "record-2",
-        cloudBinding: { id: "cloud-1", revision: 1 },
+        fileBinding: { path: "/home/e/Filter.icproj.json", name: "Filter" },
       }),
     );
     const rotation = rotateBrowserRecoverySession(
@@ -372,9 +373,9 @@ describe("rotateBrowserRecoverySession", () => {
     );
     expect(rotation.status).toBe("updated");
     if (rotation.status === "updated") {
-      expect(rotation.session.latest?.cloudBinding).toEqual({
-        id: "cloud-1",
-        revision: 1,
+      expect(rotation.session.latest?.fileBinding).toEqual({
+        path: "/home/e/Filter.icproj.json",
+        name: "Filter",
       });
       expect(rotation.session.previous).toBeNull();
     }

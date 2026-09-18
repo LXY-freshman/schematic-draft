@@ -1,15 +1,13 @@
 /**
  * Guarded dynamic import for on-demand feature chunks.
  *
- * Chunk file names carry content hashes and every deploy replaces the whole
- * asset manifest, so a tab that survived a redeploy asks for names that no
- * longer exist — and the single-page-application fallback answers with
- * index.html, which the browser reports as
- * "Failed to fetch dynamically imported module: …". That string must never
- * be the user's answer; callers catch {@link ChunkLoadError} and show the
- * refresh remedy instead. React.lazy surfaces use `lazyChunk` in
- * app/lazy-editor-dialogs.ts; this is the same contract for plain
- * `await import()` call sites.
+ * The desktop shell serves every content-hashed chunk from its own
+ * installation, so a failure here means a missing or damaged asset. The
+ * browser reports it as "Failed to fetch dynamically imported module: …",
+ * and that string must never be the user's answer; callers catch
+ * {@link ChunkLoadError} and show the refresh remedy instead. React.lazy
+ * surfaces use `lazyChunk` in app/lazy-editor-dialogs.ts; this is the same
+ * contract for plain `await import()` call sites.
  */
 export class ChunkLoadError extends Error {
   constructor(
@@ -17,7 +15,7 @@ export class ChunkLoadError extends Error {
     override readonly cause: unknown,
   ) {
     super(
-      `${feature} could not load — the app has been updated since this tab opened`,
+      `${feature} could not load — part of the installation is missing or damaged`,
     );
     this.name = "ChunkLoadError";
   }
@@ -25,7 +23,7 @@ export class ChunkLoadError extends Error {
 
 /** One status-bar line: what failed, why, and the remedy. */
 export function chunkLoadStatus(feature: string): string {
-  return `${feature} could not load — the app has been updated since this tab opened. Refresh to load the new version; your circuit is restored automatically.`;
+  return `${feature} could not load — part of the installation is missing or damaged. Refresh to load it again; your circuit is restored automatically.`;
 }
 
 export async function importChunk<T>(

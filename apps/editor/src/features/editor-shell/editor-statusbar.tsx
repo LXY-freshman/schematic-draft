@@ -65,7 +65,6 @@ function issuesBadge(issues: {
 }
 
 export function EditorStatusbar({
-  visitStats,
   status,
   tool,
   vddRailMode,
@@ -82,13 +81,11 @@ export function EditorStatusbar({
   onToggleWireOptions,
   onWireRoutingModeChange,
   onWireCornerOrderChange,
-  onOpenAnalytics,
   onToggleGrid,
   onZoomOut,
   onZoomIn,
   onFitView,
 }: {
-  visitStats?: { pv: number; uv: number } | null | undefined;
   status: string;
   tool: EditorTool;
   vddRailMode: boolean;
@@ -110,7 +107,6 @@ export function EditorStatusbar({
   onToggleWireOptions: () => void;
   onWireRoutingModeChange: (mode: WireRoutingMode) => void;
   onWireCornerOrderChange: (order: WireCornerOrder) => void;
-  onOpenAnalytics: () => void;
   onToggleGrid: () => void;
   onZoomOut: () => void;
   onZoomIn: () => void;
@@ -212,30 +208,6 @@ export function EditorStatusbar({
             })()
           : null}
       </div>
-      {visitStats ? (
-        <a
-          className="statusbar-analytics"
-          href="/analytics"
-          data-testid="statusbar-analytics"
-          title="Open visitor analytics"
-          onClick={(event) => {
-            if (
-              event.button !== 0 ||
-              event.metaKey ||
-              event.ctrlKey ||
-              event.shiftKey ||
-              event.altKey
-            ) {
-              return;
-            }
-            event.preventDefault();
-            onOpenAnalytics();
-          }}
-        >
-          {visitStats.uv.toLocaleString()} visitors ·{" "}
-          {visitStats.pv.toLocaleString()} views
-        </a>
-      ) : null}
       <div className="statusbar-view-controls">
         {/* One click away, unlike the canvas.showGrid setting. The label
             collapses to the icon in half-width windows. */}

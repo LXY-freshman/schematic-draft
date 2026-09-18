@@ -1,13 +1,11 @@
-import { mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { createEmptyProject } from "@icm/model";
-import { serializeProject } from "@icm/project-protocol";
 import { describe, expect, it } from "vitest";
 
 import { APP_ORIGIN, createAppProtocolHandler } from "./app-protocol.js";
-import { LocalProjectStore } from "./local-projects.js";
+import type { ProjectFileDialogs } from "./project-files.js";
 
 const INDEX_HTML = [
   "<!doctype html><title>Schematic Draft</title>",
@@ -15,23 +13,46 @@ const INDEX_HTML = [
   '<script type="module" src="/assets/index.js"></script>',
 ].join("\n");
 
+/** A stub for the native dialogs: the answers a person would have given. */
+interface StubDialogs extends ProjectFileDialogs {
+  openAnswers: (string | null)[];
+  saveAnswers: (string | null)[];
+  saveRequests: { name: string; currentPath: string | null }[];
+}
+
+function stubDialogs(): StubDialogs {
+  const dialogs: StubDialogs = {
+    openAnswers: [],
+    saveAnswers: [],
+    saveRequests: [],
+    promptOpen: () => Promise.resolve(dialogs.openAnswers.shift() ?? null),
+    promptSave: (suggestion) => {
+      dialogs.saveRequests.push(suggestion);
+      return Promise.resolve(dialogs.saveAnswers.shift() ?? null);
+    },
+  };
+  return dialogs;
+}
+
 async function shell() {
   const editorRoot = await mkdtemp(join(tmpdir(), "sd-editor-"));
   await writeFile(join(editorRoot, "index.html"), INDEX_HTML);
   await writeFile(join(editorRoot, "app.js"), "export {};");
-  const projectsRoot = await mkdtemp(join(tmpdir(), "sd-projects-"));
-  const store = new LocalProjectStore(projectsRoot);
-  const handle = await createAppProtocolHandler({ editorRoot, store });
+  const workspace = await mkdtemp(join(tmpdir(), "sd-files-"));
+  const dialogs = stubDialogs();
+  const handle = await createAppProtocolHandler({ editorRoot, dialogs });
   const request = (path: string, init?: RequestInit) =>
     handle(new Request(`${APP_ORIGIN}${path}`, init));
-  return { handle, request, projectsRoot };
+  const post = (path: string, body?: unknown) =>
+    request(path, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+  return { handle, request, post, dialogs, workspace };
 }
 
-const projectText = (name: string) =>
-  serializeProject(createEmptyProject("smoke", name));
-
-const saveBody = (name: string) =>
-  JSON.stringify({ name, projectText: projectText(name) });
+const PROJECT_TEXT = '{"schemaVersion":57,"name":"Low-pass filter"}';
 
 describe("desktop app protocol", () => {
   it("serves the editor with a hash-based CSP and a SPA fallback", async () => {
@@ -61,126 +82,112 @@ describe("desktop app protocol", () => {
     expect((await handle(new Request("app://elsewhere/"))).status).toBe(404);
   });
 
-  it("round-trips a Project through the local store", async () => {
-    const { request, projectsRoot } = await shell();
-    const jsonRequest = (path: string, init: RequestInit) =>
-      request(path, {
-        ...init,
-        headers: { "content-type": "application/json", ...init.headers },
-      });
+  it("opens a Project file the person picks", async () => {
+    const { post, dialogs, workspace } = await shell();
+    const path = join(workspace, "Low-pass filter.icproj.json");
+    await writeFile(path, PROJECT_TEXT, "utf8");
+    dialogs.openAnswers.push(path);
 
-    expect(await (await request("/api/projects")).json()).toEqual({
-      projects: [],
+    expect(await (await post("/api/file/open")).json()).toEqual({
+      status: "opened",
+      file: { path, name: "Low-pass filter", text: PROJECT_TEXT },
     });
 
-    const created = await jsonRequest("/api/projects", {
-      method: "POST",
-      body: saveBody("Low-pass filter"),
+    // A cancelled dialog is an outcome, not a failure: the editor keeps the
+    // Project it already had.
+    expect(await (await post("/api/file/open")).json()).toEqual({
+      status: "cancelled",
     });
-    expect(created.status).toBe(201);
-    const { project } = (await created.json()) as {
-      project: { id: string; revision: number; name: string };
-    };
-    expect(project.revision).toBe(1);
-    expect(project.name).toBe("Low-pass filter");
 
-    const onDisk = join(projectsRoot, project.id);
-    expect((await stat(join(onDisk, "circuit.icproj.json"))).isFile()).toBe(
-      true,
-    );
+    expect(await (await post("/api/file/read", { path })).json()).toEqual({
+      status: "opened",
+      file: { path, name: "Low-pass filter", text: PROJECT_TEXT },
+    });
     expect(
-      JSON.parse(await readFile(join(onDisk, "meta.json"), "utf8")),
-    ).toEqual(
-      expect.objectContaining({ name: "Low-pass filter", revision: 1 }),
-    );
-
-    const listed = (await (await request("/api/projects")).json()) as {
-      projects: { id: string }[];
-    };
-    expect(listed.projects.map((item) => item.id)).toEqual([project.id]);
-
-    const opened = await request(`/api/projects/${project.id}`);
-    expect(opened.status).toBe(200);
-    const openedBody = (await opened.json()) as {
-      project: { projectText: string };
-    };
-    expect(openedBody.project.projectText).toBe(projectText("Low-pass filter"));
-
-    const preview = await request(`/api/projects/${project.id}/preview.svg`);
-    expect(preview.status).toBe(200);
-    expect(preview.headers.get("content-type")).toContain("image/svg+xml");
-    expect(await preview.text()).toContain("<svg");
-
-    expect(
-      (
-        await jsonRequest(`/api/projects/${project.id}`, {
-          method: "PUT",
-          body: saveBody("Renamed"),
-        })
-      ).status,
-    ).toBe(428);
-
-    const updated = await jsonRequest(`/api/projects/${project.id}`, {
-      method: "PUT",
-      headers: { "if-match": "revision-1" },
-      body: saveBody("Renamed"),
-    });
-    expect(updated.status).toBe(200);
-    expect(
-      ((await updated.json()) as { project: { revision: number } }).project
-        .revision,
-    ).toBe(2);
-
-    const stale = await jsonRequest(`/api/projects/${project.id}`, {
-      method: "PUT",
-      headers: { "if-match": "revision-1" },
-      body: saveBody("Stale"),
-    });
-    expect(stale.status).toBe(409);
-    expect(await stale.json()).toEqual(
-      expect.objectContaining({ error: "revision-conflict" }),
-    );
-
-    const deleted = await request(`/api/projects/${project.id}`, {
-      method: "DELETE",
-    });
-    expect(deleted.status).toBe(200);
-    expect(await deleted.json()).toEqual({ projects: [] });
-    expect((await request(`/api/projects/${project.id}`)).status).toBe(404);
+      await (
+        await post("/api/file/read", { path: join(workspace, "gone.json") })
+      ).json(),
+    ).toEqual(expect.objectContaining({ status: "failed" }));
   });
 
-  it("refuses malformed, oversized and mis-addressed saves", async () => {
-    const { request } = await shell();
-    const post = (body: string) =>
-      request("/api/projects", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body,
-      });
+  it("saves in place and only prompts without a path or for Save As", async () => {
+    const { post, dialogs, workspace } = await shell();
+    const chosen = join(workspace, "Filter.icproj.json");
+    dialogs.saveAnswers.push(chosen);
 
-    expect((await post("not json")).status).toBe(400);
-    expect((await post(JSON.stringify({ name: "x" }))).status).toBe(400);
+    const created = await post("/api/file/save", {
+      path: null,
+      name: "Filter",
+      text: PROJECT_TEXT,
+    });
+    expect(await created.json()).toEqual({
+      status: "saved",
+      file: { path: chosen, name: "Filter" },
+    });
+    expect(dialogs.saveRequests).toEqual([
+      { name: "Filter", currentPath: null },
+    ]);
+    expect(await readFile(chosen, "utf8")).toBe(PROJECT_TEXT);
+
+    // The path is known now, so Ctrl+S overwrites without a dialog.
+    const overwritten = await post("/api/file/save", {
+      path: chosen,
+      name: "Filter",
+      text: `${PROJECT_TEXT} `,
+    });
+    expect(await overwritten.json()).toEqual({
+      status: "saved",
+      file: { path: chosen, name: "Filter" },
+    });
+    expect(dialogs.saveRequests).toHaveLength(1);
+    expect(await readFile(chosen, "utf8")).toBe(`${PROJECT_TEXT} `);
+
+    // Save As asks even though the same file is open.
+    const copy = join(workspace, "Filter copy.icproj.json");
+    dialogs.saveAnswers.push(copy);
+    const savedAs = await post("/api/file/save", {
+      path: chosen,
+      name: "Filter",
+      text: PROJECT_TEXT,
+      saveAs: true,
+    });
+    expect(await savedAs.json()).toEqual({
+      status: "saved",
+      file: { path: copy, name: "Filter copy" },
+    });
+    expect(dialogs.saveRequests.at(-1)).toEqual({
+      name: "Filter",
+      currentPath: chosen,
+    });
+
+    dialogs.saveAnswers.push(null);
     expect(
-      (await post(JSON.stringify({ name: "x", projectText: "{}" }))).status,
+      await (
+        await post("/api/file/save", { path: null, name: "Filter", text: "{}" })
+      ).json(),
+    ).toEqual({ status: "cancelled" });
+  });
+
+  it("refuses malformed and mis-addressed file requests", async () => {
+    const { request, post } = await shell();
+
+    expect((await request("/api/file/open")).status).toBe(405);
+    expect((await post("/api/file/save", { name: "x" })).status).toBe(400);
+    expect(
+      (await post("/api/file/save", { text: "{}", name: "  " })).status,
     ).toBe(400);
+    expect((await post("/api/file/read", {})).status).toBe(400);
+    // Too large is reported, never silently truncated, and no dialog opens.
     expect(
-      (
-        await post(
-          JSON.stringify({
-            name: "x",
-            projectText: "x".repeat(4 * 1024 * 1024 + 1),
-          }),
-        )
-      ).status,
-    ).toBe(413);
-    // Percent-encoded dots survive URL normalisation, so the id guard — not
-    // the parser — is what keeps a save inside the Projects folder.
-    expect((await request("/api/projects/%2E%2E%2F%2E%2E%2Fetc")).status).toBe(
-      404,
-    );
-    expect((await request("/api/projects/nope")).status).toBe(404);
-    expect((await request("/api/projects", { method: "PATCH" })).status).toBe(
-      405,
-    );
+      await (
+        await post("/api/file/save", {
+          path: null,
+          name: "x",
+          text: "x".repeat(16 * 1024 * 1024 + 1),
+        })
+      ).json(),
+    ).toEqual(expect.objectContaining({ status: "failed" }));
+    expect((await post("/api/file/bogus")).status).toBe(404);
+    expect((await post("/api/projects")).status).toBe(404);
   });
 });

@@ -71,11 +71,11 @@ test("Check and Save surfaces findings in the existing workbench and canvas", as
   await expect(page.getByTestId("status")).toContainText("ERC_UNCONNECTED_PIN");
 });
 
-test("signed-out Save does not suppress ERC or visual check results", async ({
+test("a failed Save does not suppress ERC or visual check results", async ({
   page,
 }) => {
-  await page.route("**/api/projects", (route) =>
-    route.fulfill({ status: 401, json: { error: "unauthorized" } }),
+  await page.route("**/api/file/save", (route) =>
+    route.fulfill({ json: { status: "failed", message: "the disk is full" } }),
   );
   await page.goto("/editor");
   // The overlapping pair supplies visual evidence; exact terminal contact
@@ -91,7 +91,9 @@ test("signed-out Save does not suppress ERC or visual check results", async ({
   }
   await expect(page.getByTestId("statusbar-issues")).toHaveText("Not checked");
   await clickNetlistWorkflowCommand(page, "check-and-save");
-  await expect(page.getByTestId("status")).toContainText("Sign in to save");
+  await expect(page.getByTestId("status")).toContainText(
+    "Save failed; work remains in the editor (the disk is full)",
+  );
   await expect(page.getByTestId("project-diagnostics")).toContainText(
     "ERC_UNCONNECTED_PIN",
   );

@@ -19,36 +19,26 @@ missing vendor construct.
 
 ## Recovery copies
 
-Safety copies live in this browser's IndexedDB and are never authoritative.
-Use **File / Recover Local Work…** to browse them. A damaged latest copy
-offers the previous generation; a copy from a newer Project schema cannot be
-restored here but can still be downloaded. Deleting one copy never deletes
-another Project's copy. If a warning says recovery cannot be saved (storage
-full or unavailable), download the Project with the button in the warning. A
-reload immediately after an edit may miss that very last edit — the copy
-lands within a fraction of a second; reloading after that restores the
-latest committed state.
+Safety copies live in the application's own IndexedDB and are never
+authoritative — the file you opened is. Use **File / Recover Local Work…** to
+browse them. A damaged latest copy offers the previous generation; a copy from a
+newer Project schema cannot be restored here but can still be saved out.
+Deleting one copy never deletes another Project's copy. If a warning says
+recovery cannot be saved (storage full or unavailable), save the Project to disk
+with the button in the warning. A reload immediately after an edit may miss that
+very last edit — the copy lands within a fraction of a second; reloading after
+that restores the latest committed state.
+
+## Save does not ask where to put the file
+
+That is **Save** working: it overwrites the file named in the File menu. Use
+**Save As…** when you want a prompt. A Project with no file yet — a new Project
+or one restored from a recovery copy — makes **Save** ask once, then remembers.
 
 ## PNG or PDF export fails
 
-Confirm that Blob downloads are permitted by the browser; PNG also needs Canvas
-2D. SVG is the canonical fallback and contains the same formal scene.
-
-## The portable host does not start
-
-Use Node 24 or newer and ensure port 4173 is free. The portable host intentionally
-does not accept a LAN address. Use `pnpm dev` for a different development port.
-
-## Agent API requests fail
-
-Use the editor's Agent connection controls and the
-[MCP connection guide](../agent/mcp-install.md). Check session expiry, scopes,
-the currently authorized Project, and the client credential. Replacing a Project
-or revoking a session requires new authorization. A missing simulation environment
-is a recoverable configuration error, not proof that the Agent session is invalid.
-
-The portable static host does not automatically start optional services or
-discover a simulator. Use only the explicitly configured adapter for that host.
+PNG needs Canvas 2D; both need the browser to allow a Blob download. SVG is the
+canonical fallback and contains the same formal scene.
 
 ## Accessibility limits
 

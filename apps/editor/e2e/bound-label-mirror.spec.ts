@@ -6,7 +6,11 @@ import {
   resolveDocumentStyleProfile,
 } from "@icm/derived";
 import { builtInSymbols, InMemorySymbolResolver } from "@icm/symbols";
-import { awaitEditorReady, downloadBytes } from "./editor-fixtures";
+import {
+  awaitEditorReady,
+  downloadBytes,
+  projectFileBytes,
+} from "./editor-fixtures";
 
 function fixture() {
   const project = createEmptyProject("mirror-labels", "Mirror labels");
@@ -87,11 +91,7 @@ async function openFixture(page: Page) {
   return project.documents[0]!;
 }
 async function savedDocument(page: Page) {
-  const project = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  );
+  const project = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   return project.documents[0];
 }
 function checkReflected(
@@ -138,7 +138,7 @@ test("Properties mirror buttons carry the live MOS name and fraction value, with
   await editor.getByRole("button", { name: "Mirror left to right" }).click();
   const mirrored = await savedDocument(page);
   checkReflected(labels, mirrored.annotations, "x", 260);
-  const bytes = await downloadBytes(page, "File", "Export Project File…");
+  const bytes = await projectFileBytes(page);
   await page.keyboard.press("Escape");
   await page.keyboard.press("ControlOrMeta+z");
   expect((await savedDocument(page)).annotations).toEqual(initial.annotations);

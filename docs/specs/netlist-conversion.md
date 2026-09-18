@@ -6,36 +6,37 @@ Primary owner: `packages/spice`
 ## Runtime integration
 
 `convertNetlist` is a pure TypeScript adaptation of netlist-crawler's MIT
-structural translator. The Worker and Vite development server expose the same
-`POST /api/netlist/convert` protocol. Editor SCS import calls that core directly
-so importing local files also works offline. No additional service, Python
-process, account or simulator is involved. Existing canonical SPICE/Spectre
-export printers remain the authority for authored circuit exports.
+structural translator. It is an in-process function call: editor SCS import
+invokes it directly, which is why importing local files works with no service,
+HTTP endpoint, Python process, account or simulator involved. Upstream also
+exposed it over `POST /api/netlist/convert`; that handler is removed here, since
+serving it would require the network this fork does not have. Existing canonical
+SPICE/Spectre export printers remain the authority for authored circuit exports.
 
-The request is a JSON object:
+The call takes text and a dialect pair:
 
-```json
-{
-  "text": "R1 in out 1k",
-  "source": "spice",
-  "target": "spectre",
-  "fragment": true
-}
+```ts
+convertNetlist({
+  text: "R1 in out 1k",
+  source: "spice",
+  target: "spectre",
+  fragment: true,
+});
 ```
 
 `source` and `target` accept `spice`, `ngspice`, or `spectre`. SPICE/ngspice are
-syntax aliases in this subset. Success returns HTTP 200 with `status: converted`,
-`text`, `source`, `target`, and `issues`. Unsupported input returns HTTP 422,
-`status: blocked`, and diagnostics with the original `line`, `statement`, `code`,
-and `message`; no partial translated text is returned. Invalid JSON/envelopes,
-methods and media types use 400, 405 and 415. Input text is limited to 512 KiB,
-10,000 non-comment statements; the JSON wire body is limited to 1 MiB. Size
-violations return 413. Responses are `no-store`; no input is stored or executed.
+syntax aliases in this subset. Success returns `status: converted` with `text`,
+`source`, `target`, and `issues`. Unsupported input returns `status: blocked` and
+diagnostics carrying the original `line`, `statement`, `code`, and `message`; no
+partial translated text is returned. Input text is limited to 512 KiB and 10,000
+non-comment statements, reported as a `RESOURCE_LIMIT` diagnostic. No input is
+stored or executed.
 
 The default is a structural fragment. `fragment: false` recognizes the first
 physical line of a SPICE source as its simulator title, and appends `.end` to
 SPICE output if absent. Conversion is not a simulator validation or a complete
 SPICE/Spectre language implementation.
+
 
 ## Preserved subset
 
@@ -78,8 +79,8 @@ recognizable native Spectre local include files are converted without changing
 the original bytes. Include resolution, resource bounds, Project validation and
 placement continue through the existing SPICE importer. Unsupported source or
 unresolved dependencies leave the active Project unchanged. As with ordinary
-SPICE import, this constructs the circuit; it does not retain a complete
-simulation deck as attached source. Simulation source folders serve that purpose.
+SPICE import, this constructs the circuit; it does not retain the deck. Keep the
+original files if you need them — import is one-way.
 
 The complete upstream CLI is not embedded. Attribution and the MIT license
 are under `packages/spice/third-party/netlist-crawler/`; the conversion source

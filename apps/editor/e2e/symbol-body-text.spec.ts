@@ -2,8 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 
 import {
   chooseComponent,
-  downloadBytes,
   expectComponentCodeField,
+  projectFileBytes,
   setComponentCodeField,
 } from "./editor-fixtures";
 
@@ -102,11 +102,7 @@ test("the Properties field shows what the canvas edit committed", async ({
     "current steering",
   );
 
-  const saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ) as {
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8")) as {
     documents: Array<{
       instances: Array<{ signalFlowParameters?: { formula?: string } }>;
     }>;

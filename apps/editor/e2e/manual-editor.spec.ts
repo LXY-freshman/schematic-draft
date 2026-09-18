@@ -10,18 +10,19 @@ import {
   chooseComponent,
   clickCommand,
   clickDrawTool,
-  placeText,
   clickNetlistWorkflowCommand,
   downloadBytes,
   editComponentPropertyCode,
-  readComponentPropertyCode,
-  readDocumentStyleCode,
-  setComponentParameter,
-  setComponentCodeField,
   expectComponentCodeField,
   openMenu,
+  placeText,
+  projectFileBytes,
+  readComponentPropertyCode,
+  readDocumentStyleCode,
   readRecoveryRecords,
   recoveryProjectTexts,
+  setComponentCodeField,
+  setComponentParameter,
 } from "./editor-fixtures.js";
 import {
   placeComponent,
@@ -106,11 +107,7 @@ async function dragHandleToPoint(
 }
 
 async function exportedConnectivity(page: Page) {
-  const saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ) as {
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8")) as {
     documents: Array<{
       nets: Array<{
         id: string;
@@ -357,19 +354,11 @@ test("property placement null retains a wired instance and re-places it with gri
   await page.keyboard.press("Escape");
   await page.getByTestId("hit-R1").click();
   await openSelectionShelf(page);
-  const before = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  );
+  const before = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   await setComponentCodeField(page, "placement", null);
   await expect(page.getByTestId("hit-R1")).toHaveCount(0);
   await expectComponentCodeField(page, "placement", null);
-  const saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  );
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   expect(saved.documents[0].instances).toHaveLength(1);
   expect(saved.documents[0].nets).toEqual(before.documents[0].nets);
   expect(saved.documents[0].routes).toHaveLength(
@@ -445,282 +434,6 @@ test("a directly connected device can move away and return with its wire, undo a
   await page.keyboard.press("ControlOrMeta+Shift+z");
   await expect(page.locator('[data-canvas-hit-kind="route"]')).toHaveCount(0);
   expect((await hit.boundingBox())!.x).toBeCloseTo(before.x, 0);
-});
-
-test("opens one digital simulation window and picks a Net from the canvas", async ({
-  page,
-}) => {
-  const project = createRoutingDemoProject();
-  for (const instance of project.documents[0]!.instances) {
-    if (["A", "B", "E"].includes(instance.id) && instance.placement) {
-      instance.placement.position.y = 500;
-    }
-  }
-  project.documents[0]!.routes = [
-    createRoutePath({
-      id: "route-simulation-pick",
-      netId: "net-h",
-      start: { kind: "terminal", instanceId: "A", pinName: "P" },
-      end: { kind: "terminal", instanceId: "B", pinName: "P" },
-      bends: [],
-      modes: ["manual"],
-    }),
-  ];
-  project.documents[0]!.instances.push(
-    {
-      id: "CLK",
-      symbolId: "pulse-voltage-source",
-      placement: {
-        position: { x: 700, y: 180 },
-        rotation: 0,
-        mirror: "none",
-      },
-      reference: "V1",
-      netlist: {
-        parameters: { period: "10ns", dutyCycle: "50", initial: "0" },
-      },
-    },
-    {
-      id: "GND",
-      symbolId: "ground",
-      placement: {
-        position: { x: 700, y: 300 },
-        rotation: 0,
-        mirror: "none",
-      },
-    },
-  );
-  project.documents[0]!.nets.push(
-    {
-      id: "clock",
-      terminals: [{ instanceId: "CLK", pinName: "+" }],
-    },
-    {
-      id: "ground",
-      terminals: [
-        { instanceId: "CLK", pinName: "-" },
-        { instanceId: "GND", pinName: "0" },
-      ],
-    },
-  );
-  project.documents[0]!.connectivityEvidence.push({
-    id: "clock-name",
-    kind: "name-claim",
-    netId: "clock",
-    name: "CK",
-    scope: "local",
-    owner: { kind: "net-label", annotationId: "test-net-label-1" },
-  });
-  project.documents[0]!.annotations.push({
-    id: "test-net-label-1",
-    kind: "net-label",
-    netId: "clock",
-    binding: { kind: "net-name", netId: "clock" },
-    anchor: { kind: "free", position: { x: 700, y: 160 } },
-    alignment: "middle",
-    rotation: 0,
-    locked: false,
-  });
-  await page.goto("/editor");
-  await page.getByTestId("project-file").setInputFiles({
-    name: "digital-simulation-pick.icproj.json",
-    mimeType: "application/json",
-    buffer: Buffer.from(JSON.stringify(project)),
-  });
-
-  await expect(
-    page.getByLabel("Place Digital Clock", { exact: true }),
-  ).toBeVisible();
-  const canvas = page.getByTestId("schematic-canvas");
-  await page.getByLabel("Place Resistor", { exact: true }).click();
-  await expect(canvas).toHaveClass(/component-mode/u);
-  await page.getByRole("button", { name: "Simulation", exact: true }).click();
-
-  const simulation = page.getByRole("dialog", {
-    name: "Digital Simulation",
-  });
-  await expect(simulation).toBeVisible();
-  await expect(page.getByRole("dialog")).toHaveCount(1);
-  await expect(simulation.locator("details")).toHaveCount(0);
-  await expect(
-    simulation.locator(".digital-simulation-workspace"),
-  ).toBeVisible();
-  await expect
-    .poll(() =>
-      simulation
-        .locator(".simulation-saved-net-list")
-        .evaluate((element) => getComputedStyle(element).flexDirection),
-    )
-    .toBe("column");
-
-  await simulation.getByRole("button", { name: "Pick Nets" }).click();
-  await expect(canvas).toHaveClass(/simulation-net-pick-active/u);
-  await expect(canvas).not.toHaveClass(/component-mode/u);
-  const pickedRoute = page.getByTestId("route-hit-route-simulation-pick");
-  await expect
-    .poll(() =>
-      pickedRoute.evaluate((element) => getComputedStyle(element).strokeWidth),
-    )
-    .toBe("26px");
-  await clickRoute(page, "route-simulation-pick", 0.15);
-  await expect(simulation.getByLabel("Saved Nets")).toContainText("HORIZONTAL");
-  await clickRoute(page, "route-simulation-pick", 0.85);
-  await expect(simulation.getByLabel("Saved Nets")).toContainText("None");
-  await clickRoute(page, "route-simulation-pick", 0.5);
-  await expect(simulation.getByLabel("Saved Nets")).toContainText("HORIZONTAL");
-  // A Net label names its Net as directly as the wire does, and its press
-  // is claimed by the same router that claims the wire's.
-  const clockLabel = page.getByTestId("annotation-hit-test-net-label-1");
-  await clockLabel.click();
-  await expect(simulation.getByLabel("Saved Nets")).toContainText("CK");
-  await clockLabel.click();
-  await expect(simulation.getByLabel("Saved Nets")).not.toContainText("CK");
-  await page.keyboard.press("Escape");
-  await expect(page.locator(".schematic-canvas")).not.toHaveClass(
-    /simulation-net-pick-active/u,
-  );
-
-  await simulation.getByRole("button", { name: "Clear" }).click();
-  await simulation.getByLabel("Add saved Net").selectOption("clock");
-  const waveformName = simulation.getByRole("button", {
-    name: "Edit waveform name for CK",
-  });
-  await expect(waveformName).toContainText("CK");
-  await waveformName.click();
-  const labelEditor = simulation.getByRole("region", {
-    name: "Edit waveform name for CK",
-  });
-  const labelEditable = labelEditor.getByRole("textbox", {
-    name: "Canvas text editor",
-  });
-  await expect(labelEditor.getByRole("button", { name: "Bold" })).toBeVisible();
-  await expect(
-    labelEditor.getByRole("button", { name: "Subscript" }),
-  ).toBeVisible();
-  await labelEditable.fill("");
-  await labelEditor.getByRole("button", { name: "Apply text changes" }).click();
-  await expect(waveformName).toContainText("CK");
-  await waveformName.click();
-  await labelEditor
-    .getByRole("textbox", { name: "Canvas text editor" })
-    .fill("CLK_ALIAS");
-  await labelEditor.getByRole("button", { name: "Apply text changes" }).click();
-  await expect(
-    simulation.locator(".simulation-saved-net-source"),
-  ).toContainText("CK");
-  await simulation.getByRole("button", { name: "Run Simulation" }).click();
-  const waveformPreview = simulation.getByTestId("timing-waveform-preview");
-  await expect(waveformPreview).toBeVisible();
-  await expect(waveformPreview).toContainText("CLK_ALIAS");
-  const razaviTitleRun = waveformPreview
-    .locator("text")
-    .first()
-    .locator("tspan tspan");
-  await expect(razaviTitleRun).toHaveCSS("font-weight", "700");
-  await expect(razaviTitleRun).toHaveCSS("font-style", "italic");
-
-  const placeSnapshot = async (xRatio: number, yRatio: number) => {
-    await simulation.getByRole("button", { name: "Place on Canvas" }).click();
-    await simulation
-      .getByRole("button", { name: "Close Digital Simulation" })
-      .click();
-    await expect(canvas).toHaveClass(/waveform-placement-active/u);
-    const bounds = await canvas.boundingBox();
-    expect(bounds).not.toBeNull();
-    await page.mouse.move(
-      bounds!.x + bounds!.width * xRatio,
-      bounds!.y + bounds!.height * yRatio,
-    );
-    await page.mouse.click(
-      bounds!.x + bounds!.width * xRatio,
-      bounds!.y + bounds!.height * yRatio,
-    );
-    await expect(page.getByTestId("status")).toContainText(
-      "Placed a grouped timing snapshot",
-    );
-    await expect(canvas).not.toHaveClass(/waveform-placement-active/u);
-  };
-
-  // The opened project lands auto-fitted, tighter than the camera this
-  // flow was scripted for; two zoom-out steps restore comparable room so
-  // both snapshots and their scale handle stay fully on screen.
-  for (let zoomStep = 0; zoomStep < 2; zoomStep += 1) {
-    await page.getByRole("button", { name: "Zoom out" }).click();
-  }
-  await placeSnapshot(0.7, 0.72);
-  const draftingHits = page.locator('[data-testid^="drafting-hit-"]');
-  const selectedDraftingHits = page.locator(
-    '[data-testid^="drafting-hit-"].selected',
-  );
-  const firstSnapshotSize = await draftingHits.count();
-  expect(firstSnapshotSize).toBeGreaterThan(2);
-  await expect(selectedDraftingHits).toHaveCount(firstSnapshotSize);
-
-  await page.getByRole("button", { name: "Simulation", exact: true }).click();
-  await expect(
-    simulation.getByRole("button", { name: "Place on Canvas" }),
-  ).toBeEnabled();
-  await placeSnapshot(0.35, 0.55);
-  await expect(draftingHits).toHaveCount(firstSnapshotSize * 2);
-  await expect(selectedDraftingHits).toHaveCount(firstSnapshotSize);
-
-  const secondSnapshotTitle = draftingHits.nth(firstSnapshotSize);
-  const secondSnapshotTrace = draftingHits.nth(firstSnapshotSize + 2);
-  const secondSnapshotTraceId = await secondSnapshotTrace.getAttribute(
-    "data-drag-object-id",
-  );
-  expect(secondSnapshotTraceId).not.toBeNull();
-  const secondSnapshotTraceLine = canvas.locator(
-    `[data-object-id="${secondSnapshotTraceId}"][data-kind="construction-line"]`,
-  );
-  const traceStrokeBefore = Number(
-    await secondSnapshotTraceLine.getAttribute("stroke-width"),
-  );
-  const titleBeforeScale = await secondSnapshotTitle.boundingBox();
-  expect(titleBeforeScale).not.toBeNull();
-  const scaleHandle = page.locator(
-    '[data-testid^="draft-group-scale-waveform-group-"]',
-  );
-  await expect(scaleHandle).toBeVisible();
-  const scaleHandleBounds = await scaleHandle.boundingBox();
-  expect(scaleHandleBounds).not.toBeNull();
-  const scaleStart = {
-    x: scaleHandleBounds!.x + scaleHandleBounds!.width / 2,
-    y: scaleHandleBounds!.y + scaleHandleBounds!.height / 2,
-  };
-  await page.mouse.move(scaleStart.x, scaleStart.y);
-  await page.mouse.down();
-  await page.mouse.move(scaleStart.x + 90, scaleStart.y + 60, { steps: 5 });
-  await page.mouse.up();
-  await expect(page.getByTestId("status")).toContainText("Scaled waveform to");
-  const titleAfterScale = await secondSnapshotTitle.boundingBox();
-  expect(titleAfterScale!.width).toBeGreaterThan(titleBeforeScale!.width * 1.1);
-  const traceStrokeAfter = Number(
-    await secondSnapshotTraceLine.getAttribute("stroke-width"),
-  );
-  expect(traceStrokeAfter).toBeGreaterThan(traceStrokeBefore * 1.1);
-
-  const firstGroupMember = draftingHits.first();
-  const secondGroupMember = draftingHits.nth(1);
-  await expect(firstGroupMember).not.toHaveClass(/selected/u);
-  const firstBefore = await firstGroupMember.boundingBox();
-  const secondBefore = await secondGroupMember.boundingBox();
-  expect(firstBefore).not.toBeNull();
-  expect(secondBefore).not.toBeNull();
-  const start = {
-    x: firstBefore!.x + firstBefore!.width / 2,
-    y: firstBefore!.y + firstBefore!.height / 2,
-  };
-  await page.mouse.move(start.x, start.y);
-  await page.mouse.down();
-  await page.mouse.move(start.x + 45, start.y + 25, { steps: 4 });
-  await page.mouse.up();
-  await expect(firstGroupMember).toHaveClass(/selected/u);
-  await expect(selectedDraftingHits).toHaveCount(firstSnapshotSize);
-  const firstAfter = await firstGroupMember.boundingBox();
-  const secondAfter = await secondGroupMember.boundingBox();
-  expect(firstAfter!.x - firstBefore!.x).toBeGreaterThan(20);
-  expect(secondAfter!.x - secondBefore!.x).toBeGreaterThan(20);
 });
 
 test("shows faithful symbol previews for the reviewed Razavi palette", async ({
@@ -924,11 +637,7 @@ test("initializes PMOS bulk from the first explicitly drawn VDD rail", async ({
   await canvas.click({ position: { x: 520, y: 100 } });
   await page.keyboard.press("Escape");
 
-  const saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ) as {
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8")) as {
     documents: Array<{
       mosBulkDefaults?: { pmosNetId?: string };
       connectivityEvidence: Array<{
@@ -1202,11 +911,7 @@ test("Cell Pin deletion releases its interface and Base Net lifecycle", async ({
 
   await placeNamedPort("BUS", { x: 260, y: 180 });
 
-  let saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ) as {
+  let saved = JSON.parse((await projectFileBytes(page)).toString("utf8")) as {
     documents: Array<{
       nets: Array<{
         id: string;
@@ -1238,9 +943,7 @@ test("Cell Pin deletion releases its interface and Base Net lifecycle", async ({
   await page.getByTestId("hit-P1").click();
   await page.keyboard.press("Delete");
   saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
+    (await projectFileBytes(page)).toString("utf8"),
   ) as typeof saved;
   expect(saved.documents[0]!.nets).toEqual([]);
   expect(saved.documents[0]!.connectivityEvidence).toEqual([]);
@@ -1269,11 +972,7 @@ test("Ctrl+R mirrors a selected component instead of refreshing", async ({
   await placeComponent(page, "nmos", { x: 340, y: 220 });
   await page.getByTestId("hit-M1").click();
   await page.keyboard.press("Control+r");
-  const saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  );
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   expect(saved.documents[0].instances[0].placement).toMatchObject({
     rotation: 0,
     mirror: "vertical",
@@ -1308,11 +1007,7 @@ test("treats hollow and filled Cell Pins as equivalent interface variants", asyn
   await page.getByTestId("hit-P2").click();
   await page.keyboard.press("Delete");
   await expect(page.getByTestId("hit-P2")).toHaveCount(0);
-  const saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ) as {
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8")) as {
     documents: Array<{
       nets: Array<{ terminals: Array<{ instanceId: string }> }>;
       routes: Array<{
@@ -1416,11 +1111,9 @@ test("component property code turns a connected part by 45 degrees", async ({
     "Applied Canvas property code to R1",
   );
   await expect(page.locator('[data-layer="routes"] polyline')).toHaveCount(1);
-  const saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ) as { documents: SchematicDocument[] };
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8")) as {
+    documents: SchematicDocument[];
+  };
   expect(saved.documents[0]!.instances[0]!.placement?.rotation).toBe(45);
   const persistedBends = saved.documents[0]!.routes[0]!.legs.flatMap((leg) =>
     leg.to.kind === "bend" ? [leg.to.position] : [],
@@ -2014,11 +1707,7 @@ test("fills a closed shape and moves it behind or in front of circuit artwork", 
   ).toHaveCount(1);
 
   await properties.getByRole("button", { name: "Bring to front" }).click();
-  const saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  );
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   expect(saved.documents[0].drafting.objects[0]).toMatchObject({
     id: "box",
     layer: "foreground",
@@ -2074,7 +1763,7 @@ test("changes wire line style while preserving color, arrow, export and undo", a
   expect(
     JSON.parse(await readComponentPropertyCode(page)).appearance.lineStyle,
   ).toBe("dotted");
-  const saved = await downloadBytes(page, "File", "Export Project File…");
+  const saved = await projectFileBytes(page);
   expect(
     JSON.parse(saved.toString("utf8")).documents[0].routes[0].styleOverride,
   ).toEqual({
@@ -2449,11 +2138,7 @@ test("initializes NMOS bulk from the first explicitly placed Ground", async ({
     bulk.getByRole("button", { name: "Draw bulk connection" }),
   ).toHaveText("Draw");
 
-  const saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ) as {
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8")) as {
     documents: Array<{
       mosBulkDefaults?: { nmosNetId?: string };
       instances: Array<{
@@ -3085,11 +2770,7 @@ test("applies Route name, scope, and appearance from one JSON edit", async ({
     };
   });
   await expect(page.getByTestId("revision")).toHaveText(String(revision + 1));
-  const saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  );
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   expect(saved.documents[0].routes[0].styleOverride).toEqual({
     color: "#dc2626",
     lineStyle: "dotted",
@@ -3246,11 +2927,7 @@ test("formats a Net Label without changing its electrical Net name", async ({
     "B",
   );
 
-  const projectBytes = await downloadBytes(
-    page,
-    "File",
-    "Export Project File…",
-  );
+  const projectBytes = await projectFileBytes(page);
   const saved = JSON.parse(projectBytes.toString("utf8"));
   expect(saved.documents[0].connectivityEvidence).toContainEqual(
     expect.objectContaining({
@@ -3556,9 +3233,7 @@ test("stacks complementary scripts under one uninterrupted overbar", async ({
     denominator?: { runs: SavedRichTextRun[] };
   };
   const project = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
+    (await projectFileBytes(page)).toString("utf8"),
   ) as {
     documents: Array<{
       drafting: {
@@ -4256,11 +3931,7 @@ test("deletes imported Net Labels with non-editor ids", async ({ page }) => {
   );
   await page.keyboard.press("Control+z");
 
-  const savedWithoutLabel = await downloadBytes(
-    page,
-    "File",
-    "Export Project File…",
-  );
+  const savedWithoutLabel = await projectFileBytes(page);
   const savedDocument = JSON.parse(savedWithoutLabel.toString("utf8"))
     .documents[0];
   expect(savedDocument.annotations).toHaveLength(0);
@@ -4677,7 +4348,7 @@ test("retains recovery across export but honors explicit discard on replacement"
 
   // Saving downloads the formal Project but never clears the browser
   // recovery copies; waiting past the debounce proves they survive.
-  await downloadBytes(page, "File", "Export Project File…");
+  await projectFileBytes(page);
   await page.waitForTimeout(500);
   await expect
     .poll(() => recoveryProjectTexts(page))
@@ -4739,9 +4410,7 @@ test("discard recovery clears the recovery slot", async ({ page }) => {
     .toBe(0);
 });
 
-test("keeps the production command surface compact and publishes PWA metadata", async ({
-  page,
-}) => {
+test("keeps the production command surface compact", async ({ page }) => {
   await page.goto("/editor");
   const toolbar = page.getByRole("navigation", { name: "Editor commands" });
   for (const label of ["File", "Edit"]) {
@@ -4752,24 +4421,10 @@ test("keeps the production command surface compact and publishes PWA metadata", 
   ).toHaveCount(0);
   await expect(toolbar.getByTestId("copy-netlist")).toBeVisible();
   const netlistSummary = toolbar.locator('summary[aria-label="Netlist"]');
-  await expect(toolbar.getByTestId("open-analog-simulation")).toBeVisible();
   await expect(page.getByTestId("check-and-save")).toBeHidden();
   await netlistSummary.click();
-  await expect(page.getByTestId("open-analog-simulation")).toBeVisible();
   await expect(page.getByTestId("check-and-save")).toBeVisible();
   await netlistSummary.click();
-  await clickNetlistWorkflowCommand(page, "open-analog-simulation");
-  await expect(
-    page.getByRole("region", { name: "Analog simulation" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Exit Simulation" }).click();
-  await page
-    .getByRole("dialog", { name: "Exit Simulation?" })
-    .getByRole("button", { name: "Exit Simulation", exact: true })
-    .click();
-  await expect(
-    page.getByRole("dialog", { name: "Exit Simulation?" }),
-  ).toHaveCount(0);
   // Drawing tools live in the always-visible toolbar, not behind a menu.
   await expect(toolbar.locator("summary", { hasText: "Draw" })).toHaveCount(0);
   await expect(page.getByTestId("draw-toolbar")).toBeVisible();
@@ -4794,16 +4449,16 @@ test("keeps the production command surface compact and publishes PWA metadata", 
     ).toHaveCount(0);
   }
 
-  const manifest = await page
-    .locator('link[rel="manifest"]')
-    .getAttribute("href");
-  expect(manifest).toBe("/manifest.webmanifest");
+  // Nothing here advertises a web app: the shell is the installed product, so
+  // there is no manifest to install from and no service worker to register.
+  await expect(page.locator('link[rel="manifest"]')).toHaveCount(0);
   expect(
-    await (await page.request.get("/manifest.webmanifest")).json(),
-  ).toMatchObject({
-    name: "Analog Canvas",
-    display: "standalone",
-  });
+    await page.evaluate(async () =>
+      navigator.serviceWorker
+        ? (await navigator.serviceWorker.getRegistrations()).length
+        : 0,
+    ),
+  ).toBe(0);
 });
 
 test("separates drawing, placement, and Cell body resets with impact preview and Undo", async ({
@@ -4894,87 +4549,6 @@ test("separates drawing, placement, and Cell body resets with impact preview and
   await expect(page.getByTestId("revision")).toHaveText("9");
 });
 
-test("shows first-party visitor analytics without tracking the dashboard itself", async ({
-  page,
-}) => {
-  await page.addInitScript(() => localStorage.setItem("theme", "dark"));
-  let dashboardTracked = false;
-  await page.route("**/api/track", async (route) => {
-    dashboardTracked = true;
-    await route.fulfill({ status: 204 });
-  });
-  await page.route("**/api/analytics", async (route) => {
-    const countries = [
-      "CN",
-      "US",
-      "GB",
-      "DE",
-      "FR",
-      "JP",
-      "SG",
-      "CA",
-      "AU",
-      "IN",
-      "NZ",
-    ].map((code, index) => ({ code, pv: 12 - index, uv: 11 - index }));
-    await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({
-        generatedAt: "2026-08-12T00:00:00.000Z",
-        totals: { pv: 12, uv: 7 },
-        today: { date: "2026-08-12", pv: 3, uv: 2 },
-        days: [
-          { date: "2026-05-15", pv: 1, uv: 1 },
-          { date: "2026-08-12", pv: 3, uv: 2 },
-        ],
-        countries,
-        points: [{ lat: 40, lng: 116, count: 8 }],
-        paths: [{ path: "/", pv: 12, uv: 7 }],
-        sources: [{ source: "direct-or-unknown", pv: 12, uv: 7 }],
-        breakdownStartedAt: "2026-08-12T00:00:00.000Z",
-        breakdownTotals: {
-          countries: { pv: 12, uv: 7 },
-          sources: { pv: 12, uv: 7 },
-          pages: { pv: 12, uv: 7 },
-        },
-      }),
-    });
-  });
-
-  await page.goto("/analytics");
-  await expect(page.getByRole("heading", { name: "Analytics" })).toBeVisible();
-  await expect(page).toHaveTitle("Analytics — Analog Canvas");
-  await expect(
-    page.getByRole("link", { name: "Back to editor" }),
-  ).toHaveAttribute("href", "/");
-  await expect(page.getByRole("textbox", { name: "From" })).toHaveValue(
-    "2026-05-15",
-  );
-  await expect(
-    page.getByRole("textbox", { name: "To", exact: true }),
-  ).toHaveValue("2026-08-12");
-  await expect(
-    page.getByRole("button", { name: "Last 90 days" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "ISO 3166 Code" }),
-  ).toBeVisible();
-  await expect(page.getByText("China")).toBeVisible();
-  await expect(page.getByText("New Zealand")).toHaveCount(0);
-  await page.getByRole("button", { name: "Show all 11" }).click();
-  await expect(page.getByText("New Zealand")).toBeVisible();
-
-  const themeSwitch = page.getByRole("button", {
-    name: "Switch to light theme",
-  });
-  await themeSwitch.click();
-  await expect(page.locator("html")).toHaveClass(/light/);
-  await expect(
-    page.getByRole("button", { name: "Switch to dark theme" }),
-  ).toBeVisible();
-  expect(dashboardTracked).toBe(false);
-});
-
 test("dismisses a command menu on outside click or Escape", async ({
   page,
 }) => {
@@ -4982,7 +4556,7 @@ test("dismisses a command menu on outside click or Escape", async ({
   const fileMenu = await openMenu(page, "File");
   await expect(fileMenu).toHaveAttribute("open", "");
 
-  // The wordmark now navigates to the gallery, so dismiss on a neutral spot.
+  // Dismiss on a neutral spot rather than on any interactive chrome.
   await page.locator(".app-brand-copy p").click();
   await expect(fileMenu).not.toHaveAttribute("open", "");
 
@@ -5665,11 +5239,8 @@ test("bonds pins crossed by Power Rail drawing, resizing, and dragging", async (
     await page.mouse.up();
   };
   const readDocument = async () =>
-    JSON.parse(
-      (await downloadBytes(page, "File", "Export Project File…")).toString(
-        "utf8",
-      ),
-    ).documents[0] as SchematicDocument;
+    JSON.parse((await projectFileBytes(page)).toString("utf8"))
+      .documents[0] as SchematicDocument;
   const expectVddPins = (
     saved: SchematicDocument,
     pins: Array<[string, string]>,

@@ -10,9 +10,8 @@ allowBuilds:
   # Squirrel.Windows is not a target of the desktop build; its native helper
   # never needs to be fetched.
   electron-winstaller: false
-  # Wrangler validates its local bundler and Worker runtime binaries.
+  # esbuild bundles the desktop main process.
   esbuild: true
-  workerd: true
 minimumReleaseAgeExclude:
   - vite@8.2.1
   - svg2pdf.js@2.8.0

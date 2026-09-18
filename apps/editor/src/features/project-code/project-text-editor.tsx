@@ -28,7 +28,7 @@ import {
 import { json } from "@codemirror/lang-json";
 import { searchKeymap } from "@codemirror/search";
 
-import { spiceCodeLanguage } from "../simulation/code-spice-language";
+import { spiceCodeLanguage } from "./code-spice-language";
 
 export type ProjectTextLanguage = "json" | "netlist";
 

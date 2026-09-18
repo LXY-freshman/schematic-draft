@@ -3,17 +3,16 @@ import { describe, expect, it, vi } from "vitest";
 import { guardedRouteChunk } from "./route-chunk-loader";
 import type { RouteChunkRuntime } from "./route-chunk-loader";
 import {
-  ConfirmedStaleBuildError,
+  MissingApplicationFileError,
   TemporaryModuleLoadError,
-} from "./stale-build-recovery";
-import type { ModuleLoadDiagnosis } from "./stale-build-recovery";
+} from "./module-load-diagnosis";
+import type { ModuleLoadDiagnosis } from "./module-load-diagnosis";
 
 function runtime(
   diagnosis: ModuleLoadDiagnosis,
   remembered: string | null = null,
 ) {
   const reload = vi.fn();
-  const cleanReload = vi.fn(() => Promise.resolve());
   const rememberReload = vi.fn(() => true);
   const forgetReload = vi.fn();
   const delay = vi.fn(() => Promise.resolve());
@@ -25,12 +24,10 @@ function runtime(
     diagnose: () => Promise.resolve(diagnosis),
     delay,
     reload,
-    cleanReload,
   };
   return {
     value,
     reload,
-    cleanReload,
     rememberReload,
     forgetReload,
     delay,
@@ -47,25 +44,26 @@ describe("guardedRouteChunk", () => {
     expect(context.forgetReload).toHaveBeenCalledOnce();
   });
 
-  it("clean-reloads once when the named asset is confirmed missing", async () => {
+  it("reloads immediately when the named asset is confirmed missing", async () => {
     const context = runtime({
-      kind: "stale-build",
-      assetUrl: "https://example.test/assets/App-old.js",
+      kind: "missing-file",
+      assetUrl: "app://schematic-draft/assets/App-old.js",
       status: 404,
     });
     void guardedRouteChunk(
       () => Promise.reject(new TypeError("dynamic import failed")),
       context.value,
     )();
-    await vi.waitFor(() => expect(context.cleanReload).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(context.reload).toHaveBeenCalledOnce());
     expect(context.rememberReload).toHaveBeenCalledWith("/editor");
-    expect(context.reload).not.toHaveBeenCalled();
+    // Waiting buys nothing for a file that is simply not there.
+    expect(context.delay).not.toHaveBeenCalled();
   });
 
-  it("delays and ordinarily reloads once for a temporary failure", async () => {
+  it("delays before reloading once for a temporary failure", async () => {
     const context = runtime({
       kind: "temporary",
-      assetUrl: "https://example.test/assets/App-current.js",
+      assetUrl: "app://schematic-draft/assets/App-current.js",
       status: 200,
     });
     void guardedRouteChunk(
@@ -74,14 +72,13 @@ describe("guardedRouteChunk", () => {
     )();
     await vi.waitFor(() => expect(context.reload).toHaveBeenCalledOnce());
     expect(context.delay).toHaveBeenCalledWith(750);
-    expect(context.cleanReload).not.toHaveBeenCalled();
   });
 
   it("surfaces the confirmed diagnosis instead of reloading twice", async () => {
-    const stale = runtime(
+    const missing = runtime(
       {
-        kind: "stale-build",
-        assetUrl: "https://example.test/assets/App-old.js",
+        kind: "missing-file",
+        assetUrl: "app://schematic-draft/assets/App-old.js",
         status: 404,
       },
       "/editor",
@@ -89,15 +86,15 @@ describe("guardedRouteChunk", () => {
     await expect(
       guardedRouteChunk(
         () => Promise.reject(new TypeError("dynamic import failed")),
-        stale.value,
+        missing.value,
       )(),
-    ).rejects.toBeInstanceOf(ConfirmedStaleBuildError);
-    expect(stale.cleanReload).not.toHaveBeenCalled();
+    ).rejects.toBeInstanceOf(MissingApplicationFileError);
+    expect(missing.reload).not.toHaveBeenCalled();
 
     const temporary = runtime(
       {
         kind: "temporary",
-        assetUrl: "https://example.test/assets/App-current.js",
+        assetUrl: "app://schematic-draft/assets/App-current.js",
         status: 200,
       },
       "/editor",

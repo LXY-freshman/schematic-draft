@@ -61,11 +61,11 @@ fallback.
   baseline;
 - assert formal SVG has no editor-only layers.
 
-## Agent File Resource
+## Delivery
 
-An authorized API-3.0 Agent downloads canonical Project JSON or formal
-SVG/PNG/PDF only through the separate File Resource advertised by
-capabilities. Project download uses `serializeProject()` byte-for-byte; visual
-formats derive from the same formal SVG. Selection, diagnostics, flightlines,
-and editor overlays never enter a formal artifact. Responses are bounded,
-hashed, Project/Document-revision bound, and never persisted by the relay.
+Every artifact is produced in the renderer and handed to the user through a
+local blob download or, for Project JSON, through the desktop file bridge.
+Nothing is uploaded, and no export path contacts a network service. Project
+text always comes from `serializeProject()` byte-for-byte; visual formats always
+derive from the same formal SVG scene. Selection, diagnostics, flightlines, and
+editor overlays never enter a formal artifact.

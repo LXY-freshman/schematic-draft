@@ -216,10 +216,10 @@ describe("one Project copy path", () => {
     expect(logical.baseNetIds).toHaveLength(2);
     expect(copied.documents[0]!.routes).toEqual(doc.routes);
   });
-  it("copies a real SKY130 Gallery scene and its referenced definitions atomically, twice", () => {
+  it("copies a real SKY130 scene and its referenced definitions atomically, twice", () => {
     const source = parseProject(
       readFileSync(
-        "apps/editor/src/examples/simulation-common-source.icproj.json",
+        "apps/editor/src/examples/five-transistor-ota-sky130.icproj.json",
         "utf8",
       ),
     );

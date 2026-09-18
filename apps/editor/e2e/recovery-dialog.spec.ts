@@ -188,7 +188,7 @@ test("a damaged latest copy restores the previous generation", async ({
   await expect(page.getByTestId("revision")).toHaveText("1");
 });
 
-test("a newer-schema copy is downloadable but not restorable", async ({
+test("a newer-schema copy can be saved to a file but not restored", async ({
   page,
 }) => {
   await page.goto("/editor");
@@ -216,12 +216,29 @@ test("a newer-schema copy is downloadable but not restorable", async ({
   await expect(card).toContainText("Newer Project schema");
   await expect(card.getByRole("button", { name: "Restore" })).toBeDisabled();
 
-  const downloadPromise = page.waitForEvent("download");
+  // Saving goes through the desktop shell's file bridge; a fake main process
+  // reports where the copy landed.
+  let backupName: string | null = null;
+  await page.route("**/api/file/save", (route) => {
+    const body = route.request().postDataJSON() as { name: string };
+    backupName = body.name;
+    return route.fulfill({
+      json: {
+        status: "saved",
+        file: {
+          path: `C:\\circuits\\${body.name}.icproj.json`,
+          name: `${body.name}.icproj.json`,
+        },
+      },
+    });
+  });
   await card
-    .getByRole("button", { name: "Download backup of Future Project" })
+    .getByRole("button", { name: "Save a copy of Future Project to a file" })
     .click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toContain("-backup.icproj.json");
+  await expect(page.getByTestId("status")).toContainText(
+    "Recovery copy written to",
+  );
+  expect(backupName).toContain("-backup");
   // The incompatible record is still present, never deleted as corrupt.
   await expect
     .poll(async () => {
@@ -302,7 +319,7 @@ test("dialog closes with Escape and keeps focus labels", async ({ page }) => {
   await expect(dialog).toBeHidden();
 });
 
-test("storage failure offers a backup without acknowledging Cloud Save", async ({
+test("storage failure offers a backup without clearing the unsaved flag", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -324,16 +341,29 @@ test("storage failure offers a backup without acknowledging Cloud Save", async (
   await expect(warning).toBeVisible();
   await expect(warning).toContainText("unavailable");
   await expect(page.getByTestId("recovery-state")).toHaveText(
-    "Recovery unavailable — download now",
+    "Recovery unavailable — save a copy now",
   );
 
-  const downloadPromise = page.waitForEvent("download");
-  await warning.getByRole("button", { name: "Download Backup" }).click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toContain(".icproj.json");
-  // A portable backup mitigates data loss but is not the Cloud Save
-  // authority. Keep both the dirty truth and the still-actionable storage
-  // warning until the user explicitly dismisses it.
+  let backupName: string | null = null;
+  await page.route("**/api/file/save", (route) => {
+    const body = route.request().postDataJSON() as { name: string };
+    backupName = body.name;
+    return route.fulfill({
+      json: {
+        status: "saved",
+        file: {
+          path: `C:\\circuits\\${body.name}.icproj.json`,
+          name: `${body.name}.icproj.json`,
+        },
+      },
+    });
+  });
+  await warning.getByRole("button", { name: "Save a Copy…" }).click();
+  await expect(page.getByTestId("status")).toContainText("Backup written to");
+  expect(backupName).toContain("-backup");
+  // A copy on the side mitigates data loss but is not the open file. Keep
+  // both the dirty truth and the still-actionable storage warning until the
+  // user explicitly dismisses it.
   await expect(warning).toBeVisible();
   await expect(page.getByTestId("project-unsaved-indicator")).toBeVisible();
   await warning.getByRole("button", { name: "Dismiss warning" }).click();

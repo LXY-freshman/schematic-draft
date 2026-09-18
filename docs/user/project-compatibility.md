@@ -50,9 +50,9 @@ was a wire, Label, Alias, or hierarchy terminal. Schema v34 retires the hidden
 `explicit-net-property` naming owner. Source-backed local names become
 non-electrical round-trip hints, explicit SPICE globals retain declaration
 authority, and visible power objects become the owner where one already exists.
-Schema v35 unifies Instance References, and schema v36 restores Gallery-copied
-reference-shaped RichText labels as mapped Reference presentations while
-retaining descriptive attached text. Schema v37 adds the optional Project
+Schema v35 unifies Instance References, and schema v36 restores
+reference-shaped RichText labels copied out of the upstream hosted editor as
+mapped Reference presentations while retaining descriptive attached text. Schema v37 adds the optional Project
 `simulation` setup, which records which Cell is the testbench, which analyses
 and outputs to run, and which simulator profile to use; simulation results are
 never saved, and a v36 file changes only its version stamp. Schema v38 adds
@@ -79,6 +79,11 @@ These additions do not invent intent while upgrading an older Project.
 The original file is never overwritten silently. Schemas older than v24 and
 versions newer than v57 are rejected by the project-file boundary.
 
+Simulation setups and folders (v37 through v50 above) are still read, upgraded,
+and written back unchanged. This edition has no simulator, so nothing acts on
+them; they survive so that a file written by the upstream hosted editor
+round-trips through this one without losing data.
+
 The canonical-current corpus at
 [`fixtures/projects/compatibility-corpus.json`](../../fixtures/projects/compatibility-corpus.json)
 lists current and explicitly retained historical circuit fixtures. It distinguishes
@@ -88,9 +93,10 @@ the original OTA conversion witness remains unchanged for migration testing.
 Retired fields such as first-class
 `Document.ports`, `Net.ports`, `spice.*`, and `routeAttachment` are invalid.
 
-An incompatible Project is rejected before it can replace the current browser
-Project. Conversion, when needed, is an explicit external operation that must
-produce and validate a complete v56 candidate before a human chooses to load it.
+An incompatible Project is rejected before it can replace the Project you are
+editing. Conversion, when needed, is an explicit external operation that must
+produce and validate a complete current-version candidate before a human chooses
+to load it.
 
 Equal visible Label, Port, power-marker, and explicit global-declaration names
 resolve to one Logical Net without erasing their separate Base Net identities.
@@ -98,15 +104,14 @@ Imported or legacy source-name hints never trigger that union, so composing two
 Documents cannot create an invisible connection merely because both sources
 used a local spelling such as `OUT`.
 
-Viewport, selection, canvas overlays, import compiler state, Agent session
-credentials, and recovery envelopes are not part of the Project file. Browser
-recovery is a non-authoritative safety copy kept in this browser's IndexedDB:
-at most two recent working copies, each with a current and a previous
-generation, each copy at most 4 MB and 12 MB in total. It does not survive
-explicitly clearing site data. Use **File / Save** for the formal Cloud Project
-and **Export Project File…** for portable bytes. A direct backup download is
-shown when recovery storage fails. These operations do not delete browser
-recovery copies.
+Viewport, selection, canvas overlays, import compiler state, and recovery
+envelopes are not part of the Project file. Recovery is a non-authoritative
+safety copy kept in the application's own IndexedDB: at most two recent working
+copies, each with a current and a previous generation, each copy at most 4 MB and
+12 MB in total. It does not survive explicitly clearing that storage. Use
+**File / Save** to write the file you opened and **Save As…** for a copy under a
+new name. A direct backup download is shown when recovery storage fails. These
+operations do not delete recovery copies.
 
 Schema 56 adds optional electrical Wire `styleOverride.lineStyle` (`solid`,
 `dashed`, or `dotted`). Styling does not change electrical connectivity or

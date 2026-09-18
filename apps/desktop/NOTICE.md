@@ -13,20 +13,23 @@ computer:
 
 - the editor is served from bundled files over a private `app://` scheme
   instead of a web server;
-- Projects are stored as plain files under `Documents\Schematic Draft\Projects`
-  instead of a cloud account;
+- a Project is an ordinary `.icproj.json` file opened and saved through the
+  native file dialogs, wherever you keep it, instead of a cloud account;
 - every outbound network request is refused before a connection is made;
-- the hosted-only surfaces (accounts, Gallery, publishing, usage analytics,
-  the agent relay and the hosted simulator) are removed from the interface.
+- the hosted-only code (accounts, Cloud Projects, Gallery and moderation,
+  publishing, usage analytics, the Agent API and its MCP server, and the hosted
+  simulation service) is deleted, not merely hidden.
 
 ## Your rights under the AGPL
 
 The AGPL gives you the right to obtain, study, modify and redistribute the
 complete corresponding source code of this program, including the
 modifications listed above. The source tree that produced this build ships
-alongside it; if you received a binary without it, the upstream project above
-plus this notice describe where the changes live (`apps/desktop/**` and the
-`VITE_ICM_DESKTOP` branches under `apps/editor/src/**`).
+alongside it, under `source\`; if you received a binary without it, the upstream
+project above plus this notice describe what changed. The desktop shell is
+`apps/desktop/**`; the file open/save surface is
+`apps/editor/src/features/editor-shell/**`; the rest of the difference is
+deletion, visible as absence.
 
 If you redistribute this program, modified or not, you must pass the same
 rights on and keep this notice and `LICENSE.md` intact.

@@ -92,18 +92,6 @@
   box-shadow: 0 0 0 3px var(--icm-accent-soft);
 }
 
-.agent-shelf-indicator {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: var(--icm-success, #2f855a);
-}
-
-.agent-shelf-indicator.terminal {
-  background: var(--icm-text-muted);
-}
-
 .selection-panel {
   flex: 1 1 auto;
   min-height: 0;

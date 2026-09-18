@@ -12,10 +12,7 @@ history. Start with the topic, then follow its Decision links to the contracts.
 | Net                   | [Physical membership, logical identity and diagnostic evidence](net-connectivity.md) |
 | Routing               | [Shared geometry, stable identities and evaluated operations](routing.md)            |
 | Hierarchy and netlist | [Interfaces, references and deterministic export](hierarchy-netlist.md)              |
-| Agent                 | [Browser authority, transports and scoped resources](agent.md)                       |
 | Persistence           | [Save, recovery and file compatibility](persistence.md)                              |
-| Simulation            | [Authored experiment, execution and result boundaries](simulation.md)                |
-| Deployment            | [Channel isolation, routing and candidate promotion](deployment.md)                  |
 
 ## Retention test
 

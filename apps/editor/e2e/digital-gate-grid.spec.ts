@@ -7,6 +7,7 @@ import {
   clickDrawTool,
   downloadBytes,
   editComponentPropertyCode,
+  projectFileBytes,
 } from "./editor-fixtures.js";
 
 const gateIds = [
@@ -125,11 +126,8 @@ test("digital gates align from their left outline and keep wired terminals throu
   await page.keyboard.press("Escape");
   await expect(page.locator('[data-canvas-hit-kind="route"]')).toHaveCount(9);
 
-  const wired = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ).documents[0];
+  const wired = JSON.parse((await projectFileBytes(page)).toString("utf8"))
+    .documents[0];
   const routeIds = [
     ...gateIds.map((_, i) => [`U${i + 1}`, "Y"]),
     ["U8", "A"],
@@ -210,7 +208,7 @@ test("digital gates align from their left outline and keep wired terminals throu
   expect(await exportStarts()).toEqual(initialStarts);
   await clickCommand(page, "Edit", "Redo");
 
-  const saved = await downloadBytes(page, "File", "Export Project File…");
+  const saved = await projectFileBytes(page);
   const document = JSON.parse(saved.toString("utf8")).documents[0];
   expect(
     document.nets.flatMap((net: { terminals: unknown[] }) => net.terminals),

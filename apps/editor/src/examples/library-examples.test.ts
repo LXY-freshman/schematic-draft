@@ -1,21 +1,15 @@
-import { sourcePresentation } from "../features/simulation/source-presentation";
 import { readFileSync } from "node:fs";
 
 import {
   buildProjectConnectivityIndex,
-  evaluateSubmissionGates,
   resolveDocumentLogicalNets,
   resolveVisualAnchor,
   runErcChecks,
 } from "@icm/derived";
-import {
-  CURRENT_PROJECT_SCHEMA_VERSION,
-  readSimulationExperimentConfig,
-} from "@icm/model";
+import { CURRENT_PROJECT_SCHEMA_VERSION } from "@icm/model";
 import type { CircuitProject } from "@icm/model";
 import {
   analyzeDesignNetlist,
-  compileSourceSimulation,
   createDesignNetlistExport,
   createNetlistExportProfile,
   printSpiceNetlist,
@@ -362,76 +356,8 @@ describe("the bundled five-transistor Sky130 OTA", () => {
     });
   });
 
-  it("ships twelve native folders with original analysis coverage and Canvas bindings", async () => {
-    const expected = [
-      ["simulation-setup-ota-op-ac", "OP + DC + AC + TRAN", "tt"],
-      ["simulation-setup-ota-full-tt", "OP + DC + AC + TRAN + NOISE", "tt"],
-      ["simulation-setup-ota-bias-tt", "OP", "tt"],
-      ["simulation-setup-ota-dc-transfer-tt", "DC", "tt"],
-      ...["tt", "ff", "ss", "fs", "sf"].map((corner) => [
-        "simulation-setup-ota-ac-" + corner,
-        "AC",
-        corner,
-      ]),
-      ["simulation-setup-ota-tran-tt", "TRAN", "tt"],
-      ["simulation-setup-ota-noise-tt", "NOISE", "tt"],
-      ["simulation-setup-ota-tran-sin-tt", "TRAN", "tt"],
-    ];
-    expect(
-      project.simulationFolders.map((folder) => {
-        const parsed = readSimulationExperimentConfig(folder);
-        if (!parsed.ok) throw Error(parsed.message);
-        expect(parsed.authority).toBe("code");
-        return [
-          folder.id,
-          sourcePresentation(folder).analysisLabel,
-          folder.input.files
-            .find((f) => f.path === folder.input.entry)
-            ?.text.match(
-              /include "models\/library\.inc" section=(tt|ff|ss|fs|sf)/u,
-            )?.[1],
-        ];
-      }),
-    ).toEqual(expected);
-    for (const folder of project.simulationFolders) {
-      expect(
-        folder.input.circuitBindings.find((b) => b.emission === "top-level")
-          ?.documentId,
-      ).toBe(
-        folder.id.endsWith("sin-tt")
-          ? "document-ota-5t-testbench-sin"
-          : testbench.id,
-      );
-      const compiled = await compileSourceSimulation(project, folder);
-      expect(compiled.ok, JSON.stringify(compiled)).toBe(true);
-      if (!compiled.ok) continue;
-      expect(compiled.language).toBe("vacask");
-      expect(compiled.config.outputs).toEqual([]);
-      expect(compiled.config.measurements).toEqual([]);
-      expect(
-        compiled.files.find((f) => f.path === "circuit.spice")?.text,
-      ).toContain("mag=1");
-      const code = compiled.files.find(
-        (f) => f.path === folder.input.entry,
-      )!.text;
-      if (folder.id === "simulation-setup-ota-op-ac") {
-        expect(code).toContain("from=0.88 to=0.92 step=0.005");
-        expect(code).toContain('from=1 to=1000000000 mode="dec" points=10');
-        expect(code).toContain("stop=0.000004 step=2e-8 maxstep=2e-8");
-      }
-      if (folder.id.endsWith("sin-tt"))
-        expect(
-          compiled.files.find((f) => f.path === "circuit.spice")?.text,
-        ).toContain('type="sine"');
-    }
-  });
-
-  it("passes the Check-and-Save gates with no electrical rule issue", () => {
+  it("passes the Check report with no electrical rule issue", () => {
     const resolver = projectResolver(project);
-    expect(evaluateSubmissionGates(project, resolver)).toEqual({
-      ok: true,
-      failures: [],
-    });
     expect(
       runErcChecks(
         project,
@@ -442,12 +368,12 @@ describe("the bundled five-transistor Sky130 OTA", () => {
   });
 
   it("exports an ota_5t subcircuit connectivity-equivalent to the reference", () => {
-    // Simulation rationale's acceptance fixture is the circuit this example draws. A
-    // structural comparison — not a string compare — is what proves the
-    // drawing did not quietly move a terminal or drop a finger count.
+    // The reference deck is the circuit this example draws. A structural
+    // comparison — not a string compare — is what proves the drawing did not
+    // quietly move a terminal or drop a finger count.
     const referenceText = readFileSync(
       new URL(
-        "../../../../fixtures/simulation-acceptance/ota-5t.spi",
+        "../../../../fixtures/netlist-reference/ota-5t.spi",
         import.meta.url,
       ),
       "utf8",

@@ -8,8 +8,8 @@ Primary owner: `scripts/performance-baseline.mjs`
 
 The release benchmark uses a deterministic generated Project with 500 placed
 two-terminal instances and 499 logical nets. It measures canonical save,
-formal SVG render, a complete Agent Snapshot, and one atomic Edit Engine
-transaction. SPICE import is measured against the checked ngspice baseline
+formal SVG render, and one atomic Edit Engine transaction. SPICE import is
+measured against the checked structural SPICE baseline
 corpus. A second deterministic workload with 200 Nets, 200 Routes, 400
 Junctions, and 200 route-bound Net Labels protects the document connectivity
 index from accidental per-Net full-document rescans.
@@ -21,12 +21,14 @@ index from accidental per-Net full-document rescans.
 | Generate and validate representative Project | 2,000 ms |
 | Canonical serialize                          | 1,000 ms |
 | Formal SVG render                            | 2,000 ms |
-| Complete Agent Snapshot                      | 1,000 ms |
 | One-instance Edit Engine transaction         | 1,000 ms |
 | Build multi-Net document connectivity index  | 1,000 ms |
 | Formal SVG render of multi-Net workload      | 2,000 ms |
 | Atomic filesystem save                       | 1,000 ms |
-| ngspice baseline import                      | 2,000 ms |
+| SPICE baseline import                        | 2,000 ms |
+
+The benchmark runs through `pnpm verify:goldens` (or `pnpm performance:check`
+on its own) and writes `output/performance/phase-7-baseline.json`.
 
 These are release regression ceilings, not UI latency claims. The benchmark
 records measured values and environment metadata. It performs warm-up and uses

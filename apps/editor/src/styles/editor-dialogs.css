@@ -732,6 +732,43 @@
   gap: var(--icm-space-1);
 }
 
+/* Import Cell: the file picker and the chosen file name share one row, and a
+   long path is truncated rather than widening the dialog. */
+.cell-import-source {
+  display: flex;
+  align-items: center;
+  gap: var(--icm-space-2);
+  min-width: 0;
+}
+
+.cell-import-source button {
+  flex: none;
+  min-height: var(--icm-control-h-lg);
+}
+
+.cell-import-source span {
+  overflow: hidden;
+  color: var(--icm-text-muted);
+  font-size: var(--icm-font-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor-action-dialog-body > label {
+  display: grid;
+  gap: var(--icm-space-1);
+  color: var(--icm-text-muted);
+  font-size: var(--icm-font-sm);
+  font-weight: 600;
+}
+
+.editor-action-dialog-body > label select {
+  min-height: var(--icm-control-h-lg);
+  color: var(--icm-text);
+  font-size: var(--icm-font-sm);
+  font-weight: 400;
+}
+
 .editor-action-dialog-field span {
   color: var(--icm-text-muted);
   font-size: var(--icm-font-sm);

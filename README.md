@@ -1,15 +1,17 @@
-# Analog Canvas
+# Schematic Draft
 
-Analog Canvas is a local-first, connectivity-aware schematic editor for the
-web. Draw and organize hierarchical circuits, import structural SPICE, export
-deterministic SPICE/Spectre netlists and vector SVG/PDF, publish selected work
-to the Community Gallery, and connect authorized Agents through the same typed
-edit model.
+Schematic Draft is an offline, connectivity-aware schematic editor for analog
+circuits, packaged as a Windows desktop application. Draw and organize
+hierarchical circuits, import structural SPICE, and export deterministic
+SPICE/Spectre netlists and vector SVG/PDF — without your circuits ever leaving
+the machine.
 
-[Browse the Gallery](https://analog-canvas.tokenzhang.com/) ·
-[Open the editor](https://analog-canvas.tokenzhang.com/editor) ·
-[Documentation](docs/README.md) ·
-[GitHub repository](https://github.com/cascode-ai/analog-canvas)
+It is a fork of [Analog Canvas](https://github.com/cascode-ai/analog-canvas)
+(AGPL-3.0-only) with the hosted half removed: no accounts, no cloud projects, no
+Gallery, no Agent API, no analytics, no simulation service. The desktop shell
+refuses every outbound request, so "offline" is enforced rather than promised.
+
+[Documentation](docs/README.md) · [Upstream project](https://github.com/cascode-ai/analog-canvas)
 
 ## Highlights
 
@@ -19,175 +21,124 @@ edit model.
 - **Reusable hierarchy:** author each schematic as a Cell, define independent
   Cell Pins, place reusable hierarchical blocks, and navigate between callers
   and child Cells.
-- **Projects and interchange:** save a private Cloud Project, import/export
-  canonical `.icproj.json`, import structural `.cir`, `.sp`, `.spi`, and `.scs` files, and export
-  deterministic structural SPICE or Spectre. The hosted editor also provides
-  saved simulation source folders and a fixed ngspice/SKY130 environment for qualified
-  OP, DC, AC, TRAN, and Noise runs.
-- **Publication-ready output:** the web editor's SVG and PDF exports remain
-  vector graphics; PNG is rendered at 3× raster scale.
-- **Community publishing:** signed-in users can publish selected circuits with
-  server-rendered previews, tags, likes, moderation, and bounded version
-  history. Publishing is deliberate and is not a backup mechanism.
-- **Agent integration:** the typed Snapshot and transaction API is available
-  through a version-pinned stdio MCP adapter, an HTTP Agent Kit, and the
-  published OpenAPI contract. See the [Agent integration guide](docs/agent/README.md).
+- **Real files:** **Open** and **Save As…** use the operating system's dialogs;
+  **Save** and Ctrl+S overwrite the file you opened, in place, without asking.
+  Import structural `.cir`, `.sp`, `.spi`, and `.scs` files, and export
+  deterministic structural SPICE or Spectre.
+- **Publication-ready output:** SVG and PDF exports stay vector graphics; PNG is
+  rendered at 3× raster scale. LaTeX formulas in rich-text annotations are
+  typeset locally.
+- **Offline by construction:** the Electron main process blocks every network
+  request, serves the editor from a privileged local scheme, and hands an
+  external link to your system browser instead of loading it in-app.
 
-## Project ownership and privacy
+## How your work is stored
 
-An explicit **File / Save** updates one private Cloud Project in place. Local
-`.icproj.json` files are portable import/export and backup artifacts; browser
-recovery is an origin-local crash-safety copy. Neither is confused with formal
-Cloud Save, and Community Gallery entries remain separate public publications.
-The hosted service keeps its visitor reporting first-party and honors browser
-Do Not Track instead of embedding a third-party analytics tracker.
+The `.icproj.json` file you opened is the Project. **Save** writes that file; the
+File menu names the exact path so overwriting is never a guess. **Save As…** is
+the only command that prompts. A new Project has no file yet, so its first
+**Save** asks once, then remembers.
 
-**Check and Save** runs ERC and visual checks on demand, displays findings in
-Issues and the canvas, and saves through that same Cloud Project service.
-Findings do not block saving; editing invalidates the last check without
-automatically rerunning it. File / Save and Ctrl+S remain save-only.
+Alongside that, the application keeps a crash-safety copy in its own IndexedDB,
+reachable through **File / Recover Local Work…**. It is a safety net, not a
+backup and not authoritative — the file on disk is.
+
+**Check and Save** runs ERC and visual checks on demand and shows findings in
+Issues and on the canvas before saving. Findings never block a save; editing
+invalidates the last check without rerunning it.
 
 ## Start here
 
-- **Use the hosted product:** browse the
-  [Community Gallery](https://analog-canvas.tokenzhang.com/) or start a
-  [new circuit](https://analog-canvas.tokenzhang.com/editor).
 - **Learn the editor:** [Getting started](docs/user/getting-started.md),
   [schematic hierarchy](docs/user/schematic-hierarchy.md),
   [compatibility](docs/user/project-compatibility.md), and
   [troubleshooting](docs/user/troubleshooting.md).
 - **Understand the product:** [current architecture](docs/overall-product-plan.md)
   and [documentation map](docs/README.md).
-- **Develop or contribute:** [working rules](AGENTS.md),
-  [current development reading set](docs/README.md#contributor-reading-order), and
+- **Develop:** [working rules](AGENTS.md),
+  [reading set](docs/README.md#contributor-reading-order), and
   [test system](docs/testing/README.md).
 
-## Run locally
+## Build it
 
-Requires Node.js 24 or newer and pnpm 11.16.0 or newer.
+Requires Node.js 24 or newer, pnpm 11.16.0 or newer, and — for the packaged
+`.exe` — a Windows machine or a Windows build step.
 
-```powershell
+```bash
 pnpm install --frozen-lockfile
-pnpm build
-pnpm dev
+pnpm build          # once after install, and after pulling package changes
+pnpm dev            # editor in a browser at http://localhost:5173
+pnpm desktop:start  # editor in the Electron window
+pnpm desktop:dist   # portable Windows .exe under apps/desktop/release/
 ```
 
-Run `pnpm build` once after installing, and again after pulling package
-changes: the development server's Vite configuration loads some workspace
-packages from their built `dist/` output.
+`pnpm build` is not optional before the first `pnpm dev`: the development
+server's Vite configuration loads some workspace packages from their built
+`dist/` output.
 
-Open the displayed loopback URL and choose **New Circuit**, or open its
-`/editor` route directly. Create a circuit from the component palette, or
-import one `.cir`, `.sp`, `.spi`, or `.scs` entry together with its local include
-files.
+`pnpm desktop:dist` produces a portable executable — no installer, no service,
+nothing written outside the directory you run it from and the files you save. See
+[`apps/desktop/README.md`](apps/desktop/README.md) for the shell's window, file
+bridge, and network-lockdown contract.
 
-Click **Agent** to open a connection message, then copy it into your Agent
-chat. The development server starts the local Agent relay on first use;
-no separate Worker command or cloud account is needed. Keep the editor open
-while the Agent works. Sessions expire after 30 minutes without Agent operations
-or manual edits; continued activity renews them. Stopping the development server
-also ends local sessions;
-after restarting it, create a new connection. Cloud account, Gallery, and
-hosted simulation services are not started by this local relay.
-
-Development follows three stages: iterate locally with focused checks and
-local commits; deliver a pull request, which deploys directly to Production
-unless it carries the `preview` label, in which case it goes to Preview; then
-promote Preview-accepted work to Production when that release is authorized.
-Each local edit ends at the local stage by default. See the
-[working rules](AGENTS.md#three-stage-development-and-delivery)
-and [delivery cadence](docs/deployment.md#development-and-publication-cadence).
+Development is plain local Git work: make a change, run the checks that cover it
+(`pnpm test:local <paths>`, then `pnpm check` or `pnpm verify` as the change
+warrants), and commit. There is no CI, no PR gate, and no deployment — see
+[working rules](AGENTS.md) and the [test system](docs/testing/README.md).
 
 ## What the repository contains
 
-- `apps/editor/`: React/SVG editor plus the Gallery, account, moderation, and
-  project surfaces.
-- `apps/editor/analytics/`: the complete first-party analytics module: page,
-  styles, browser reporting, HTTP routes, map data, and Durable Object backend.
-- `apps/local-host/`: loopback-only production host for the installable PWA.
-- `apps/mcp-server/`: packaged stdio MCP adapter for authorized Agent sessions.
+- `apps/editor/`: the React/SVG editor.
+- `apps/desktop/`: the Electron shell — window, file dialogs, file bridge,
+  network lockdown, and Windows packaging.
 - `packages/model/`, `packages/project-protocol/`, and `packages/edit-engine/`:
-  current persisted circuit model, bounded file compatibility, and atomic
-  mutation boundary.
+  current persisted circuit model, bounded file compatibility, and the atomic
+  mutation boundary every edit goes through.
 - `packages/derived/`: read-only connectivity, diagnostic, and geometry
   projections over the persisted model.
 - [`packages/components/`](packages/components/README.md): one canonical JSON
   file per built-in component, containing its symbol, electrical rules and
   catalog metadata; runtime packages consume generated projections.
 - `packages/spice/`, `packages/devices/`, `packages/symbols/`, and
-  `packages/netlist/`: structural SPICE import, built-in device facts, symbol
-  semantics, and deterministic design-netlist export.
+  `packages/netlist/`: structural SPICE import and dialect conversion, built-in
+  device facts, symbol semantics, and deterministic design-netlist export.
 - `packages/exporters/` and `packages/render-svg/`: formal SVG, PNG, and PDF
   output.
 - `packages/math-typesetting/`: bounded LaTeX formula typesetting for rich-text
   annotations.
-- `packages/simulation-service/` and `packages/spice-run/`: shared simulation
-  preparation, run lifecycle, and artifacts, plus simulator request and result
-  contracts.
-- `packages/timing-simulation/`: deterministic digital timing simulation; its
-  experimental editor UI is hidden in production builds.
-- `packages/platform-node/`: Node filesystem storage and recovery adapters with
-  no current in-repository consumer.
-- `packages/agent-adapter/`, `packages/agent-client/`, and
-  `packages/agent-routing/`: shared Agent contract, client, and routing logic.
-- `worker/`: Cloudflare Worker host and Durable Objects for static hosting,
-  Gallery, accounts, Cloud Projects, simulation, and Agent relay sessions.
-- `containers/`: simulator images, gateways, and operator-host topologies for
-  ngspice and the Preview VACASK candidate.
-- `netlists/`: one circuit per directory for the SPICE import corpus,
-  simulation examples and qualification, and Agent layout evaluation.
-- `fixtures/`: Project, SPICE, rawfile, export, Agent API, and visual-reference
-  test inputs and goldens.
-- `scripts/` and `config/`: build, generation, validation-gate, release, and
-  deployment tooling, with the gate catalog and pinned MCP and VACASK Preview
-  declarations.
-- `tools/`, `skills/`, and `references/`: manual Razavi calibration and PDF
-  extraction tools, the repository-local `circuit-layout` Agent Skill, and the
-  pinned external research-source manifest.
+- `netlists/`: one circuit per directory, the SPICE import and export corpus.
+- `fixtures/`: Project, SPICE, export, and visual-reference test inputs and
+  goldens.
+- `scripts/`: symbol and component generators, golden checks, the production
+  smoke check, and the Windows sync helper.
 - `docs/`: current architecture, user guides, normative contracts, ADRs, and
-  delivery plans.
+  remaining work.
 
 The [Razavi reference manifest](fixtures/visual-reference/razavi-reference-v1/)
-is the sole visual authority. A merge to `main` deploys to Production, or to
-Preview when its pull request is labeled `preview`; Preview-accepted work is
-promoted with a release tag or explicit dispatch.
-See [deployment](docs/deployment.md) for the release and recovery contract.
+is the sole visual authority for component artwork.
 
 ## Netlist conversion
 
-`POST /api/netlist/convert` accepts `{ "text": "...", "source": "spice", "target": "spectre" }`
-and returns translated text or line-specific diagnostics. The Worker and local
-Vite server expose the same pure converter; SCS import uses it locally too.
-No Python daemon, simulator or account is required. The structural subset adapts
-[netlist-crawler](https://github.com/Arcadia-1/netlist-crawler) under its MIT license.
-See the [conversion contract](docs/specs/netlist-conversion.md) for supported
-syntax and the [attribution](packages/spice/third-party/netlist-crawler/README.md).
+`convertNetlist` in `packages/spice` translates structural SPICE and Spectre
+netlists in-process; SCS import uses it. No daemon, simulator or account is
+involved. The structural subset adapts
+[netlist-crawler](https://github.com/Arcadia-1/netlist-crawler) under its MIT
+license. See the [conversion contract](docs/specs/netlist-conversion.md) for
+supported syntax and the
+[attribution](packages/spice/third-party/netlist-crawler/README.md).
 
 ## License
 
-Copyright © 2026 Zengchun Chen and Zhishuai Zhang.
+Upstream Analog Canvas: copyright © 2026 Zengchun Chen and Zhishuai Zhang.
 
-Except where otherwise noted, Analog Canvas is licensed under the
-[GNU Affero General Public License v3.0 only](LICENSE.md)
-(`AGPL-3.0-only`). Modified versions that are distributed or made available
-for remote network interaction must provide their Corresponding Source under
-the same license. Third-party dependencies, reference material, and assets
-retain their respective copyright and license terms.
+Except where otherwise noted, this software is licensed under the
+[GNU Affero General Public License v3.0 only](LICENSE.md) (`AGPL-3.0-only`),
+inherited from upstream. Modified versions that are distributed or made available
+for remote network interaction must provide their Corresponding Source under the
+same license. Third-party dependencies, reference material, and assets retain
+their respective copyright and license terms.
 
-## Citation
-
-If you use Analog Canvas in research, teaching, or another publication, cite:
+Upstream work this fork is derived from:
 
 > Zengchun Chen and Zhishuai Zhang. _Analog Canvas_. 2026.
-> Available at: https://analog-canvas.tokenzhang.com/
 > Source code: https://github.com/cascode-ai/analog-canvas
-
-```bibtex
-@software{chen2026analogcanvas,
-  author = {Chen, Zengchun and Zhang, Zhishuai},
-  title = {Analog Canvas},
-  year = {2026},
-  url = {https://analog-canvas.tokenzhang.com/},
-  note = {Source code: https://github.com/cascode-ai/analog-canvas}
-}
-```

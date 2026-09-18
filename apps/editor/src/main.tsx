@@ -1,11 +1,8 @@
 import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 
-import { useVisitStats } from "../analytics/client";
 import { EditorErrorBoundary } from "./components/editor-error-boundary";
 import { guardedRouteChunk } from "./components/route-chunk-loader";
-import { DESKTOP_BUILD } from "./desktop/desktop-mode";
-import "../analytics/analytics.css";
 import "./styles.css";
 
 const container = document.getElementById("root");
@@ -22,136 +19,32 @@ const EditorApp = lazy(
   ),
 );
 
-const AnalyticsPage = lazy(
-  guardedRouteChunk(() =>
-    import("../analytics/AnalyticsPage").then((module) => ({
-      default: module.AnalyticsPage,
-    })),
-  ),
-);
-
-const GalleryFeed = lazy(
-  guardedRouteChunk(() =>
-    import("./components/gallery-feed").then((module) => ({
-      default: module.GalleryFeed,
-    })),
-  ),
-);
-
-const Moderation = lazy(
-  guardedRouteChunk(() =>
-    import("./components/moderation").then((module) => ({
-      default: module.Moderation,
-    })),
-  ),
-);
-
-const MySubmissions = lazy(
-  guardedRouteChunk(() =>
-    import("./components/my-submissions").then((module) => ({
-      default: module.MySubmissions,
-    })),
-  ),
-);
-
-/** `/` is the gallery, `/editor` the editor, `/g/<id>` one gallery entry. */
-function galleryEntryIdOf(path: string): string | null {
-  const match = /^\/g\/([A-Za-z0-9-]{1,64})\/?$/.exec(path);
-  return match ? match[1]! : null;
-}
-
-function Root() {
-  const path = window.location.pathname;
-  const stats = useVisitStats(path);
-
-  // The desktop shell owns one surface: the editor. It has no Gallery to
-  // browse, no moderation queue and no analytics page, so every path opens
-  // the editor and never names a Gallery entry.
-  if (DESKTOP_BUILD) {
-    return (
-      <Suspense
-        fallback={<div className="analytics-loading">Loading editor…</div>}
-      >
-        <EditorApp visitStats={null} initialGalleryEntryId={null} />
-      </Suspense>
-    );
-  }
-  if (/^\/analytics\/?$/.test(path)) {
-    return (
-      <Suspense
-        fallback={<div className="analytics-loading">Loading analytics…</div>}
-      >
-        <AnalyticsPage />
-      </Suspense>
-    );
-  }
-  if (/^\/?$/.test(path)) {
-    return (
-      <Suspense
-        fallback={<div className="analytics-loading">Loading gallery…</div>}
-      >
-        <GalleryFeed visitStats={stats} />
-      </Suspense>
-    );
-  }
-  if (/^\/moderation\/?$/.test(path)) {
-    return (
-      <Suspense
-        fallback={<div className="analytics-loading">Loading moderation…</div>}
-      >
-        <Moderation />
-      </Suspense>
-    );
-  }
-  if (/^\/mine\/?$/.test(path)) {
-    return (
-      <Suspense
-        fallback={<div className="analytics-loading">Loading submissions…</div>}
-      >
-        <MySubmissions />
-      </Suspense>
-    );
-  }
-  return (
-    <Suspense
-      fallback={<div className="analytics-loading">Loading editor…</div>}
-    >
-      <EditorApp
-        visitStats={stats}
-        initialGalleryEntryId={galleryEntryIdOf(path)}
-      />
-    </Suspense>
-  );
-}
-
+// The desktop shell owns one surface: the editor. Every path opens it.
 createRoot(container).render(
   <StrictMode>
     <EditorErrorBoundary>
-      <Root />
+      <Suspense
+        fallback={<div className="editor-loading">Loading editor…</div>}
+      >
+        <EditorApp />
+      </Suspense>
     </EditorErrorBoundary>
   </StrictMode>,
 );
 
 // The desktop shell serves the editor from its own bundled files, so there is
 // no network to cache and no deploy to recover from; it never installs a
-// service worker.
-if ("serviceWorker" in navigator && !DESKTOP_BUILD) {
-  if (import.meta.env.PROD) {
-    // Keep the worker inside Vite's base path so a repository Pages deployment
-    // never installs a root-origin worker belonging to another site.
-    void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`, {
-      scope: import.meta.env.BASE_URL,
+// service worker. Development builds still unregister one left behind by an
+// earlier hosted build on the same origin.
+if ("serviceWorker" in navigator && !import.meta.env.PROD) {
+  void navigator.serviceWorker
+    .getRegistrations()
+    .then(async (registrations) => {
+      if (registrations.length === 0) return;
+      const wasControlled = navigator.serviceWorker.controller !== null;
+      await Promise.all(
+        registrations.map((registration) => registration.unregister()),
+      );
+      if (wasControlled) window.location.reload();
     });
-  } else {
-    void navigator.serviceWorker
-      .getRegistrations()
-      .then(async (registrations) => {
-        if (registrations.length === 0) return;
-        const wasControlled = navigator.serviceWorker.controller !== null;
-        await Promise.all(
-          registrations.map((registration) => registration.unregister()),
-        );
-        if (wasControlled) window.location.reload();
-      });
-  }
 }

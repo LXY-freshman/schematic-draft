@@ -40,7 +40,6 @@ export const BROWSER_RECOVERY_SOURCES = [
   "new",
   "opened-file",
   "spice-import",
-  "cloud-project",
   "recovered",
 ] as const;
 
@@ -54,9 +53,10 @@ export interface BrowserRecoveryFormalFileHint {
   lastDownloadRequestedAt?: string;
 }
 
-export interface BrowserRecoveryCloudBinding {
-  id: string;
-  revision: number;
+/** The Project file this working copy was opened from or last saved to. */
+export interface BrowserRecoveryFileBinding {
+  path: string;
+  name: string;
 }
 
 /**
@@ -78,9 +78,9 @@ export interface BrowserRecoveryRecordV2 {
   /** UTF-8 byte length of `projectText`; always recomputed, never trusted. */
   byteLength: number;
   projectText: string;
-  /** Whether this snapshot is ahead of the acknowledged Cloud Project. */
+  /** Whether this snapshot is ahead of the Project file on disk. */
   unsavedAtSnapshot?: boolean;
-  cloudBinding?: BrowserRecoveryCloudBinding;
+  fileBinding?: BrowserRecoveryFileBinding;
   formalFileHint?: BrowserRecoveryFormalFileHint;
 }
 
@@ -98,7 +98,7 @@ export interface BrowserRecoveryRecordDraft {
   updatedAt: string;
   projectText: string;
   unsavedAtSnapshot?: boolean;
-  cloudBinding?: BrowserRecoveryCloudBinding;
+  fileBinding?: BrowserRecoveryFileBinding;
   formalFileHint?: BrowserRecoveryFormalFileHint;
 }
 
@@ -139,9 +139,9 @@ export function finalizeBrowserRecoveryRecord(
     ...(draft.unsavedAtSnapshot === undefined
       ? {}
       : { unsavedAtSnapshot: draft.unsavedAtSnapshot }),
-    ...(draft.cloudBinding === undefined
+    ...(draft.fileBinding === undefined
       ? {}
-      : { cloudBinding: draft.cloudBinding }),
+      : { fileBinding: draft.fileBinding }),
     ...(draft.formalFileHint === undefined
       ? {}
       : { formalFileHint: draft.formalFileHint }),
@@ -257,18 +257,16 @@ export function decodeBrowserRecoveryRecord(
   ) {
     return corrupt("unsavedAtSnapshot is not a boolean");
   }
-  if (raw.cloudBinding !== undefined) {
-    const binding = raw.cloudBinding;
+  if (raw.fileBinding !== undefined) {
+    const binding = raw.fileBinding;
     if (
       typeof binding !== "object" ||
       binding === null ||
-      typeof (binding as Record<string, unknown>).id !== "string" ||
-      (binding as Record<string, unknown>).id === "" ||
-      typeof (binding as Record<string, unknown>).revision !== "number" ||
-      !Number.isInteger((binding as Record<string, unknown>).revision) ||
-      ((binding as Record<string, unknown>).revision as number) < 1
+      typeof (binding as Record<string, unknown>).path !== "string" ||
+      (binding as Record<string, unknown>).path === "" ||
+      typeof (binding as Record<string, unknown>).name !== "string"
     ) {
-      return corrupt("cloudBinding is invalid");
+      return corrupt("fileBinding is invalid");
     }
   }
 
@@ -290,10 +288,10 @@ export function decodeBrowserRecoveryRecord(
     ...(raw.unsavedAtSnapshot === undefined
       ? {}
       : { unsavedAtSnapshot: raw.unsavedAtSnapshot as boolean }),
-    ...(raw.cloudBinding === undefined
+    ...(raw.fileBinding === undefined
       ? {}
       : {
-          cloudBinding: raw.cloudBinding as BrowserRecoveryCloudBinding,
+          fileBinding: raw.fileBinding as BrowserRecoveryFileBinding,
         }),
     ...(raw.formalFileHint === undefined
       ? {}
@@ -434,14 +432,13 @@ export function rotateBrowserRecoverySession(
         candidate.formalFileHint?.lastConfirmedWriteAt &&
       session.latest.formalFileHint?.lastDownloadRequestedAt ===
         candidate.formalFileHint?.lastDownloadRequestedAt;
-    const sameCloudBinding =
-      session.latest.cloudBinding?.id === candidate.cloudBinding?.id &&
-      session.latest.cloudBinding?.revision ===
-        candidate.cloudBinding?.revision;
+    const sameFileBinding =
+      session.latest.fileBinding?.path === candidate.fileBinding?.path &&
+      session.latest.fileBinding?.name === candidate.fileBinding?.name;
     if (
       session.latest.unsavedAtSnapshot === candidate.unsavedAtSnapshot &&
       sameHint &&
-      sameCloudBinding
+      sameFileBinding
     ) {
       return { status: "unchanged", session };
     }

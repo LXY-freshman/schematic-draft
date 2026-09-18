@@ -284,7 +284,7 @@ are `sky130.lib.spice` section `tt`, `toplevel.scs` section `TOP_TT`, and
 Defaults fill only missing parameters, case-insensitively. Existing source
 waveforms and AC intent do not acquire a new DC bias from a fallback.
 
-Strict extraction, simulation, and profiled copy export use actual MOS B
+Strict extraction and profiled copy export use actual MOS B
 connectivity, including placement-materialized defaults. Without membership or
 an explicit NoConnect they report `MISSING_PIN_NET`; polarity and preset substrate
 settings do not invent MOS connections. Export preserves declared Cell interfaces
@@ -310,8 +310,8 @@ Configured library paths and sections are printed as includes outside the pure
 IR printer. SCS output remains entirely in `simulator lang=spectre`, including
 SKY130; the configured model library is referenced with native Spectre `include`
 syntax. This does not convert the model library itself or claim licensed Spectre
-qualification. Strict extraction and simulation consumers do not implicitly use
-these export presets.
+qualification. Strict extraction does not implicitly use these export
+presets.
 
 ### Incomplete output
 
@@ -324,7 +324,7 @@ expressions are reserved case-insensitively to avoid accidental resolution;
 SPICE parameter placeholders use braces and Spectre uses bare identifiers.
 The returned structured placeholder list and diagnostics identify incomplete output.
 The sidebar and Check Report show that state outside the copied text. The
-projection never writes placeholders into the Project or changes simulation readiness.
+projection never writes placeholders into the Project.
 
 ### Unfinished drawings
 
@@ -345,8 +345,8 @@ output: its job is to say what the drawing currently says, so a preview of
 work in progress stays possible. Whether a netlist is fit to hand out is the
 caller's question, and `unfinishedDrawingDiagnostics` is how a caller asks
 it. The editor's Check Report, its live netlist panel, and the copy/export
-command all refuse on a non-empty answer, and `designExtractsNetlist` — the
-Gallery's mark ([community gallery](community-gallery.md)) — answers `false`.
+command all refuse on a non-empty answer, and `designExtractsNetlist` answers
+`false`.
 
 Existing conflicting bindings, missing hierarchy interfaces, unsupported devices,
 invalid waveforms, and incomplete connections remain blocking. This projection
@@ -369,8 +369,8 @@ terminal names then take that case; all other Nets keep their spelling. SPICE
 preserves an empty first title line so an entry-file reader does not consume
 the first directive. Native SCS begins with its language declaration before an
 include. Structured diagnostics remain available in the optional Check Report;
-its preview and copy action use the same projection. Strict simulation printers
-and their source locations remain unchanged.
+its preview and copy action use the same projection. The strict printers and
+their source locations remain unchanged.
 
 ## Operations and state transitions
 
@@ -427,11 +427,11 @@ include; it never repairs a broken hierarchy or invents foundry model data.
 - Spectre grammar-focused golden tests; licensed simulator parsing only when
   available and never implied otherwise
 - focused editor clipboard/sidebar, bulk JSON, undo/redo and blocked-diagnostic flows
-- full mainline gate before non-document delivery
 
 ## Simulation boundary
 
-[Simulation source authoring and compilation](simulation.md) compose explicit
-environment, source and analysis intent with the electrical projection.
-[Execution](simulation-execution.md) owns preparation and runs. Structural
-SPICE/Spectre export is not an executable deck and does not infer that setup.
+Structural SPICE/Spectre export is not an executable deck. It carries the
+electrical projection of the drawing and nothing else: no environment, stimulus,
+analysis or model-library intent is inferred, and this application runs no
+simulator. Making the output executable is the reader's work in their own
+simulator.

@@ -6,13 +6,14 @@ Owners: `packages/model`, `packages/edit-engine`, `apps/editor`
 
 ## Decision
 
-Use one in-process TypeScript model and transaction engine for human and Agent
-edits. [Schematic model](../specs/schematic-model.md) owns Project facts;
+Use one in-process TypeScript model and transaction engine for every edit,
+whatever surface submits it. [Schematic model](../specs/schematic-model.md) owns
+Project facts;
 [Edit Engine](../specs/edit-engine.md) owns mutation and history.
 
 ## Context
 
-A collaborative editor needs one answer to what exists, which revision is
+An editor needs one answer to what exists, which revision is
 current and what undo restores. Renderer scenes and transport messages cannot
 supply independent answers.
 

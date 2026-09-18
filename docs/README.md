@@ -6,17 +6,15 @@ archive of completed plans.
 
 ## Documentation map
 
-| Area                                            | Purpose                                                                 |
-| ----------------------------------------------- | ----------------------------------------------------------------------- |
-| [User guides](user/getting-started.md)          | Editing, hierarchy, simulation, saving, compatibility, and known limits |
-| [Product architecture](overall-product-plan.md) | System boundaries and sources of truth                                  |
-| [Specifications](specs/README.md)               | Current data, interaction, API, execution, and export contracts         |
-| [Architecture decisions](adr/README.md)         | Optional rationale for consequential architectural choices              |
-| [Agent guide](agent/README.md)                  | Authorized workflows and on-demand knowledge                            |
-| [Roadmap](roadmap/README.md)                    | Remaining work and acceptance questions                                 |
-| [Deployment](deployment.md)                     | Preview, Production, qualification, promotion, and recovery             |
-| [Testing](testing/README.md)                    | Validation policy and contract ownership                                |
-| [Experience](experience/README.md)              | Human-requested, evidence-backed reusable lessons                       |
+| Area                                            | Purpose                                                            |
+| ----------------------------------------------- | ------------------------------------------------------------------ |
+| [User guides](user/getting-started.md)          | Editing, hierarchy, saving, compatibility, and known limits        |
+| [Product architecture](overall-product-plan.md) | System boundaries and sources of truth                             |
+| [Specifications](specs/README.md)               | Current data, interaction, export, and netlist contracts           |
+| [Architecture decisions](adr/README.md)         | Optional rationale for consequential architectural choices         |
+| [Roadmap](roadmap/README.md)                    | Remaining work and acceptance questions                            |
+| [Testing](testing/README.md)                    | Validation policy and contract ownership                           |
+| [Desktop shell](../apps/desktop/README.md)      | Electron packaging, the offline lockdown, and the Windows build     |
 
 ## Contributor reading order
 
@@ -25,14 +23,12 @@ archive of completed plans.
    and [connectivity](specs/connectivity-and-routing.md) for electrical work.
 3. [Visual contract](specs/razavi-visual-contract.md) and
    [visual language](specs/visual-language.md) for rendering work.
-4. [Editor interaction](specs/editor-interaction.md), [Agent API](specs/agent-api.md),
-   and [web sessions](specs/web-agent-session.md) for entry points.
-5. [Simulation](specs/simulation.md) and [netlist export](specs/netlist-export.md)
-   for the design-to-analysis boundary.
+4. [Editor interaction](specs/editor-interaction.md) for the single entry point.
+5. [Netlist export](specs/netlist-export.md) and
+   [SPICE frontend](specs/spice-frontend.md) for the design-to-netlist boundary.
 6. [Test system](testing/README.md) and the relevant domain's tests before editing.
 
-Read only the domain references needed by the target. Agent-assisted schematic
-work also follows the [Agent workflow](agent/workflow.md).
+Read only the domain references needed by the target.
 
 ## Resolving disagreement
 
@@ -64,9 +60,7 @@ about the current system. Reuse the existing topic owner before creating a file.
   maintain separate field definitions, limits or safety rules.
 - **Roadmaps:** unresolved outcomes and acceptance boundaries only. Local task
   plans, progress, completed work packages and delivery evidence belong in
-  ignored `plan/` or the owning commit/PR, not in current product documentation.
-- **Experience:** human-requested transferable judgment with evidence and limits,
-  never another contract, path inventory or implementation diary.
+  ignored `plan/` or the owning commit, not in current product documentation.
 
 Architecture and indexes provide navigation, not another copy of each topic.
 Templates are starting points, not mandatory forms: omit empty or irrelevant
@@ -100,6 +94,6 @@ do not create tombstones, archive copies or cleanup reports.
 
 Check code and relevant tests, references, heading targets and asset consumers.
 A passing link checker is not proof of semantic consistency or absence of
-duplication. Preserve published Agent-resource contracts when moving their
-sources: update the manifest and generated projections within an explicitly
-owned target. Do not retire registered resource content as an ordinary orphan.
+duplication. Some documents are pinned by tests — `packages/model` and
+`packages/edit-engine` read spec text for the current Project schema version and
+the edit vocabulary — so run the owning package's tests after editing them.

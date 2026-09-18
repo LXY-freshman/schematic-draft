@@ -31,28 +31,10 @@ export const LazyCellManagerDialog = lazyChunk("dialog", () =>
   })),
 );
 
-export const LazySpiceSimulationSurface = lazyChunk("inline", () =>
-  import("../features/simulation/spice-simulation-surface").then((module) => ({
-    default: module.SpiceSimulationSurface,
-  })),
-);
-
 export const LazyNetlistPreflightDialog = lazyChunk("dialog", () =>
   import("../features/netlist-export/netlist-preflight-dialog").then(
     (module) => ({ default: module.NetlistPreflightDialog }),
   ),
-);
-
-export const LazyPublishGalleryDialog = lazyChunk("dialog", () =>
-  import("../features/editor-shell/publish-gallery-dialog").then((module) => ({
-    default: module.PublishGalleryDialog,
-  })),
-);
-
-export const LazyVersionHistoryDialog = lazyChunk("dialog", () =>
-  import("../components/version-history-dialog").then((module) => ({
-    default: module.VersionHistoryDialog,
-  })),
 );
 
 export const LazyEditorHelpDialog = lazyChunk("dialog", () =>
@@ -83,16 +65,4 @@ export const LazyInsertComponentDialog = lazyChunk("dialog", () =>
   import("../features/component-insert/insert-component-dialog").then(
     (module) => ({ default: module.InsertComponentDialog }),
   ),
-);
-
-export const LazyConnectAgentPanel = lazyChunk("dialog", () =>
-  import("../agent/connect-agent-panel").then((module) => ({
-    default: module.ConnectAgentPanel,
-  })),
-);
-
-export const LazyAgentPropertiesSection = lazyChunk("inline", () =>
-  import("../agent/connect-agent-panel").then((module) => ({
-    default: module.AgentPropertiesSection,
-  })),
 );

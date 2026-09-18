@@ -4,12 +4,12 @@ import { createEmptyProject, type CircuitProject } from "@icm/model";
 import {
   awaitEditorReady,
   chooseComponent,
-  clickDrawTool,
-  placeText,
   clickCommand,
+  clickDrawTool,
   editDocumentStyleCode,
   openMenu,
-  downloadBytes,
+  placeText,
+  projectFileBytes,
 } from "./editor-fixtures";
 
 async function captureImageClipboard(
@@ -230,7 +230,7 @@ for (const grid of [5, 10]) {
     await page.keyboard.press("ControlOrMeta+Shift+z");
     expect(await labelRects()).toEqual(after);
 
-    const bytes = await downloadBytes(page, "File", "Export Project File…");
+    const bytes = await projectFileBytes(page);
     const saved = JSON.parse(bytes.toString("utf8")) as CircuitProject;
     expect(
       saved.documents[0]!.instances.map((instance) => instance.placement),

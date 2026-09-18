@@ -9,29 +9,8 @@ playwright-report/
 test-results/
 output/
 tmp/
-.reference-src/
 *.tsbuildinfo
 .vite/
-.wrangler/
-
-# Razavi fidelity diff generated output
-fixtures/visual-reference/razavi-reference-v1/diff/
-fixtures/visual-reference/razavi-reference-v1/text-diff/
-fixtures/visual-reference/razavi-reference-v1/diff-common/
-
-# Python PDF extractor bytecode
-**/__pycache__/
-
-# Local Agent-tooling scratch and generated layout exports
-.zcode/
-netlists/*/agent-*-layout.icproj.json
-netlists/*/agent-*-layout.mjs
-netlists/*/agent-*-layout.pdf
-netlists/*/agent-*-layout.png
-netlists/*/agent-*-layout.svg
 
 # Target plans are a local working area, not a published artifact.
 plan/
-
-# Sky130 model files staged by the preview deploy for the container image.
-pdk/

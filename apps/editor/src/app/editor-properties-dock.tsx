@@ -1,4 +1,4 @@
-import { Suspense, type ComponentProps, type RefObject } from "react";
+import type { ComponentProps, RefObject } from "react";
 
 import { ToolIcon } from "../features/editor-shell/tool-icon";
 import { DocumentSettingsSection } from "../features/editor-shell/document-settings-section";
@@ -22,7 +22,6 @@ import {
   ProjectDiagnosticsSection,
   SelectionInspectorDetails,
 } from "../features/selection/selection-inspector-details";
-import { LazyAgentPropertiesSection } from "./lazy-editor-dialogs";
 
 interface ComponentPropertiesModel {
   code: ComponentProps<typeof ComponentPropertyCodeEditor>;
@@ -40,7 +39,6 @@ export interface EditorPropertiesDockProps {
   onToggle: () => void;
   summary: string;
   hasInspectableSelection: boolean;
-  agentIndicator: { status: string; terminal: boolean } | null;
   documentSettings: ComponentProps<typeof DocumentSettingsSection> | null;
   mosBulk: ComponentProps<typeof MosBulkConnectionSection>;
   routingGuidance: ComponentProps<typeof RoutingGuidanceSection>;
@@ -56,7 +54,6 @@ export interface EditorPropertiesDockProps {
   diagnostics: ComponentProps<typeof ProjectDiagnosticsSection>;
   netTrace: ComponentProps<typeof NetTraceSection> | null;
   importReview: ComponentProps<typeof SelectionInspectorDetails> | null;
-  agent: ComponentProps<typeof LazyAgentPropertiesSection> | null;
 }
 
 /** Persistent Properties shelf and its cross-domain inspector sections. */
@@ -66,7 +63,6 @@ export function EditorPropertiesDock({
   onToggle,
   summary,
   hasInspectableSelection,
-  agentIndicator,
   documentSettings,
   mosBulk,
   routingGuidance,
@@ -82,7 +78,6 @@ export function EditorPropertiesDock({
   diagnostics,
   netTrace,
   importReview,
-  agent,
 }: EditorPropertiesDockProps) {
   return (
     <aside
@@ -105,13 +100,6 @@ export function EditorPropertiesDock({
           <span className="selection-shelf-title">
             <ToolIcon name="inspect" />
             <span>Properties</span>
-            {agentIndicator ? (
-              <span
-                className={`agent-shelf-indicator ${agentIndicator.terminal ? "terminal" : ""}`}
-                title={`Agent: ${agentIndicator.status}`}
-                aria-label={`Agent: ${agentIndicator.status}`}
-              />
-            ) : null}
           </span>
           <span className="selection-shelf-summary">
             {summary}
@@ -186,9 +174,6 @@ export function EditorPropertiesDock({
                 <SelectionInspectorDetails {...importReview} />
               </section>
             ) : null}
-            <Suspense fallback={null}>
-              {agent ? <LazyAgentPropertiesSection {...agent} /> : null}
-            </Suspense>
           </>
         </div>
       </section>

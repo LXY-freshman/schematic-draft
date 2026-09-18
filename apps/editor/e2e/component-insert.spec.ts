@@ -5,15 +5,15 @@ import {
   awaitEditorReady,
   chooseComponent,
   clickCommand,
-  downloadBytes,
   editComponentPropertyCode,
   editDocumentStyleCode,
-  setComponentParameter,
-  setComponentCodeField,
   expectComponentCodeField,
+  projectFileBytes,
   readComponentPropertyCode,
   readDocumentStyleCode,
   recoveryProjectTexts,
+  setComponentCodeField,
+  setComponentParameter,
 } from "./editor-fixtures.js";
 
 async function openSelectionShelf(page: import("@playwright/test").Page) {
@@ -194,17 +194,20 @@ test("blocks destructive browser refresh shortcuts and uses the stronger grid", 
   );
   await page.keyboard.press("Escape");
 
-  // Once an equally safe copy exists — here the exported Project file, the
-  // same stamp a gallery publish leaves — the guards stand down: refresh is
-  // no longer intercepted and File > New Project proceeds without the
-  // unsaved-changes dialog.
-  const download = page.waitForEvent("download");
-  await clickCommand(page, "File", "Export Project File…");
-  await download;
-  await page
-    .getByTestId("status")
-    .click({ trial: true })
-    .catch(() => {});
+  // Once the work is on disk the guards stand down: refresh is no longer
+  // intercepted and File > New Project proceeds without the unsaved-changes
+  // dialog.
+  const savedPath = "C:\\circuits\\guarded.icproj.json";
+  await page.route("**/api/file/save", (route) =>
+    route.fulfill({
+      json: {
+        status: "saved",
+        file: { path: savedPath, name: "guarded.icproj.json" },
+      },
+    }),
+  );
+  await clickCommand(page, "File", "Save");
+  await expect(page.getByTestId("status")).toHaveText(`Saved ${savedPath}`);
   await page.keyboard.press("Escape");
   await page
     .getByTestId("schematic-canvas")
@@ -981,11 +984,7 @@ test("places a vertical Power Rail from I and renames it on the canvas", async (
   expect(new Set(railPoints.map((point) => point.x)).size).toBe(1);
   expect(railPoints.at(-1)!.y).not.toBe(railPoints[0]!.y);
 
-  const saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ) as {
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8")) as {
     documents: Array<{
       nets: Array<{ id: string; name?: string; scope: string }>;
       connectivityEvidence: Array<{
@@ -1056,11 +1055,7 @@ test("places the VDD power-port device as the default VDD entry", async ({
   await expect(canvas.getByText("VDD", { exact: true })).toHaveCount(2);
   await expect(page.getByTestId("instance-count")).toHaveText("2");
 
-  const saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ) as {
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8")) as {
     documents: Array<{
       instances: Array<{ id: string; symbolId: string }>;
       nets: Array<{
@@ -1263,7 +1258,7 @@ test("publishes placement cancellation synchronously before rapid Copy", async (
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "c" }));
   });
   await expect(
-    page.getByRole("heading", { name: "Analog Canvas" }),
+    page.getByRole("heading", { name: "Schematic Draft" }),
   ).toBeVisible();
 
   for (const [index, symbolId] of symbols.entries()) {
@@ -1311,7 +1306,7 @@ test("copies a MOS whose bulk belongs to a shared supply Net", async ({
   await expect(page.getByTestId("hit-M1-copy-1")).toBeVisible();
   await expect(canvas.getByText("M3", { exact: true })).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Analog Canvas" }),
+    page.getByRole("heading", { name: "Schematic Draft" }),
   ).toBeVisible();
 });
 
@@ -1389,11 +1384,7 @@ test("seeds passive defaults into properties and the exported project", async ({
     }
   }
 
-  const saved = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  );
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   for (const placement of placements) {
     expect(
       saved.documents[0].instances.find(
@@ -1728,7 +1719,7 @@ test("edits independent input and output swaps with undo, named connections and 
   await setComponentCodeField(page, "placement.mirror", "horizontal");
   await expectComponentCodeField(page, "appearance.outputsSwapped", true);
 
-  const bytes = await downloadBytes(page, "File", "Export Project File…");
+  const bytes = await projectFileBytes(page);
   const saved = JSON.parse(bytes.toString("utf8"));
   expect(saved.documents[0].nets).toEqual(document.nets);
   expect(
@@ -2351,8 +2342,7 @@ test("keeps a usable canvas while toggling Library at the narrow breakpoint", as
   await awaitEditorReady(page);
 
   const chrome = page.locator(".app-chrome-main");
-  // The analytics readout lives in the statusbar now; the top bar ends
-  // with Help inside the chrome bounds.
+  // The top bar ends with Help, inside the chrome bounds.
   const help = page.getByRole("button", { name: "Help" });
   await expect(help).toBeVisible();
   const chromeBox = await chrome.boundingBox();
@@ -2364,23 +2354,16 @@ test("keeps a usable canvas while toggling Library at the narrow breakpoint", as
     chromeBox.x + chromeBox.width,
   );
 
-  // Simulation and Publish remain directly visible without horizontal scrolling.
+  // The last command group stays directly visible without horizontal scrolling.
   const commandSurface = page.locator(".app-command-surface");
-  const publish = page.getByTestId("publish-gallery-button");
+  const netlist = page.getByTestId("copy-netlist");
   const commandBox = await commandSurface.boundingBox();
-  const publishBox = await publish.boundingBox();
-  if (!commandBox || !publishBox) {
+  const netlistBox = await netlist.boundingBox();
+  if (!commandBox || !netlistBox) {
     throw new Error("Primary editor command is not measurable");
   }
-  expect(publishBox.x).toBeGreaterThanOrEqual(commandBox.x);
-  expect(publishBox.x + publishBox.width).toBeLessThanOrEqual(
-    commandBox.x + commandBox.width,
-  );
-  const simulationBox = await page
-    .getByTestId("open-analog-simulation")
-    .boundingBox();
-  expect(simulationBox).not.toBeNull();
-  expect(simulationBox!.x + simulationBox!.width).toBeLessThanOrEqual(
+  expect(netlistBox.x).toBeGreaterThanOrEqual(commandBox.x);
+  expect(netlistBox.x + netlistBox.width).toBeLessThanOrEqual(
     commandBox.x + commandBox.width,
   );
 

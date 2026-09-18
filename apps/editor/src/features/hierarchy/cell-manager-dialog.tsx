@@ -10,8 +10,6 @@ import {
   type CellResetIntent,
   type CellResetPlan,
 } from "@icm/edit-engine";
-import type { CloudProjectSummary } from "../editor-shell/cloud-projects";
-
 import { CellInterfaceEditor } from "./cell-interface-dialog";
 
 const RESET_ACTIONS: readonly {
@@ -52,10 +50,8 @@ export function CellManagerDialog({
   externalDefinitions,
   onSetExternalDefinition,
   onReset,
-  cloudProjects,
-  activeCloudProjectId,
-  onLoadCloudProject,
-  onImportCloudCell,
+  onPickSourceProject,
+  onImportCell,
 }: {
   open: boolean;
   cells: readonly CellManagerEntry[];
@@ -82,14 +78,15 @@ export function CellManagerDialog({
   externalDefinitions: readonly ExternalSubcircuitDefinition[];
   onSetExternalDefinition(definition: ExternalSubcircuitDefinition): void;
   onReset(plan: CellResetPlan, command: string): boolean;
-  cloudProjects: readonly CloudProjectSummary[];
-  activeCloudProjectId: string | null;
-  onLoadCloudProject(
-    projectId: string,
-  ): Promise<
-    { ok: true; project: CircuitProject } | { ok: false; message: string }
+  /**
+   * Pick another Project file on this computer and read it. `cancelled` keeps
+   * the dialog quiet; the person simply closed the file picker.
+   */
+  onPickSourceProject(): Promise<
+    | { ok: true; project: CircuitProject; name: string }
+    | { ok: false; cancelled?: boolean; message: string }
   >;
-  onImportCloudCell(
+  onImportCell(
     source: CircuitProject,
     documentId: string,
   ): Promise<{ ok: boolean; message: string; documentId?: string }>;
@@ -101,7 +98,7 @@ export function CellManagerDialog({
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [resetIntent, setResetIntent] = useState<CellResetIntent | null>(null);
   const [importing, setImporting] = useState(false);
-  const [importProjectId, setImportProjectId] = useState("");
+  const [importSourceName, setImportSourceName] = useState("");
   const [importSource, setImportSource] = useState<CircuitProject | null>(null);
   const [importCellId, setImportCellId] = useState("");
   const [importBusy, setImportBusy] = useState(false);
@@ -118,7 +115,7 @@ export function CellManagerDialog({
     setDeleteId(null);
     setResetIntent(null);
     setImporting(false);
-    setImportProjectId("");
+    setImportSourceName("");
     setImportSource(null);
     setImportCellId("");
     setImportBusy(false);
@@ -226,13 +223,12 @@ export function CellManagerDialog({
             <button
               type="button"
               className="cell-manager-new"
-              disabled={cloudProjects.length === 0}
               onClick={() => {
                 setCreating(false);
                 setRenameId(null);
                 setDeleteId(null);
                 setImporting(true);
-                setImportProjectId("");
+                setImportSourceName("");
                 setImportSource(null);
                 setImportCellId("");
                 setImportMessage("");
@@ -375,42 +371,40 @@ export function CellManagerDialog({
               >
                 <header className="editor-action-dialog-header">
                   <p>Project hierarchy</p>
-                  <h2 id="import-cell-dialog-title">Import Cloud Cell</h2>
+                  <h2 id="import-cell-dialog-title">Import Cell from a File</h2>
                 </header>
                 <div className="editor-action-dialog-body">
-                  <label>
-                    Source Project
-                    <select
-                      value={importProjectId}
+                  <div className="cell-import-source">
+                    <button
+                      type="button"
                       disabled={importBusy}
-                      onChange={async (event) => {
-                        const projectId = event.target.value;
-                        setImportProjectId(projectId);
+                      onClick={async () => {
                         setImportSource(null);
                         setImportCellId("");
                         setImportMessage("");
-                        if (!projectId) return;
                         setImportBusy(true);
-                        const loaded = await onLoadCloudProject(projectId);
+                        const picked = await onPickSourceProject();
                         setImportBusy(false);
-                        if (!loaded.ok) {
-                          setImportMessage(loaded.message);
+                        if (!picked.ok) {
+                          setImportSourceName("");
+                          if (!picked.cancelled) {
+                            setImportMessage(picked.message);
+                          }
                           return;
                         }
-                        setImportSource(loaded.project);
-                        setImportCellId(loaded.project.topDocumentId);
+                        setImportSourceName(picked.name);
+                        setImportSource(picked.project);
+                        setImportCellId(picked.project.topDocumentId);
                       }}
                     >
-                      <option value="">Choose a saved Project…</option>
-                      {cloudProjects
-                        .filter((cloud) => cloud.id !== activeCloudProjectId)
-                        .map((cloud) => (
-                          <option key={cloud.id} value={cloud.id}>
-                            {cloud.name}
-                          </option>
-                        ))}
-                    </select>
-                  </label>
+                      Choose Project file…
+                    </button>
+                    <span>
+                      {importSourceName === ""
+                        ? "No source Project chosen"
+                        : importSourceName}
+                    </span>
+                  </div>
                   <label>
                     Cell
                     <select
@@ -428,7 +422,7 @@ export function CellManagerDialog({
                   {importMessage ? <p role="status">{importMessage}</p> : null}
                   <p>
                     The Cell and its child Cells are copied into this Project.
-                    The source stays unchanged.
+                    The source file stays unchanged.
                   </p>
                 </div>
                 <footer className="editor-action-dialog-actions">
@@ -441,7 +435,7 @@ export function CellManagerDialog({
                     onClick={async () => {
                       if (!importSource || !importCellId) return;
                       setImportBusy(true);
-                      const outcome = await onImportCloudCell(
+                      const outcome = await onImportCell(
                         importSource,
                         importCellId,
                       );

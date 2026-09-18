@@ -13,21 +13,15 @@ against. They describe required behavior and invariants, not task history.
 | [`circuit-ir.md`](circuit-ir.md)                             | accepted | Transient dialect-neutral import boundary                                                   |
 | [`symbol-dsl.md`](symbol-dsl.md)                             | accepted | Geometry, electrical/visual pins, variants, validation                                      |
 | [`spice-frontend.md`](spice-frontend.md)                     | accepted | Lossless syntax, dialects, includes, expressions, elaboration                               |
-| [`simulation.md`](simulation.md)                             | accepted | Source folders, native/legacy configuration, mapped edits, compilation and Code interaction |
-| [`simulation-execution.md`](simulation-execution.md)         | accepted | Profiles, preparation, execution, retention, File artifacts, and qualification              |
-| [`simulation-results.md`](simulation-results.md)             | accepted | Numeric evidence, rawfiles, units, measurements, and CSV                                    |
 | [`connectivity-and-routing.md`](connectivity-and-routing.md) | accepted | Physical/Logical Nets, Route graph, contacts, guidance, cuts, and locks                     |
 | [`visual-language.md`](visual-language.md)                   | accepted | Razavi visual tokens, annotations, overlays, golden output                                  |
 | [`razavi-visual-contract.md`](razavi-visual-contract.md)     | accepted | Razavi authority, construction, interface-symbol semantics, exposure, and pixel fidelity    |
-| [`agent-api.md`](agent-api.md)                               | accepted | API 3.0 Snapshot, typed edits, render, permissions, and sibling resources                   |
-| [`persistence-and-recovery.md`](persistence-and-recovery.md) | accepted | Cloud Project save, browser recovery records, unsaved state, recovery migration             |
+| [`persistence-and-recovery.md`](persistence-and-recovery.md) | accepted | File save, browser recovery records, unsaved state, recovery migration                      |
 | [`export.md`](export.md)                                     | accepted | Formal SVG source and derived PNG/PDF contracts                                             |
 | [`netlist-export.md`](netlist-export.md)                     | accepted | Deterministic structural SPICE/Spectre export and diagnostics                               |
 | [`netlist-conversion.md`](netlist-conversion.md)             | accepted | SPICE/SCS structural conversion, HTTP protocol and import rejection boundaries              |
 | [`performance.md`](performance.md)                           | accepted | Representative workloads and release budgets                                                |
 | [`editor-interaction.md`](editor-interaction.md)             | accepted | Direct manipulation, manual authoring, gestures, and automation boundary                    |
-| [`web-agent-session.md`](web-agent-session.md)               | accepted | Browser-authoritative relay: scopes, transport, events, errors, threat                      |
-| [`community-gallery.md`](community-gallery.md)               | accepted | Public feed, advisory quality checks, accounts, moderation, re-serialization                |
 
 Create a specification when a stable cross-module contract is needed; do not
 create empty files only to mirror this table. Start from
@@ -39,15 +33,15 @@ create empty files only to mirror this table. Start from
 | ------------------------------------------------------ | ------------------------------------------- | --------------------------------------------------------------------- |
 | Persisted electrical objects and formal declarations   | [Schematic model](schematic-model.md)       | Connectivity, editing and export reference these facts                |
 | Logical equivalence, contacts, cut and owner lifecycle | [Connectivity](connectivity-and-routing.md) | Model, transactions and netlist extraction consume the same semantics |
-| Atomic mutation, revisions, failure and Undo           | [Edit Engine](edit-engine.md)               | GUI and Agent supply typed intent                                     |
+| Atomic mutation, revisions, failure and Undo           | [Edit Engine](edit-engine.md)               | Every editor surface supplies typed intent                            |
 | Extraction, dialect printing and export refusal        | [Netlist export](netlist-export.md)         | Does not redefine saved objects or electrical equivalence             |
 | Formal scene, text/formulas and overlays               | [Visual language](visual-language.md)       | Canvas and exporters share composition                                |
 | Reviewed artwork, style and fidelity                   | [Razavi](razavi-visual-contract.md)         | Exact values live in linked executable configuration                  |
 | Gestures, selection, previews and controls             | [Editor interaction](editor-interaction.md) | References model/engine semantics rather than owning them             |
 
 Project file format and persistence/recovery remain separate protocol and
-lifecycle boundaries. Simulation source, execution and numeric results likewise
-remain separate contracts, including their currently supported compatibility.
+lifecycle boundaries: the format owns what a saved Project means, recovery owns
+what the application keeps between saves.
 
 ## Specification Rules
 

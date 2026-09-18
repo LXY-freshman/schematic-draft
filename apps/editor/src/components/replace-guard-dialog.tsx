@@ -3,11 +3,8 @@ import { useEffect, useRef } from "react";
 export interface ReplaceGuardDialogProps {
   /** What is about to replace the dirty work, e.g. "Open amp.icproj.json". */
   intent: string;
-  /**
-   * How many Cloud Projects one account may keep. The composition root hands
-   * in the shared limit so this copy can never fall behind it.
-   */
-  cloudProjectLimit: number;
+  /** The file Save would overwrite, when the Project has one. */
+  openFilePath: string | null;
   saving: boolean;
   onCancel(): void;
   onSaveAndContinue(): void;
@@ -17,12 +14,12 @@ export interface ReplaceGuardDialogProps {
 /**
  * Outgoing dirty-work protection. Recovery is a safety copy, not permission to
  * discard the foreground Project, so every dirty replacement pauses here.
- * Defaults to Stay; Escape stays. Cloud Save must succeed before the
+ * Defaults to Stay; Escape stays. The save must succeed before the
  * replacement is allowed to continue.
  */
 export function ReplaceGuardDialog({
   intent,
-  cloudProjectLimit,
+  openFilePath,
   saving,
   onCancel,
   onSaveAndContinue,
@@ -81,10 +78,16 @@ export function ReplaceGuardDialog({
               edits.
             </p>
             <p className="replace-guard-hint">
-              Save keeps this Project in Cloud Projects (up to{" "}
-              {cloudProjectLimit}). Prefer a file?{" "}
-              <strong>File → Export Project File…</strong> downloads{" "}
-              <code>.icproj.json</code>.
+              {openFilePath === null ? (
+                <>
+                  Save writes a new <code>.icproj.json</code> file — it asks
+                  where to put it.
+                </>
+              ) : (
+                <>
+                  Save writes <code>{openFilePath}</code>.
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -112,7 +115,7 @@ export function ReplaceGuardDialog({
             onClick={onSaveAndContinue}
             disabled={saving}
           >
-            {saving ? "Saving to Cloud…" : "Save to Cloud and continue"}
+            {saving ? "Saving…" : "Save and continue"}
           </button>
         </div>
       </section>

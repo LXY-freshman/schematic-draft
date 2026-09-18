@@ -289,9 +289,9 @@ export function DiagnosticMarkersOverlay({
 }
 
 /**
- * One operating-point voltage, ready to paint. Declared structurally so the
- * canvas layer stays below features: the simulation feature decides which
- * nets earn a badge and where it sits, and hands the result down.
+ * Where a net label sits and which conductor point it belongs to. Declared
+ * structurally so the canvas layer stays below features: the selection
+ * feature resolves the attachment and hands the result down.
  */
 export interface NetLabelTether {
   label: { x: number; y: number };

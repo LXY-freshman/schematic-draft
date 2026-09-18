@@ -2,8 +2,10 @@ import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { extname, isAbsolute, relative, resolve } from "node:path";
 
-import type { LocalProjectStore } from "./local-projects.js";
-import { handleProjectApi } from "./project-api.js";
+import {
+  handleProjectFileApi,
+  type ProjectFileDialogs,
+} from "./project-files.js";
 
 /**
  * The editor's origin inside the desktop shell.
@@ -32,7 +34,7 @@ const TYPES: Readonly<Record<string, string>> = {
 
 export interface AppProtocolOptions {
   editorRoot: string;
-  store: LocalProjectStore;
+  dialogs: ProjectFileDialogs;
 }
 
 function inside(root: string, requested: string): string {
@@ -100,16 +102,19 @@ export async function createAppProtocolHandler(
     const pathname = decodeURIComponent(url.pathname);
 
     if (pathname.startsWith("/api/")) {
-      const response = await handleProjectApi(request, pathname, options.store);
+      const response = await handleProjectFileApi(
+        request,
+        pathname,
+        options.dialogs,
+      );
       if (response) {
         for (const [name, value] of Object.entries(secureHeaders)) {
           response.headers.set(name, value);
         }
         return response;
       }
-      // Every other hosted route (account, Gallery, analytics, Agent relay,
-      // simulation service) has no desktop counterpart and answers 404 so
-      // the editor treats it as unavailable rather than hanging.
+      // The file bridge is the only API this shell answers; anything else a
+      // future editor build asked for gets a 404 rather than hanging.
       return new Response(JSON.stringify({ error: "not-found" }), {
         status: 404,
         headers: { "content-type": "application/json", ...secureHeaders },

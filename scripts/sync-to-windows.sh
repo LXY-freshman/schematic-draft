@@ -27,11 +27,8 @@ export ELECTRON_BUILDER_BINARIES_MIRROR="${ELECTRON_BUILDER_BINARIES_MIRROR:-htt
 
 cd "$root"
 
-echo "== building packages"
+echo "== building packages and editor"
 pnpm build >/dev/null
-
-echo "== building editor (desktop flavour)"
-VITE_ICM_DESKTOP=enabled pnpm --filter @icm/editor build >/dev/null
 
 echo "== building desktop shell"
 node apps/desktop/scripts/make-icons.mjs

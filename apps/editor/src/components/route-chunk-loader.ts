@@ -1,11 +1,9 @@
 import {
-  browserStaleBuildRecovery,
-  ConfirmedStaleBuildError,
   diagnoseModuleLoadFailure,
-  recoverFromStaleBuild,
+  MissingApplicationFileError,
   TemporaryModuleLoadError,
-} from "./stale-build-recovery";
-import type { ModuleLoadDiagnosis } from "./stale-build-recovery";
+} from "./module-load-diagnosis";
+import type { ModuleLoadDiagnosis } from "./module-load-diagnosis";
 
 const CHUNK_RELOAD_KEY = "icm-chunk-reload";
 const TEMPORARY_RETRY_DELAY_MS = 750;
@@ -18,7 +16,6 @@ export interface RouteChunkRuntime {
   diagnose(error: unknown): Promise<ModuleLoadDiagnosis>;
   delay(milliseconds: number): Promise<void>;
   reload(): void;
-  cleanReload(): Promise<void>;
 }
 
 function browserRuntime(): RouteChunkRuntime {
@@ -54,21 +51,20 @@ function browserRuntime(): RouteChunkRuntime {
     delay: (milliseconds) =>
       new Promise((resolve) => window.setTimeout(resolve, milliseconds)),
     reload: () => window.location.reload(),
-    cleanReload: () => recoverFromStaleBuild(browserStaleBuildRecovery()),
   };
 }
 
 function publicFailure(diagnosis: ModuleLoadDiagnosis, cause: unknown): Error {
-  return diagnosis.kind === "stale-build"
-    ? new ConfirmedStaleBuildError(diagnosis.assetUrl, cause)
+  return diagnosis.kind === "missing-file"
+    ? new MissingApplicationFileError(diagnosis.assetUrl, cause)
     : new TemporaryModuleLoadError(diagnosis.assetUrl, cause);
 }
 
 /**
  * Load one route chunk and recover once without guessing why it failed.
  *
- * A confirmed missing asset receives a clean reload. A current, unreachable,
- * or otherwise unconfirmed asset receives one delayed ordinary reload. The
+ * A confirmed missing file receives an immediate reload; an unconfirmed one
+ * receives a delayed reload, since the read may simply have lost a race. The
  * second failure is surfaced with the diagnosis instead of entering a loop.
  */
 export function guardedRouteChunk<T>(
@@ -86,12 +82,10 @@ export function guardedRouteChunk<T>(
       if (runtime.rememberedReload() === runtime.pathname) throw failure;
       if (!runtime.rememberReload(runtime.pathname)) throw failure;
 
-      if (diagnosis.kind === "stale-build") {
-        await runtime.cleanReload();
-      } else {
+      if (diagnosis.kind === "temporary") {
         await runtime.delay(TEMPORARY_RETRY_DELAY_MS);
-        runtime.reload();
       }
+      runtime.reload();
 
       // Navigation replaces this document. Keep React.lazy pending so the
       // failed graph cannot render or report a second error while it unloads.

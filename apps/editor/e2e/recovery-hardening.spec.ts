@@ -179,7 +179,7 @@ test("quota-exceeded keeps the editor alive with a persistent warning", async ({
   await expect(page.getByTestId("revision")).toHaveText("1");
 
   await expect(page.getByTestId("recovery-state")).toHaveText(
-    "Recovery full — download now",
+    "Recovery full — save a copy now",
   );
   const warning = page.getByTestId("recovery-failure-banner");
   await expect(warning).toBeVisible();
@@ -190,10 +190,30 @@ test("quota-exceeded keeps the editor alive with a persistent warning", async ({
   await expect(page.getByTestId("revision")).toHaveText("2");
   await expect(warning).toBeVisible();
 
-  const downloadPromise = page.waitForEvent("download");
-  await warning.getByRole("button", { name: "Download Backup" }).click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toContain(".icproj.json");
+  // The escape hatch writes a real file through the shell's save dialog.
+  let backup: { name: string; text: string } | null = null;
+  await page.route("**/api/file/save", (route) => {
+    const body = route.request().postDataJSON() as {
+      name: string;
+      text: string;
+    };
+    backup = body;
+    return route.fulfill({
+      json: {
+        status: "saved",
+        file: {
+          path: `C:\\circuits\\${body.name}.icproj.json`,
+          name: `${body.name}.icproj.json`,
+        },
+      },
+    });
+  });
+  await warning.getByRole("button", { name: "Save a Copy…" }).click();
+  await expect(page.getByTestId("status")).toContainText("Backup written to");
+  expect(backup!.name).toContain("-backup");
+  expect(JSON.parse(backup!.text)).toMatchObject({
+    schemaVersion: expect.any(Number),
+  });
 });
 
 test("no Project data enters Cache Storage", async ({ page }) => {

@@ -11,6 +11,7 @@ import {
   awaitEditorReady,
   clickDrawTool,
   downloadBytes,
+  projectFileBytes,
 } from "./editor-fixtures";
 
 async function importInstances(
@@ -400,7 +401,7 @@ test("triangle bases sit on the grid and their shared output column remains wire
     await page.keyboard.press("Escape");
   }
   await expect(page.locator('[data-canvas-hit-kind="route"]')).toHaveCount(3);
-  const saved = await downloadBytes(page, "File", "Export Project File…");
+  const saved = await projectFileBytes(page);
   const svg = (await downloadBytes(page, "File", "Export SVG")).toString(
     "utf8",
   );

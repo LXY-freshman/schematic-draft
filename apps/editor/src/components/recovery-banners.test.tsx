@@ -14,20 +14,20 @@ describe("recovery banners", () => {
     expect(recoveryStateLabel("failed")).toContain("failed");
   });
 
-  it("offers non-modal restore, backup, and ignore actions", () => {
+  it("offers non-modal restore, save-a-copy, and ignore actions", () => {
     const html = renderToStaticMarkup(
       <RecoveryAvailableBanner
         projectName="OTA"
         updatedAt="2026-08-28T08:30:00.000Z"
         onRestore={vi.fn()}
-        onDownload={vi.fn()}
+        onSaveCopy={vi.fn()}
         onDismiss={vi.fn()}
       />,
     );
     expect(html).toContain("startup-recovery-banner");
     expect(html).toContain("OTA");
     expect(html).toContain("Restore");
-    expect(html).toContain("Download backup");
+    expect(html).toContain("Save a copy…");
     expect(html).toContain("Ignore");
     expect(html).not.toContain('role="dialog"');
   });

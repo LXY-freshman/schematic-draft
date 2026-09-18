@@ -1,363 +1,124 @@
 import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { AgentHttpClient } from "../../../packages/agent-client/src/http-client.js";
 import {
   createEmptyProject,
   createRoutePath,
   CURRENT_PROJECT_SCHEMA_VERSION,
 } from "@icm/model";
 
-import { CLOUD_PROJECT_LIMIT } from "../src/features/editor-shell/cloud-projects";
 import {
   chooseComponent,
-  clickNetlistWorkflowCommand,
-  downloadBytes,
   openMenu,
   recoveryProjectTexts,
 } from "./editor-fixtures.js";
 
-async function mockCloudProjects(page: Page) {
-  let stored: {
-    id: string;
-    name: string;
-    projectText: string;
-    updatedAt: string;
-    revision: number;
-    schemaVersion: number;
-  } | null = null;
-  await page.route("**/api/auth/me", (route) =>
+/**
+ * Opening and saving go through the desktop shell's file bridge
+ * (`POST /api/file/*`), which a plain Vite server does not answer. These specs
+ * stand a fake main process in front of it: an in-memory filesystem plus the
+ * two dialog picks. That keeps the editor's real code path — serialize, write,
+ * rebind, report — under test, and makes the dialog policy observable: only a
+ * first save and Save As ask where to write.
+ */
+interface SaveRequest {
+  path: string | null;
+  name: string;
+  text: string;
+  saveAs?: boolean;
+}
+
+interface FileBridge {
+  /** The fake filesystem, by absolute path. */
+  files: Map<string, string>;
+  /** Every `/save` body the editor sent, in order. */
+  saves: SaveRequest[];
+  /** What the Open dialog returns; `null` cancels. */
+  openPick: string | null;
+  /** Where the Save dialog puts the file; `null` cancels. */
+  savePick: string | null;
+}
+
+function baseName(path: string): string {
+  return path.split(/[\\/]/u).at(-1) ?? path;
+}
+
+async function mockFileBridge(page: Page): Promise<FileBridge> {
+  const bridge: FileBridge = {
+    files: new Map(),
+    saves: [],
+    openPick: null,
+    savePick: null,
+  };
+  const read = (path: string) => {
+    const text = bridge.files.get(path);
+    return text === undefined
+      ? { status: "failed", message: `${path} could not be read` }
+      : { status: "opened", file: { path, name: baseName(path), text } };
+  };
+  await page.route("**/api/file/open", (route) =>
     route.fulfill({
-      json: {
-        user: {
-          id: "u1",
-          displayName: "Circuit Author",
-          email: "author@example.com",
-          provider: "github",
-          isAdmin: false,
-        },
-      },
+      json:
+        bridge.openPick === null
+          ? { status: "cancelled" }
+          : read(bridge.openPick),
     }),
   );
-  await page.route("**/api/projects", (route) => {
-    if (route.request().method() === "GET") {
-      return route.fulfill({ json: { projects: stored ? [stored] : [] } });
-    }
-    const body = route.request().postDataJSON() as {
-      name: string;
-      projectText: string;
-    };
-    const parsed = JSON.parse(body.projectText) as { schemaVersion: number };
-    stored = {
-      id: "cloud-1",
-      name: body.name,
-      projectText: body.projectText,
-      updatedAt: "2026-08-28T10:00:00.000Z",
-      revision: 1,
-      schemaVersion: parsed.schemaVersion,
-    };
-    return route.fulfill({ status: 201, json: { project: stored } });
+  await page.route("**/api/file/read", (route) => {
+    const { path } = route.request().postDataJSON() as { path: string };
+    return route.fulfill({ json: read(path) });
   });
-  await page.route("**/api/projects/cloud-1", (route) => {
-    if (!stored) return route.fulfill({ status: 404, json: {} });
-    if (route.request().method() === "GET") {
-      return route.fulfill({ json: { project: stored } });
-    }
-    const body = route.request().postDataJSON() as {
-      name: string;
-      projectText: string;
-    };
-    stored = {
-      ...stored,
-      name: body.name,
-      projectText: body.projectText,
-      revision: stored.revision + 1,
-      updatedAt: "2026-08-28T10:01:00.000Z",
-    };
-    return route.fulfill({ json: { project: stored } });
+  await page.route("**/api/file/save", (route) => {
+    const body = route.request().postDataJSON() as SaveRequest;
+    bridge.saves.push(body);
+    // The shell only raises a dialog without a bound path, or for Save As.
+    const target =
+      body.saveAs === true || body.path === null ? bridge.savePick : body.path;
+    if (target === null)
+      return route.fulfill({ json: { status: "cancelled" } });
+    bridge.files.set(target, body.text);
+    return route.fulfill({
+      json: { status: "saved", file: { path: target, name: baseName(target) } },
+    });
   });
-  return { stored: () => stored };
+  return bridge;
 }
 
-for (const duringSave of ["edit", "replace"] as const) {
-  test(`Check and Save keeps its snapshot safe during ${duringSave}`, async ({
-    page,
-  }) => {
-    await mockCloudProjects(page);
-    let releaseSave!: () => void;
-    const saveReleased = new Promise<void>((resolve) => {
-      releaseSave = resolve;
-    });
-    let captured: ReturnType<typeof createEmptyProject> | null = null;
-    await page.route("**/api/projects", async (route) => {
-      if (route.request().method() !== "POST") return route.fallback();
-      const body = route.request().postDataJSON() as { projectText: string };
-      captured = JSON.parse(body.projectText) as ReturnType<
-        typeof createEmptyProject
-      >;
-      await saveReleased;
-      await route.fulfill({
-        status: 201,
-        json: {
-          project: {
-            id: "cloud-checked",
-            name: captured.name,
-            revision: 1,
-            schemaVersion: captured.schemaVersion,
-            updatedAt: "2026-09-03T10:00:00Z",
-          },
-        },
-      });
-    });
-    await page.goto("/editor");
-    await chooseComponent(page, "resistor");
-    await page
-      .getByTestId("schematic-canvas")
-      .click({ position: { x: 360, y: 230 } });
-    await page.keyboard.press("Escape");
-    const check = page.getByTestId("check-and-save");
-    await clickNetlistWorkflowCommand(page, "check-and-save");
-    await expect.poll(() => captured?.documents[0]?.instances.length).toBe(1);
-    await expect(page.getByTestId("statusbar-issues")).toHaveAttribute(
-      "data-check-status",
-      "current",
-    );
-    await expect(page.getByTestId("project-diagnostics")).toContainText(
-      "ERC_UNCONNECTED_PIN",
-    );
-    await expect(check).toBeDisabled();
-    if (duringSave === "edit") {
-      await page.keyboard.press("Control+z");
-      await expect(page.getByTestId("statusbar-issues")).toHaveText(
-        "Check out of date",
-      );
-      await expect(page.locator(".diagnostic-marker")).toHaveCount(0);
-      await expect(
-        page.getByTestId("project-diagnostics").locator("button").first(),
-      ).toBeDisabled();
-    } else {
-      const fileMenu = await openMenu(page, "File");
-      await fileMenu.getByRole("button", { name: "New Project" }).click();
-      await expect(page.getByTestId("canvas-empty-state")).toBeVisible();
-      await expect(page.getByTestId("statusbar-issues")).toHaveText(
-        "Not checked",
-      );
-    }
-    releaseSave();
-    await expect(check).toBeEnabled();
-    if (duringSave === "edit") {
-      await expect(page.getByTestId("status")).toContainText(
-        "newer edits remain unsaved",
-      );
-      await expect(page.getByTestId("project-unsaved-indicator")).toBeVisible();
-    } else {
-      await expect(page.getByTestId("statusbar-issues")).toHaveText(
-        "Not checked",
-      );
-      expect(
-        await page.evaluate(() =>
-          sessionStorage.getItem("analog-canvas.recent-cloud-project.v1"),
-        ),
-      ).toBeNull();
-      await expect(
-        page.getByTestId("project-diagnostics").locator("li"),
-      ).toHaveCount(0);
-    }
-    await expect.poll(() => captured?.documents[0]?.instances.length).toBe(1);
-  });
+/** Save through the bridge and hand back the bytes that reached the file. */
+async function saveAndRead(page: Page, bridge: FileBridge): Promise<string> {
+  const before = bridge.saves.length;
+  const menu = await openMenu(page, "File");
+  await menu.getByTestId("save-project-file").click();
+  await expect.poll(() => bridge.saves.length).toBeGreaterThan(before);
+  await expect(page.getByTestId("status")).toContainText("Saved ");
+  return bridge.saves.at(-1)!.text;
 }
 
-test("Cloud Save updates one binding while local export stays interchange", async ({
-  page,
-}) => {
-  const cloud = await mockCloudProjects(page);
-  await page.goto("/editor");
-  await chooseComponent(page, "resistor");
-  await page
-    .getByTestId("schematic-canvas")
-    .click({ position: { x: 360, y: 230 } });
-  await page.keyboard.press("Escape");
-  await expect(page.getByTestId("project-unsaved-indicator")).toBeVisible();
+async function savedProject<T>(page: Page, bridge: FileBridge): Promise<T> {
+  return JSON.parse(await saveAndRead(page, bridge)) as T;
+}
 
-  await downloadBytes(page, "File", "Export Project File…");
-  await expect(page.getByTestId("project-unsaved-indicator")).toBeVisible();
-  await expect(page.getByTestId("status")).toContainText("Export requested");
+/** Which path each save aimed at, and whether it asked for a dialog. */
+function saveTargets(
+  bridge: FileBridge,
+): Array<{ path: string | null; saveAs: boolean }> {
+  return bridge.saves.map((request) => ({
+    path: request.path,
+    saveAs: request.saveAs === true,
+  }));
+}
 
-  const fileMenu = await openMenu(page, "File");
-  await expect(
-    fileMenu.getByRole("button", { name: "Save as Cloud Copy…" }),
-  ).toHaveCount(0);
-  await fileMenu.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByTestId("status")).toContainText(
-    "Saved New Circuit to Cloud",
-  );
-  await expect(page.getByTestId("project-unsaved-indicator")).toHaveCount(0);
-  await expect(page.getByTestId("statusbar-issues")).toHaveText("Not checked");
-  await chooseComponent(page, "resistor");
-  await page
-    .getByTestId("schematic-canvas")
-    .click({ position: { x: 500, y: 230 } });
-  await page.keyboard.press("Escape");
-  await page.keyboard.press("Control+s");
-  await expect.poll(() => cloud.stored()?.revision).toBe(2);
-  const reopenedMenu = await openMenu(page, "File");
-  await expect(
-    reopenedMenu.getByText(`Cloud Projects (1/${CLOUD_PROJECT_LIMIT})`),
-  ).toBeVisible();
-  await expect(
-    reopenedMenu.getByRole("button", { name: "Save", exact: true }),
-  ).toHaveCount(1);
-  const cloudProjectButton = reopenedMenu.getByTestId("cloud-project-cloud-1");
-  const cloudProjectTime = cloudProjectButton.locator("time");
-  await expect(cloudProjectTime).toBeVisible();
-  expect(
-    await cloudProjectTime.evaluate(
-      (element) => getComputedStyle(element).overflow,
-    ),
-  ).toBe("hidden");
-  const buttonBounds = await cloudProjectButton.boundingBox();
-  const timeBounds = await cloudProjectTime.boundingBox();
-  expect(buttonBounds).not.toBeNull();
-  expect(timeBounds).not.toBeNull();
-  expect(timeBounds!.x + timeBounds!.width).toBeLessThanOrEqual(
-    buttonBounds!.x + buttonBounds!.width,
-  );
-  await page.getByRole("link", { name: "Back to the gallery" }).click();
-  await expect(page).toHaveURL(/\/$/u);
-  await page.goto("/editor");
-  await expect(page.getByTestId("status")).toContainText(
-    "Opened Cloud Project New Circuit",
-  );
-  await expect(page.getByTestId("hit-R1")).toHaveCount(1);
-  await expect(page.getByTestId("hit-R2")).toHaveCount(1);
+const minimalProjectText = readFileSync(
+  resolve(process.cwd(), "fixtures/projects/minimal/project.icproj.json"),
+  "utf8",
+);
 
-  await page.getByRole("link", { name: "Back to the gallery" }).click();
-  await page.getByTestId("gallery-new-circuit").click();
-  await expect(page).toHaveURL(/\/editor\?new=1$/u);
-  await expect(page.getByTestId("canvas-empty-state")).toBeVisible();
-  await expect(page.getByTestId("hit-R1")).toHaveCount(0);
-});
-
-test("paired refresh and Gallery return preserve the saved Cloud binding", async ({
-  page,
-  baseURL,
-}) => {
-  const cloud = await mockCloudProjects(page);
-  await page.goto("/editor");
-  await chooseComponent(page, "resistor");
-  await page
-    .getByTestId("schematic-canvas")
-    .click({ position: { x: 360, y: 230 } });
-  await page.keyboard.press("Escape");
-  await page.keyboard.press("Control+s");
-  await expect.poll(() => cloud.stored()?.revision).toBe(1);
-  await page.getByTestId("open-agent").click();
-  const panel = page.getByTestId("connect-agent-panel");
-  const handoff = await panel.getByTestId("agent-copy-text").inputValue();
-  const { claimCode } = JSON.parse(handoff.match(/Claim: (.+)/u)![1]!);
-  const client = new AgentHttpClient({ baseUrl: baseURL! });
-  const session = await client.claim(claimCode);
-  await expect(panel.getByTestId("agent-status")).toHaveText("Connected");
-  await page.reload();
-  await expect(page.getByTestId("active-instance-count")).toHaveText("1");
-  await expect(page.getByTestId("project-unsaved-indicator")).toHaveCount(0);
-  await page.keyboard.press("Control+s");
-  await expect.poll(() => cloud.stored()?.revision).toBe(2);
-  const documentId = session.documentIds[0]!;
-  const snapshot = await client.circuit(session.sessionId, session.agentToken, {
-    apiVersion: "3.0",
-    requestId: "bound-before-edit",
-    operation: "snapshot",
-    documentId,
-  });
-  if (!snapshot.ok || snapshot.operation !== "snapshot")
-    throw new Error("Snapshot failed");
-  await client.circuit(session.sessionId, session.agentToken, {
-    apiVersion: "3.0",
-    requestId: "bound-edit",
-    operation: "transact",
-    documentId,
-    transactionId: "bound-edit",
-    expectedRevision: snapshot.revision,
-    edits: [
-      {
-        kind: "add_instance",
-        instance: {
-          id: "paired-R",
-          symbolId: "resistor",
-          placement: {
-            position: { x: 500, y: 200 },
-            rotation: 0,
-            mirror: "none",
-          },
-        },
-      },
-    ],
-  });
-  await expect
-    .poll(async () => (await recoveryProjectTexts(page)).includes("paired-R"))
-    .toBe(true);
-  page.on("dialog", (dialog) => void dialog.accept());
-  await page.reload();
-  await expect(page.getByTestId("active-instance-count")).toHaveText("2");
-  await expect(page.getByTestId("project-unsaved-indicator")).toBeVisible();
-  await page.keyboard.press("Control+s");
-  await expect.poll(() => cloud.stored()?.revision).toBe(3);
-  await page.getByRole("link", { name: "Back to the gallery" }).click();
-  await page.getByTestId("gallery-agent-return").click();
-  await expect(page.getByTestId("active-instance-count")).toHaveText("2");
-  await expect(page.getByTestId("project-unsaved-indicator")).toHaveCount(0);
-  await page.keyboard.press("Control+s");
-  await expect.poll(() => cloud.stored()?.revision).toBe(4);
-  expect(
-    await client.status(session.sessionId, session.agentToken),
-  ).toMatchObject({ editor: "attached" });
-});
-
-test("Gallery navigation uses the replacement decision without a second browser prompt", async ({
-  page,
-}) => {
-  await page.goto("/editor");
-  // The guard protects meaningful drawings: three authored objects.
-  for (const x of [300, 380, 460]) {
-    await chooseComponent(page, "resistor");
-    await page
-      .getByTestId("schematic-canvas")
-      .click({ position: { x, y: 230 } });
-    await page.keyboard.press("Escape");
-  }
-  await page.getByRole("link", { name: "Back to the gallery" }).click();
-  const guard = page.getByRole("dialog", {
-    name: "Unsaved changes",
-  });
-  await expect(guard).toBeVisible();
-  await guard.getByRole("button", { name: "Stay" }).click();
-  await expect(page).toHaveURL(/\/editor/u);
-
-  await page.getByRole("link", { name: "Back to the gallery" }).click();
-  await guard.getByRole("button", { name: "Continue without saving" }).click();
-  await expect(page).toHaveURL(/\/$/u);
-  await page.goto("/editor");
-  await expect(page.getByTestId("startup-recovery-banner")).toHaveCount(0);
-  await expect(page.getByTestId("canvas-empty-state")).toBeVisible();
-});
-
-test("imports and upgrades a portable Project before explicit export", async ({
-  page,
-}) => {
-  const source = JSON.parse(
-    readFileSync(
-      resolve(process.cwd(), "fixtures/projects/minimal/project.icproj.json"),
-      "utf8",
-    ),
-  ) as Record<string, unknown>;
+test("imports and upgrades a portable Project", async ({ page }) => {
+  const bridge = await mockFileBridge(page);
+  bridge.savePick = "C:\\circuits\\upgraded.icproj.json";
+  const source = JSON.parse(minimalProjectText) as Record<string, unknown>;
   const previousVersion = CURRENT_PROJECT_SCHEMA_VERSION - 1;
   source.schemaVersion = previousVersion;
-  // Schema 49 stored the same source folders under the former collection name.
-  if (previousVersion < 50) {
-    source.simulationSetups = source.simulationFolders;
-    delete source.simulationFolders;
-  }
   await page.goto("/editor");
   await page.getByTestId("project-file").setInputFiles({
     name: `minimal-v${previousVersion}.icproj.json`,
@@ -367,17 +128,15 @@ test("imports and upgrades a portable Project before explicit export", async ({
   await expect(page.getByTestId("status")).toContainText(
     `upgraded minimal-v${previousVersion}.icproj.json`,
   );
-  const exported = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ) as { schemaVersion: number };
-  expect(exported.schemaVersion).toBe(CURRENT_PROJECT_SCHEMA_VERSION);
+  const saved = await savedProject<{ schemaVersion: number }>(page, bridge);
+  expect(saved.schemaVersion).toBe(CURRENT_PROJECT_SCHEMA_VERSION);
 });
 
 test("normalizes legacy overlapping Wire topology on Project import", async ({
   page,
 }) => {
+  const bridge = await mockFileBridge(page);
+  bridge.savePick = "C:\\circuits\\legacy-overlap.icproj.json";
   const source = createEmptyProject("legacy-overlap", "Legacy overlap");
   const document = source.documents[0]!;
   document.sourceStatus = "in-sync";
@@ -430,21 +189,24 @@ test("normalizes legacy overlapping Wire topology on Project import", async ({
   await expect(page.getByTestId("status")).toContainText(
     "normalized connectivity and Wire topology in 1 Cell",
   );
-  const exported = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ) as typeof source;
-  expect(exported.documents[0]).toMatchObject({
+  const imported = (await savedProject<typeof source>(page, bridge))
+    .documents[0]!;
+  expect({
+    revision: imported.revision,
+    sourceStatus: imported.sourceStatus,
+    routes: imported.routes.length,
+  }).toEqual({
     revision: 1,
     sourceStatus: "geometry-only-changed",
+    routes: 3,
   });
-  expect(exported.documents[0]!.routes).toHaveLength(3);
 });
 
-test("imports split source-ground markers with independent owners and saves the repair", async ({
+test("imports split source-ground markers with independent owners", async ({
   page,
 }) => {
+  const bridge = await mockFileBridge(page);
+  bridge.savePick = "C:\\circuits\\split-ground.icproj.json";
   const source = createEmptyProject("split-ground", "Split ground");
   const document = source.documents[0]!;
   for (const [index, id] of ["G1", "G2"].entries()) {
@@ -484,14 +246,10 @@ test("imports split source-ground markers with independent owners and saves the 
     buffer: Buffer.from(JSON.stringify(source)),
   });
   await expect(page.getByTestId("status")).toContainText(
-    "save to Cloud or export to keep the repair",
+    "save to keep the repair",
   );
-  const exported = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ) as typeof source;
-  const repaired = exported.documents[0]!;
+  const repaired = (await savedProject<typeof source>(page, bridge))
+    .documents[0]!;
   expect(repaired.nets).toEqual(document.nets);
   expect(repaired.routes).toEqual([]);
   expect(repaired.sourceStatus).toBe("connectivity-modified");
@@ -510,6 +268,93 @@ test("imports split source-ground markers with independent owners and saves the 
       ),
     ),
   );
+});
+
+test("opens a file and then saves over it without a dialog", async ({
+  page,
+}) => {
+  const bridge = await mockFileBridge(page);
+  const path = "C:\\circuits\\amplifier.icproj.json";
+  bridge.files.set(path, minimalProjectText);
+  bridge.openPick = path;
+  await page.goto("/editor");
+  let fileMenu = await openMenu(page, "File");
+  await fileMenu.getByTestId("open-project-file").click();
+  await expect(page.getByTestId("status")).toHaveText(`Opened ${path}`);
+
+  // Save's target is stated, not guessed, before it is used.
+  fileMenu = await openMenu(page, "File");
+  await expect(fileMenu.getByTestId("save-project-file")).toHaveAttribute(
+    "title",
+    `Save to ${path}`,
+  );
+  await page.keyboard.press("Escape");
+
+  await chooseComponent(page, "resistor");
+  await page
+    .getByTestId("schematic-canvas")
+    .click({ position: { x: 360, y: 230 } });
+  await page.keyboard.press("Escape");
+
+  // A Save dialog pick is deliberately absent: needing one would cancel.
+  const saved = JSON.parse(await saveAndRead(page, bridge)) as {
+    documents: Array<{ instances: unknown[] }>;
+  };
+  expect(saveTargets(bridge)).toEqual([{ path, saveAs: false }]);
+  expect(saved.documents[0]!.instances).toHaveLength(1);
+  expect(bridge.files.get(path)).not.toBe(minimalProjectText);
+  await expect(page.getByTestId("status")).toHaveText(`Saved ${path}`);
+});
+
+test("Save As writes a second file and rebinds the Project to it", async ({
+  page,
+}) => {
+  const bridge = await mockFileBridge(page);
+  const original = "C:\\circuits\\amplifier.icproj.json";
+  const copy = "C:\\circuits\\amplifier-v2.icproj.json";
+  bridge.files.set(original, minimalProjectText);
+  bridge.openPick = original;
+  bridge.savePick = copy;
+  await page.goto("/editor");
+  let fileMenu = await openMenu(page, "File");
+  await fileMenu.getByTestId("open-project-file").click();
+  await expect(page.getByTestId("status")).toHaveText(`Opened ${original}`);
+
+  fileMenu = await openMenu(page, "File");
+  await fileMenu.getByTestId("save-project-file-as").click();
+  await expect(page.getByTestId("status")).toHaveText(`Saved ${copy}`);
+  expect(saveTargets(bridge)).toEqual([{ path: original, saveAs: true }]);
+  expect(bridge.files.get(original)).toBe(minimalProjectText);
+
+  // From here Save belongs to the copy, with no further dialog.
+  bridge.savePick = null;
+  await chooseComponent(page, "resistor");
+  await page
+    .getByTestId("schematic-canvas")
+    .click({ position: { x: 360, y: 230 } });
+  await page.keyboard.press("Escape");
+  await saveAndRead(page, bridge);
+  expect(saveTargets(bridge).at(-1)).toEqual({ path: copy, saveAs: false });
+  await expect(page.getByTestId("status")).toHaveText(`Saved ${copy}`);
+});
+
+test("keeps the work in the editor when a save fails", async ({ page }) => {
+  await mockFileBridge(page);
+  await page.route("**/api/file/save", (route) =>
+    route.fulfill({ json: { status: "failed", message: "disk is full" } }),
+  );
+  await page.goto("/editor");
+  await chooseComponent(page, "resistor");
+  await page
+    .getByTestId("schematic-canvas")
+    .click({ position: { x: 360, y: 230 } });
+  await page.keyboard.press("Escape");
+  const fileMenu = await openMenu(page, "File");
+  await fileMenu.getByTestId("save-project-file").click();
+  await expect(page.getByTestId("status")).toContainText(
+    "Save failed; work remains in the editor (disk is full)",
+  );
+  await expect(page.getByTestId("revision")).toHaveText("1");
 });
 
 test("rejects invalid imports without replacing live or recovered work", async ({
@@ -533,55 +378,6 @@ test("rejects invalid imports without replacing live or recovered work", async (
     .toContain('"revision": 1');
 });
 
-test("replacement guard offers cancel, discard, and Cloud Save", async ({
-  page,
-}) => {
-  const cloud = await mockCloudProjects(page);
-  await page.addInitScript(() => {
-    Object.defineProperty(window, "indexedDB", {
-      configurable: false,
-      get() {
-        throw new DOMException("storage blocked", "InvalidStateError");
-      },
-    });
-  });
-  await page.goto("/editor");
-  // The guard protects meaningful drawings: three authored objects.
-  for (const x of [300, 380, 460]) {
-    await chooseComponent(page, "resistor");
-    await page
-      .getByTestId("schematic-canvas")
-      .click({ position: { x, y: 230 } });
-    await page.keyboard.press("Escape");
-  }
-
-  const input = page.getByTestId("project-file");
-  const replacement = resolve(
-    process.cwd(),
-    "fixtures/projects/phase-1-manual/project.icproj.json",
-  );
-  await input.setInputFiles(replacement);
-  const dialog = page.getByRole("dialog", {
-    name: "Unsaved changes",
-  });
-  await expect(dialog).toContainText(
-    `Cloud Projects (up to ${CLOUD_PROJECT_LIMIT})`,
-  );
-  await dialog.getByRole("button", { name: "Stay" }).click();
-  await expect(page.getByTestId("revision")).toHaveText("3");
-
-  await input.evaluate((element) => ((element as HTMLInputElement).value = ""));
-  await input.setInputFiles(replacement);
-  await dialog
-    .getByRole("button", { name: "Save to Cloud and continue" })
-    .click();
-  await expect(dialog).toBeHidden();
-  expect(cloud.stored()?.projectText).toContain("resistor");
-  await expect(page.getByTestId("active-document-name")).toHaveText(
-    "Manual Editor Demo",
-  );
-});
-
 test("discarding a dirty replacement does not leave a second project stack", async ({
   page,
 }) => {
@@ -603,60 +399,6 @@ test("discarding a dirty replacement does not leave a second project stack", asy
   await expect(page.getByTestId("canvas-empty-state")).toBeVisible();
   fileMenu = await openMenu(page, "File");
   await expect(
-    fileMenu.getByRole("button", { name: "Previous Project" }),
-  ).toHaveCount(0);
-  await expect(
-    fileMenu.getByRole("button", { name: "Download Backup" }),
-  ).toHaveCount(0);
-});
-
-test("reverts to the last acknowledged Cloud revision", async ({ page }) => {
-  await mockCloudProjects(page);
-  await page.goto("/editor");
-  await chooseComponent(page, "resistor");
-  await page
-    .getByTestId("schematic-canvas")
-    .click({ position: { x: 320, y: 230 } });
-  await page.keyboard.press("Escape");
-  let fileMenu = await openMenu(page, "File");
-  await fileMenu.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByTestId("project-unsaved-indicator")).toHaveCount(0);
-
-  // Two more parts push the drawing over the guard's meaningful-content
-  // threshold while staying unsaved.
-  for (const x of [500, 560]) {
-    await chooseComponent(page, "resistor");
-    await page
-      .getByTestId("schematic-canvas")
-      .click({ position: { x, y: 230 } });
-    await page.keyboard.press("Escape");
-  }
-  fileMenu = await openMenu(page, "File");
-  await fileMenu.getByRole("button", { name: "Revert to Last Saved" }).click();
-  await page
-    .getByRole("dialog", { name: "Unsaved changes" })
-    .getByRole("button", { name: "Continue without saving" })
-    .click();
-  await expect(page.getByTestId("hit-R1")).toHaveCount(1);
-  await expect(page.getByTestId("hit-R2")).toHaveCount(0);
-  await expect(page.getByTestId("hit-R3")).toHaveCount(0);
-});
-
-test("the circuit name drives Cloud Save and portable export", async ({
-  page,
-}) => {
-  const cloud = await mockCloudProjects(page);
-  await page.goto("/editor");
-  const name = page.getByTestId("project-name-input");
-  await name.fill("Bandgap Reference");
-  await name.press("Enter");
-  const fileMenu = await openMenu(page, "File");
-  await fileMenu.getByRole("button", { name: "Save", exact: true }).click();
-  await expect.poll(() => cloud.stored()?.name).toBe("Bandgap Reference");
-  const exported = JSON.parse(
-    (await downloadBytes(page, "File", "Export Project File…")).toString(
-      "utf8",
-    ),
-  ) as { name?: string };
-  expect(exported.name).toBe("Bandgap Reference");
+    fileMenu.getByRole("button", { name: "Revert to Last Saved" }),
+  ).toBeDisabled();
 });

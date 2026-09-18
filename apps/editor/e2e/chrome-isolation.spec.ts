@@ -50,9 +50,13 @@ test("carries the version and project resource links inside Help", async ({
   await page.getByRole("button", { name: "Help" }).click();
 
   const about = page.getByRole("dialog");
-  await expect(about).toContainText("About Analog Canvas");
+  await expect(about).toContainText("About Schematic Draft");
   await expect(about).toContainText("Version 0.9.2");
-  const repositoryLink = about.getByRole("link", { name: "Repository" });
+  // The only outbound links are credit for the upstream project this build
+  // forks; nothing here reaches a service the application depends on.
+  const repositoryLink = about.getByRole("link", {
+    name: "Upstream repository",
+  });
   await expect(repositoryLink).toHaveAttribute(
     "href",
     "https://github.com/cascode-ai/analog-canvas",
@@ -61,10 +65,6 @@ test("carries the version and project resource links inside Help", async ({
   await expect(about.getByRole("link", { name: "Change Log" })).toHaveAttribute(
     "href",
     "https://github.com/cascode-ai/analog-canvas/commits/main",
-  );
-  await expect(about.getByRole("link", { name: "Owner" })).toHaveAttribute(
-    "href",
-    "https://www.tokenzhang.com",
   );
   await page.keyboard.press("Escape");
   await expect(about).toHaveCount(0);

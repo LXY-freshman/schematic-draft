@@ -74,12 +74,12 @@ describe("editor export commands", () => {
 });
 
 describe("describeExportFailure", () => {
-  it("turns a vanished chunk into the refresh remedy and names the feature", async () => {
+  it("turns a missing chunk into the refresh remedy and names the feature", async () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const chunkError = await importChunk("PDF export", () =>
       Promise.reject(
         new TypeError(
-          "Failed to fetch dynamically imported module: https://analog-canvas.tokenzhang.com/assets/browser-pdf-D-HT6q.js",
+          "Failed to fetch dynamically imported module: app://schematic-draft/assets/browser-pdf-D-HT6q.js",
         ),
       ),
     ).then(

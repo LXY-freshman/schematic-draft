@@ -4,11 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 import { ReplaceGuardDialog } from "./replace-guard-dialog";
 
 describe("ReplaceGuardDialog", () => {
-  it("states the consequence and distinguishes Cloud Save from file export", () => {
+  it("states the consequence and names the file Save would write", () => {
     const html = renderToStaticMarkup(
       <ReplaceGuardDialog
         intent="Open OTA.icproj.json"
-        cloudProjectLimit={7}
+        openFilePath={"D:\\Circuits\\OTA.icproj.json"}
         saving={false}
         onCancel={vi.fn()}
         onSaveAndContinue={vi.fn()}
@@ -17,28 +17,29 @@ describe("ReplaceGuardDialog", () => {
     );
     expect(html).toContain("Unsaved changes");
     expect(html).toContain("will drop your latest");
-    // The copy states whatever limit it is handed, never a number of its own.
-    expect(html).toContain("Cloud Projects (up to 7).");
-    expect(html).toContain("Export Project File");
-    expect(html).toContain("downloads <code>.icproj.json</code>");
-    expect(html).toContain("Save to Cloud and continue");
+    // The copy names the target it was handed, never a store of its own.
+    expect(html).toContain(
+      "Save writes <code>D:\\Circuits\\OTA.icproj.json</code>",
+    );
+    expect(html).toContain("Save and continue");
     expect(html).toContain("Continue without saving");
     expect(html).toContain("Stay");
     expect(html).not.toContain("Browser recovery");
   });
 
-  it("disables every decision while Cloud Save is in progress", () => {
+  it("says Save will ask when the Project has no file, and locks up while saving", () => {
     const html = renderToStaticMarkup(
       <ReplaceGuardDialog
         intent="Create a new Project"
-        cloudProjectLimit={7}
+        openFilePath={null}
         saving={true}
         onCancel={vi.fn()}
         onSaveAndContinue={vi.fn()}
         onDiscard={vi.fn()}
       />,
     );
-    expect(html).toContain("Saving to Cloud…");
+    expect(html).toContain("it asks where to put it");
+    expect(html).toContain("Saving…");
     expect(html).toContain("disabled");
   });
 });

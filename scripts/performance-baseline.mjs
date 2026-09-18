@@ -1,10 +1,10 @@
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 
-import { createAgentCircuitService } from "../packages/agent-adapter/dist/index.js";
 import { buildProjectConnectivityIndex } from "../packages/derived/dist/index.js";
+import { executeTransaction } from "../packages/edit-engine/dist/index.js";
 import {
   CircuitProjectSchema,
   createEmptyProject,
@@ -14,7 +14,6 @@ import {
   saveProject,
   serializeProject,
 } from "../packages/project-protocol/dist/index.js";
-import { RootedProjectStorage } from "../packages/platform-node/dist/index.js";
 import { renderDocumentSvg } from "../packages/render-svg/dist/index.js";
 import { importSpiceSources } from "../packages/spice/dist/index.js";
 import {
@@ -26,13 +25,30 @@ const budgets = {
   generateProject: 2000,
   serialize: 1000,
   renderSvg: 2000,
-  agentSnapshot: 1000,
   editTransaction: 1000,
   connectivityIndex: 1000,
   connectivityRenderSvg: 2000,
   spiceImport: 2000,
   atomicSave: 1000,
 };
+
+/** Minimal write-then-rename storage adapter; the shell owns the real one. */
+class TempDirectoryStorage {
+  constructor(root) {
+    this.root = root;
+  }
+
+  async readText(path) {
+    return readFile(join(this.root, path), "utf8");
+  }
+
+  async writeTextAtomically(path, content) {
+    const target = join(this.root, path);
+    const pending = `${target}.tmp`;
+    await writeFile(pending, content, "utf8");
+    await rename(pending, target);
+  }
+}
 
 async function measure(action) {
   const started = performance.now();
@@ -132,43 +148,27 @@ const serialized = await measure(() => serializeProject(project));
 const rendered = await measure(() =>
   renderDocumentSvg(document, resolver, { title: project.name }),
 );
-const service = createAgentCircuitService({
-  agentId: "performance-agent",
-  store: {
-    getDocument: () => document,
-    commitDocument: (next) => {
-      document = next;
-    },
-  },
-  resolver,
-  permissions: {
-    snapshot: true,
-    render: true,
-    sourceSpans: false,
-    edit: { geometry: true, connectivity: false, presentation: false },
-  },
-});
-const snapshot = await measure(() =>
-  service.handle({
-    apiVersion: "3.0",
-    requestId: "performance-snapshot",
-    operation: "snapshot",
-    documentId: document.id,
-  }),
-);
 const edit = await measure(() =>
-  service.handle({
-    apiVersion: "3.0",
-    requestId: "performance-edit",
-    operation: "transact",
-    documentId: document.id,
-    transactionId: "performance-edit-1",
-    expectedRevision: document.revision,
-    edits: [
-      { kind: "move_instance", instanceId: "R1", position: { x: 80, y: 80 } },
-    ],
-  }),
+  executeTransaction(
+    document,
+    {
+      transactionId: "performance-edit-1",
+      documentId: document.id,
+      expectedRevision: document.revision,
+      actor: { kind: "human", id: "performance-baseline" },
+      edits: [
+        { kind: "move_instance", instanceId: "R1", position: { x: 80, y: 80 } },
+      ],
+    },
+    { symbolResolver: resolver },
+  ),
 );
+if (!edit.result.ok) {
+  throw new Error(
+    `Edit Engine transaction failed: ${edit.result.error.code} ${edit.result.error.message}`,
+  );
+}
+document = edit.result.document;
 const connectivityIndex = await measure(() =>
   buildProjectConnectivityIndex(validatedConnectivityProject, resolver),
 );
@@ -191,7 +191,7 @@ const imported = await measure(async () =>
 const storageRoot = await mkdtemp(resolve(tmpdir(), "icm-performance-"));
 const saved = await measure(() =>
   saveProject(
-    new RootedProjectStorage(storageRoot),
+    new TempDirectoryStorage(storageRoot),
     "large.icproj.json",
     project,
   ),
@@ -201,7 +201,6 @@ const measurements = {
   generateProject: generated.milliseconds,
   serialize: serialized.milliseconds,
   renderSvg: rendered.milliseconds,
-  agentSnapshot: snapshot.milliseconds,
   editTransaction: edit.milliseconds,
   connectivityIndex: connectivityIndex.milliseconds,
   connectivityRenderSvg: connectivityRender.milliseconds,

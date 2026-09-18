@@ -7,20 +7,17 @@ unit tests do not establish end-to-end completion.
 
 ## Active boundaries
 
-| Outcome                           | Remaining boundary                                                                                                                                  | Acceptance owner                                                                      |
-| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Simulation capabilities           | Advanced legacy conversion, repeated Noise provenance, and promotion-predicate review                                                               | [Simulation remaining work](simulation-remaining-work.md)                             |
-| VACASK integration                | Hosted dual-engine release, preserved interaction and one-candidate human/Agent acceptance                                                          | [VACASK qualification](vacask-migration.md)                                           |
-| Accessible manual editing         | Semantic canvas navigation and keyboard alternatives to pointer-only operations                                                                     | Editor interaction; [current limits](../user/troubleshooting.md#accessibility-limits) |
-| Connectivity consumer closure     | Verify all production consumers use canonical read/geometry/location contracts; remove any reachable duplicate paths only with parity evidence      | Derived/Edit Engine/editor owners                                                     |
-| Named-Net/export closure          | Verify the complete lifecycle and dialect matrix together, not just isolated resolver success                                                       | Derived/netlist/import/editor owners                                                  |
-| Portable release human acceptance | Install the PWA from the packaged local host; import/place/wire/save/restart/restore/export an original circuit; record candidate and artifact hash | Release owner                                                                         |
-| Hosted Agent delivery             | Confirm a deployed grant → edit → undo → revoke journey, credential isolation, and bounded resource access for the release candidate                | Agent/Worker/release owners                                                           |
+| Outcome                       | Remaining boundary                                                                                                                             | Acceptance owner                                                                      |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Accessible manual editing     | Semantic canvas navigation and keyboard alternatives to pointer-only operations                                                                 | Editor interaction; [current limits](../user/troubleshooting.md#accessibility-limits) |
+| Connectivity consumer closure | Verify all production consumers use canonical read/geometry/location contracts; remove any reachable duplicate paths only with parity evidence  | Derived/Edit Engine/editor owners                                                     |
+| Named-Net/export closure      | Verify the complete lifecycle and dialect matrix together, not just isolated resolver success                                                   | Derived/netlist/import/editor owners                                                  |
+| Desktop release acceptance    | Install the packaged Windows build; open/place/wire/save/restart/restore/export an original circuit offline; record the build and artifact hash | Release owner                                                                          |
 
-Connectivity/export, portable release and hosted Agent rows are recurring
-acceptance reviews, not missing feature implementations. Candidate receipts and
-commits carry their evidence. Investigate concrete gaps revealed by those reviews;
-do not recreate an already implemented subsystem.
+Connectivity/export and desktop release rows are recurring acceptance reviews,
+not missing feature implementations. Commits carry their evidence. Investigate
+concrete gaps revealed by those reviews; do not recreate an already implemented
+subsystem.
 
 ## Connectivity and naming acceptance
 
@@ -34,7 +31,7 @@ The acceptance review must cover:
 - Shared resolved Route geometry for rendering, hit testing, attachment,
   dragging, diagnostics, and formal export; stable leg remapping through
   split, normalization, stretch, and deletion.
-- Manual and Agent behavior for free ends, bends, loops, Junctions, groups,
+- Interactive behavior for free ends, bends, loops, Junctions, groups,
   copy/paste, placement contacts, direct-pin separation, locked geometry, and
   route-bound annotations. Refactoring cannot discard a difficult corner.
 - Wire cut → Base-Net partition → owner reconciliation → endpoint readiness,

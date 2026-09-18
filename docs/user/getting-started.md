@@ -1,24 +1,37 @@
 # Getting Started
 
+## Run the desktop application
+
+Launch `Schematic Draft.exe`. It is portable: no installer, no service, nothing
+written outside the directory it runs from and the files you save. The window
+opens on an empty `New Circuit` Project whose one Cell is `dut`, ready for
+palette-first manual authoring — no file needs to be opened first.
+
+Nothing in the application reaches the network. Every outbound request is
+refused by the desktop shell, and an external link opens in your system browser
+instead of inside the application.
+
 ## Run from source
 
-```powershell
+```bash
 pnpm install --frozen-lockfile
 pnpm build
-pnpm dev
+pnpm dev            # browser at http://localhost:5173
+pnpm desktop:start  # the Electron window
 ```
 
 Run `pnpm build` once after installing, and again after pulling package
 changes: the development server's Vite configuration loads some workspace
-packages from their built `dist/` output.
+packages from their built `dist/` output. In a plain browser, **Open Project…**
+and **Save** report a failure — the file bridge they call exists only in the
+desktop shell — so use **Import Project File…** there instead.
 
-Open the displayed loopback URL. Open **File** and use **Import SPICE / SCS…**
-to select one `.cir`, `.sp`, `.spi`, or `.scs` entry plus its local include
-files. **Import Cadence SPICE (`!` globals)…** also treats net names ending in
-`!` as global Nets. Imported instances begin unplaced so that the user can
-decide the presentation. A normal launch starts with a genuinely empty
-`New Circuit` Project whose one Cell is `dut`, for palette-first manual
-authoring; no Project file needs to be opened first.
+## Bring in an existing netlist
+
+Open **File** and use **Import SPICE / SCS…** to select one `.cir`, `.sp`,
+`.spi`, or `.scs` entry plus its local include files. **Import Cadence SPICE
+(`!` globals)…** also treats net names ending in `!` as global Nets. Imported
+instances begin unplaced so that you decide the presentation.
 
 New Resistor, Capacitor, and Inductor instances—including their adjustable
 variants—start with `1k`, `1p`, and `1n` respectively. T-coil starts with
@@ -26,6 +39,7 @@ variants—start with `1k`, `1p`, and `1n` respectively. T-coil starts with
 `K=1`. These are authored parameter values rather than placeholders. T-coil
 and XFMR remain manual-only compound devices until structural netlist lowering
 is defined.
+
 
 ## Edit and connect
 
@@ -204,43 +218,35 @@ markers attached to conductors and arrows inside device symbols.
 
 ## Save and recover
 
-**File / Save** (or `Ctrl+S`) saves the current content to one private Cloud
-Project. Repeated saves update that Project instead of creating snapshots. A
-new or imported drawing is unbound until its first Save, which creates and
-binds its Cloud Project. A dot beside the Project name means
-the Cloud Project has unsaved changes. Browser Back, Refresh, and tab or window
-close then show the browser's standard leave warning; only an acknowledged
-Cloud Save of the current content clears it.
+**File / Save** (or `Ctrl+S`) writes the file you opened, in place, with no
+dialog. The File menu shows that path under **Save As…**, and the Save item's
+tooltip names it, so overwriting is never a guess. **Save As…** is the only
+command that asks where to put the file. A new or imported drawing has no file
+yet, so its first **Save** asks once and then remembers.
 
-Edits also stage an origin-local IndexedDB recovery copy. Recovery is silent
-crash protection, not Save, and can be lost if browser site data is cleared.
-If Cloud is unavailable, continue editing normally and use **Export Project
-File…** when you want a portable copy. A direct **Download Backup** action is
-shown contextually if browser recovery itself cannot protect current work.
+A dot beside the Project name means there are changes the file does not have.
+Refresh and window close then show a leave warning; only a completed Save clears
+it.
 
-New, Open, Revert, and the same-tab trip to Gallery ask whether to **Save to
-Cloud and continue**, **Continue without saving**, or **Stay** when the current
-Project is dirty. The prompt also identifies where each explicit save goes:
-Cloud Save keeps the Project in your private Cloud Projects, up to the
-per-account limit the prompt shows, while **Export Project File…** downloads a
-local `.icproj.json` file. Continue without saving
-means discard: that working copy is removed before the action
-continues. If a newer
-unsaved recovery copy is found on a later start, a small banner offers
-**Restore**, **Download backup**, or **Ignore**. The same copies remain
-available through **File / Recover Local Work…**; recovery never silently
-replaces the current Project.
+Edits also stage a recovery copy in the application's own IndexedDB. Recovery is
+silent crash protection, not Save, and can be lost if that storage is cleared. A
+**Save a copy…** action appears contextually if recovery itself cannot protect
+current work; it writes a separate backup file and leaves the Project's own file
+binding alone.
 
-Returning from Gallery reopens the last active Cloud Project for this browser
-tab. The tab stores only that Cloud Project id; the editor fetches the formal
-Project again rather than treating browser state as Save. A newer unsaved
-recovery copy still gets the first decision.
+New, Open, and Revert ask whether to **Save and continue**, **Continue without
+saving**, or **Stay** when the current Project has unsaved changes. The prompt
+names the file Save would write, or says it will ask when there is none.
+Continue without saving means discard: that working copy is removed before the
+action continues. If a newer unsaved recovery copy is found on a later start, a
+small banner offers **Restore**, **Save a copy…**, or **Ignore**. The same
+copies remain available through **File / Recover Local Work…**; recovery never
+silently replaces the current Project. A Project restored from a recovery copy
+has no file binding, so its first **Save** asks where to put it.
 
-Use the Cloud Projects list in **File** to open formal work. Use **Import
-Project File…** to validate a portable `.icproj.json`; invalid or future-version
-input leaves the current Document unchanged. **Export Project File…** does not
-change Cloud save state. The old rolling cloud
-snapshot and local File System Access Save paths have been removed.
+Use **Import Project File…** to validate a portable `.icproj.json` without
+binding it; invalid or future-version input leaves the current Document
+unchanged.
 
 SPICE files are import inputs, not embedded source attachments. Saving an
 imported Project preserves the editable schematic and source provenance, but
@@ -250,7 +256,7 @@ when you need to import them again.
 ## Export
 
 **File / Export drawing** exports the entire current drawing as SVG, PNG, or PDF containing only formal schematic
-layers. PNG uses 3x raster scale. Browser PDF converts the same formal SVG to
+layers. PNG uses 3x raster scale. PDF converts the same formal SVG to
 vector paths and text on a page matching the SVG viewBox, so circuit geometry
 stays sharp when enlarged.
 
@@ -260,19 +266,17 @@ Attached visible labels travel with their selected objects, but remote objects
 sharing a Net do not. Clipboard copies omit editor overlays, use a transparent
 page background, and do not change the circuit or Undo history. PNG is rendered
 at 3x with a bounded image size. SVG stays vector; formula glyphs remain paths,
-and the receiving application determines paste/editing support. Clipboard writes
-require HTTPS or localhost and browser permission. Failures are reported without
-silently downloading a file or substituting a different format. These commands
-do not change the existing **C** copy-placement workflow.
+and the receiving application determines paste/editing support. Failures are
+reported without silently writing a file or substituting a different format.
+These commands do not change the existing **C** copy-placement workflow.
 
 Use **Netlist / Check and Save** to check the whole Project for ERC and
-visual issues and save it through the existing private Cloud Project service.
+visual issues and then save it to its file.
 Findings appear in **Issues**, the bottom status summary, and existing canvas
 markers. Observations stay behind their explicit toggle. Neither producer
 runs automatically while drawing. Further edits mark the last check out of
 date and hide its markers; check again to refresh it. Save still proceeds
-when issues exist, and an offline or signed-out save still leaves the local
-check available. This command does not repair Bulk connections or rewrite
+when issues exist. This command does not repair Bulk connections or rewrite
 the circuit. A Route segment that is neither horizontal, vertical, nor exactly
 45° appears as an actionable wiring issue. **Straighten angled wires in this
 Cell** replaces only those segments with local right-angle corners in one
@@ -281,9 +285,10 @@ remain listed for manual repair. **File / Save** and **Ctrl+S** remain save-only
 
 Click the top **Netlist** copy button to put the netlist on the clipboard and
 open its live code in the right sidebar. That panel's **Format** (SPICE or SCS)
-and **Process** selectors choose what is copied and are remembered in this
-browser; **Default** restores every preset. Editing the circuit refreshes the
+and **Process** selectors choose what is copied and are remembered locally;
+**Default** restores every preset. Editing the circuit refreshes the
 visible code. Clipboard failures leave the code selectable for manual copy.
+
 
 **Netlist / Instances…** opens the Project's netlist instances as one editable
 JSON document in the right sidebar. Paste whole blocks to change references,
@@ -351,36 +356,19 @@ The converter supports common structural devices, ordered subcircuits, parameter
 DC/AC/PULSE/SIN/PWL sources and simple OP/AC/DC/TRAN analyses. It preserves a
 SPICE-language section in SCS. Unsupported parameters, native model syntax,
 behavioral expressions and ngspice control scripts cannot be translated into
-native Spectre; they produce an error instead of a partial circuit. Simulation
-source folders remain the place for complete original testbenches.
+native Spectre; they produce an error instead of a partial circuit. Keep your
+original testbench files: import builds the circuit and does not retain the deck.
 
-## Portable release
+## Build the Windows application
 
-Build the versioned bundle and start it with Node 24:
-
-```powershell
-pnpm release:package
-node output/release/interactive-circuit-maker-v0.9.2/start.mjs
+```bash
+pnpm desktop:dist
 ```
 
-Open `http://127.0.0.1:4173`. Chromium can install the app from its browser
-install action. The server accepts only loopback connections.
+The portable executable lands under `apps/desktop/release/`. Copy it anywhere and
+run it; it needs no installer and no privileges. See
+[`apps/desktop/README.md`](../../apps/desktop/README.md) for what the shell does
+and does not allow.
 
-## Deployment
-
-The editor is served by the Cloudflare Worker in `worker/`. A merged pull
-request deploys directly to Production through
-`.github/workflows/cloudflare.yml` unless it carries the `preview` label; a
-labeled pull request, before and after merging, deploys to the Preview channel
-through `.github/workflows/deploy-preview.yml`. Preview-accepted work reaches
-Production with a `v*` release tag or an explicit dispatch. Each channel's
-Worker hosts the built editor and the gallery, account, Agent-session, and
-simulation endpoints behind it; see [deployment](../deployment.md).
-
-The private Cloud Project is the formal saved copy. Exported `.icproj.json`
-and downloaded backups remain portable user-owned copies. Browser recovery is
-specific to one browser profile and may disappear when site data is cleared;
-publishing to the Gallery is a deliberate, separate act rather than a backup.
-
-Before a public release, verify opening, refreshing, importing and exporting,
-browser recovery, and PWA installation at the deployed URL.
+Before handing a build to someone, launch it and verify opening a file, saving in
+place, **Save As…**, importing SPICE, exporting SVG/PNG/PDF, and recovery.

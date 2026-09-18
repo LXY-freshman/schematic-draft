@@ -1,12 +1,9 @@
 import { NETLIST_PROFILE_LABELS, type NetlistProfileId } from "@icm/netlist";
 import { type ComponentProps, type RefObject } from "react";
 
-import { AccountMenu } from "../components/account";
-import { BugReportLink } from "../components/bug-report-link";
-import { DESKTOP_BUILD, DESKTOP_PRODUCT_NAME } from "../desktop/desktop-mode";
+import { PRODUCT_NAME } from "../product";
 import { DrawingToolbar } from "../features/editor-shell/drawing-toolbar";
 import { EditorTestTelemetry } from "../features/editor-shell/editor-test-telemetry";
-import type { ReleaseChannel } from "../document/release-channel";
 import { FileCommandMenu } from "../features/editor-shell/file-command-menu";
 import { ToolIcon } from "../features/editor-shell/tool-icon";
 import { HierarchyToolbar } from "../features/hierarchy/hierarchy-toolbar";
@@ -29,14 +26,12 @@ interface AlignmentAction extends CommandAction {
 
 export interface EditorAppChromeProps {
   projectName: string;
-  projectSchemaVersion: number;
   projectNameDraft: string | null;
   hasUnsavedWork: boolean;
   documentName: string;
   onProjectNameDraftChange: (value: string) => void;
   onProjectNameCommit: () => void;
   onProjectNameCancel: () => void;
-  onOpenGallery: () => void;
   fileCommands: ComponentProps<typeof FileCommandMenu>;
   searchOpen: boolean;
   onInsertComponent: () => void;
@@ -62,44 +57,23 @@ export interface EditorAppChromeProps {
   netlistProfileId: NetlistProfileId;
   netlistFormat: "spice" | "spectre";
   onExportNetlist: (format: "spice" | "spectre") => void;
-  agentAction: { label: string; execute: () => void } | null;
-  simulationAction?: () => void;
-  simulationState?: "closed" | "open" | "maximized" | "minimized";
-  publishGalleryOpen: boolean;
-  onPublishGallery: () => void;
   helpButtonRef: RefObject<HTMLButtonElement | null>;
   helpOpen: boolean;
   onOpenHelp: () => void;
   drawingToolbar: ComponentProps<typeof DrawingToolbar>;
   hierarchyToolbar: ComponentProps<typeof HierarchyToolbar>;
   telemetry: ComponentProps<typeof EditorTestTelemetry>;
-  /** Which channel serves this build; Preview is identified without a warning. */
-  releaseChannel: ReleaseChannel;
-}
-
-export function ReleaseChannelBadge({
-  releaseChannel,
-}: {
-  releaseChannel: ReleaseChannel;
-}) {
-  return releaseChannel === "preview" ? (
-    <span className="app-channel-badge" data-testid="release-channel-badge">
-      Preview
-    </span>
-  ) : null;
 }
 
 /** Persistent command chrome above the document workspace. */
 export function EditorAppChrome({
   projectName,
-  projectSchemaVersion,
   projectNameDraft,
   hasUnsavedWork,
   documentName,
   onProjectNameDraftChange,
   onProjectNameCommit,
   onProjectNameCancel,
-  onOpenGallery,
   fileCommands,
   searchOpen,
   onInsertComponent,
@@ -125,18 +99,12 @@ export function EditorAppChrome({
   netlistFormat,
   onOpenNetlistConfiguration,
   onExportNetlist,
-  agentAction,
-  simulationAction,
-  simulationState = "closed",
-  publishGalleryOpen,
-  onPublishGallery,
   helpButtonRef,
   helpOpen,
   onOpenHelp,
   drawingToolbar,
   hierarchyToolbar,
   telemetry,
-  releaseChannel,
 }: EditorAppChromeProps) {
   const displayedProjectName = projectNameDraft ?? projectName;
   const copyNetlist = (format: "spice" | "spectre") => {
@@ -147,35 +115,10 @@ export function EditorAppChrome({
     <header className="app-chrome">
       <div className="app-chrome-main">
         <div className="app-brand">
-          {DESKTOP_BUILD ? (
-            <span className="gallery-home-link app-brand-static">
-              <span className="app-brand-mark" aria-hidden="true" />
-              <h1 title={DESKTOP_PRODUCT_NAME}>{DESKTOP_PRODUCT_NAME}</h1>
-            </span>
-          ) : (
-            <a
-              className="gallery-home-link"
-              href="/"
-              aria-label="Back to the gallery"
-              title="Back to the gallery"
-              onClick={(event) => {
-                if (
-                  event.button !== 0 ||
-                  event.metaKey ||
-                  event.ctrlKey ||
-                  event.shiftKey ||
-                  event.altKey
-                ) {
-                  return;
-                }
-                event.preventDefault();
-                onOpenGallery();
-              }}
-            >
-              <span className="app-brand-mark" aria-hidden="true" />
-              <h1 title="Analog Canvas">Analog Canvas</h1>
-            </a>
-          )}
+          <span className="app-brand-static">
+            <span className="app-brand-mark" aria-hidden="true" />
+            <h1 title={PRODUCT_NAME}>{PRODUCT_NAME}</h1>
+          </span>
           <div className="app-brand-copy">
             <p title={`${projectName} / ${documentName}`}>
               <input
@@ -387,7 +330,11 @@ export function EditorAppChrome({
                     data-testid="check-and-save"
                     disabled={!checkAndSave.enabled}
                     onClick={checkAndSave.execute}
-                    title={`Check ERC and visual issues, and save this ${fileCommands.projectStoreItemLabel}`}
+                    title={
+                      fileCommands.openFilePath === null
+                        ? "Check ERC and visual issues, then save this Project to a file"
+                        : `Check ERC and visual issues, then save ${fileCommands.openFilePath}`
+                    }
                   >
                     <span className="toolbar-check-glyph" aria-hidden="true" />
                     Check and Save
@@ -395,64 +342,9 @@ export function EditorAppChrome({
                 </div>
               </details>
             </div>
-            {simulationAction ? (
-              <button
-                type="button"
-                data-testid="open-analog-simulation"
-                aria-label="Analog simulation"
-                aria-pressed={
-                  simulationState === "open" || simulationState === "maximized"
-                }
-                onClick={simulationAction}
-              >
-                {simulationState === "minimized"
-                  ? "Simulation · Minimized"
-                  : "Simulation"}
-              </button>
-            ) : null}
-            {agentAction ? (
-              <button
-                type="button"
-                data-testid="open-agent"
-                title={agentAction.label}
-                onClick={() => {
-                  dismissOpenCommandMenus();
-                  agentAction.execute();
-                }}
-              >
-                Agent
-              </button>
-            ) : null}
-            {/* Publishing is the primary narrow-window action. Keeping it
-                immediately after the compact menus makes it visible before
-                the command row needs horizontal scrolling. Desktop has no
-                Gallery to publish to. */}
-            {DESKTOP_BUILD ? null : (
-              <button
-                type="button"
-                data-testid="publish-gallery-button"
-                aria-haspopup="dialog"
-                aria-expanded={publishGalleryOpen}
-                title="Publish to Gallery"
-                onClick={onPublishGallery}
-              >
-                Publish<span className="publish-label-long"> to Gallery</span>
-              </button>
-            )}
           </div>
         </nav>
         <div className="app-chrome-actions">
-          <ReleaseChannelBadge releaseChannel={releaseChannel} />
-          {releaseChannel === "preview" ? (
-            <AccountMenu showGalleryLinks={false} />
-          ) : null}
-          {DESKTOP_BUILD ? null : (
-            <BugReportLink
-              testId="editor-report-bug"
-              surface="Editor"
-              projectSchemaVersion={projectSchemaVersion}
-            />
-          )}
           <button
             type="button"
             className="menubar-help"
@@ -464,28 +356,6 @@ export function EditorAppChrome({
           >
             Help
           </button>
-          {DESKTOP_BUILD ? null : (
-            <div className="tokenzhang-credit">
-              <span className="tokenzhang-credit-kicker">Presented by</span>
-              <a
-                className="tokenzhang-link"
-                href="https://tokenzhang.com"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="TokenZhang"
-                title="TokenZhang"
-              >
-                <img
-                  className="tokenzhang-link-icon"
-                  src="/tokenzhang-favicon.png"
-                  alt=""
-                  width={12}
-                  height={12}
-                />
-                <span className="tokenzhang-link-label">TokenZhang</span>
-              </a>
-            </div>
-          )}
         </div>
       </div>
       <DrawingToolbar {...drawingToolbar} />

@@ -20,7 +20,7 @@ electrical meaning. In particular, ownerless Net-equivalence records are
 rejected, imported spelling becomes non-electrical provenance, and old simulation
 setups become source folders. A failed import leaves the live Project unchanged.
 Compatibility does not create legacy runtime writers or authorize bulk rewriting
-of stored Gallery or Cloud data.
+of files on disk.
 
 ## Compatibility floor
 
@@ -30,7 +30,7 @@ retired versions were never distributed, or a verified store inventory plus an
 available conversion path and an adequate conversion period. Schema velocity
 and chain length alone do not justify refusing existing user files. Where the
 evidence is uncertain, retain the adapters. No load or ordinary save performs
-an unsolicited bulk conversion of Gallery, Cloud or recovery data.
+an unsolicited bulk conversion of other files or recovery data.
 
 ## Current authorities
 
@@ -104,38 +104,40 @@ an unsolicited bulk conversion of Gallery, Cloud or recovery data.
   Symbol geometry remains derived and caller Instances never persist a copy.
 - MOS assets are canonical `nmos`/`pmos`; visual variant selection does not
   change persisted terminal connectivity.
-- `Project.simulationFolders` is the named version-4 source collection defined
-  in [simulation](simulation.md#authored-authority). A folder owns source files,
-  entry/config paths, optional generated Cell bindings, declared dependencies
-  and unapplied drafts. Generated circuit bytes and results are not persisted.
-  New experiments use minimal version-2 configuration; version-1 sidecars remain
-  an explicit compatibility path. Project schema, folder envelope version and
-  configuration version are distinct contracts.
+- `Project.simulationFolders` is the named version-4 source collection written
+  by the hosted upstream this application forked from. It is retained data, not
+  a live feature: this application has no simulation surface, so folders are
+  validated, migrated and written back unchanged so that a Project authored
+  against the hosted product still round-trips losslessly. A folder owns source
+  files, entry/config paths, optional generated Cell bindings, declared
+  dependencies and unapplied drafts; generated circuit bytes and results were
+  never persisted. Project schema and folder envelope version remain distinct
+  contracts.
 
 ## Read and write
 
 ```text
 import text -> parse JSON -> require Project schema 24 through 57
 -> converge to schema 57 -> strict schema-57 validation -> install unbound
-export -> strict validation -> canonical key ordering -> Blob download
+save -> strict validation -> canonical key ordering -> bytes handed to the shell
 ```
 
-An invalid candidate never replaces the current browser Project. File Resource
-staging is non-mutating; a staged Project can replace the live Project only
-after explicit human approval in the editor.
+An invalid candidate never replaces the live Project.
 
-A migrated imported file is marked dirty. The editor never overwrites a source
-selected through the browser file input; the user may Save it as a Cloud
-Project or explicitly export upgraded bytes. Browser recovery records may be
-canonicalized to the current schema only after a successful validated write.
+A migrated file is marked dirty: opening it does not write it back. The upgraded
+bytes reach disk only when the user saves — **Save** to the same path, or
+**Save As…** to keep the original file untouched. A file offered through
+**Import Project File…** is never bound, so it is never overwritten. Recovery
+records may be canonicalized to the current schema only after a successful
+validated write.
 
 Project entry does not physically merge Base Nets. Matching authoritative names
 resolve as one Logical Net; conflicting claims remain a blocking diagnostic.
 Repeated source-name hints are valid provenance and never imply connectivity.
-The explicit portable-file and Gallery import boundaries may canonicalize
+The explicit file-open and import boundaries may canonicalize
 legacy ordinary-Wire geometry, including removal of an unowned Route that now
-resolves entirely to an already-connected endpoint contact; parsing, Cloud
-open, and recovery remain exact.
+resolves entirely to an already-connected endpoint contact; parsing and
+recovery remain exact.
 
 Canonical serialization ends with one newline and is byte-stable across
 serialize/parse/serialize. The current corpus is listed in
@@ -145,6 +147,6 @@ source bytes and declared source version; loading and saving must produce a
 byte-stable current Project. The rejected corpus names expected validation
 failures. These are test inventory categories, not new Project fields.
 
-Viewport, selection, undo history, canvas overlays, Agent credentials,
+Viewport, selection, undo history, canvas overlays, the bound file path,
 recovery envelopes, generated renders, and derived diagnostics are not part of
 the Project file.

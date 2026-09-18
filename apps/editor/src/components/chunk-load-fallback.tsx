@@ -19,12 +19,12 @@ export function refreshWithRestore(): void {
 }
 
 /**
- * Stands in for a lazily loaded dialog or panel whose chunk failed to load —
- * typically a tab that stayed open across a redeploy (its content-hashed
- * chunk names no longer exist on the server) or an offline PWA opening a
- * surface it never cached. The failure must stay scoped to the dialog: the
- * schematic keeps running, and the remedy is a refresh that restores the
- * current work, not the whole-editor crash screen.
+ * Stands in for a lazily loaded dialog or panel whose chunk failed to load.
+ * The desktop shell serves every chunk from its own installation, so this
+ * means a damaged or incomplete install rather than a missing server file.
+ * The failure must stay scoped to the dialog: the schematic keeps running,
+ * and the remedy is a refresh that restores the current work, not the
+ * whole-editor crash screen.
  */
 export function createChunkLoadFallback(
   variant: "dialog" | "inline",
@@ -40,9 +40,9 @@ export function createChunkLoadFallback(
           data-testid="section-chunk-load-fallback"
         >
           <p>
-            This panel could not be loaded — the app has likely been updated
-            since this tab opened. Refresh to load the new version; your current
-            circuit is restored automatically.
+            This panel could not be loaded — part of the installation is missing
+            or damaged. Refresh to load it again; your current circuit is
+            restored automatically.
           </p>
           <button type="button" onClick={refreshWithRestore}>
             Refresh app
@@ -79,9 +79,10 @@ export function createChunkLoadFallback(
           </header>
           <div className="editor-action-dialog-body">
             <p>
-              The app has likely been updated since this tab opened, or the
-              browser is offline. Your circuit is unaffected. Refresh to load
-              the new version — your current work is restored automatically.
+              Part of the installation is missing or damaged. Your circuit is
+              unaffected. Refresh to load this dialog again — your current work
+              is restored automatically. If it keeps failing, reinstall the
+              application.
             </p>
             <p>
               <code>{detail}</code>
@@ -108,9 +109,9 @@ export function createChunkLoadFallback(
 }
 
 /**
- * Dismissible banner for a failed on-demand chunk outside any dialog —
- * an export command whose module vanished under a redeploy. Same remedy as
- * every chunk failure: refresh, with the current circuit restored.
+ * Dismissible banner for a failed on-demand chunk outside any dialog — an
+ * export command whose module would not load. Same remedy as every chunk
+ * failure: refresh, with the current circuit restored.
  */
 export function ChunkLoadBanner({
   feature,
@@ -127,9 +128,9 @@ export function ChunkLoadBanner({
       aria-label="Feature failed to load"
     >
       <p>
-        {feature} could not load — the app has been updated since this tab
-        opened. Refresh to load the new version; your current circuit is
-        restored automatically.
+        {feature} could not load — part of the installation is missing or
+        damaged. Refresh to load it again; your current circuit is restored
+        automatically.
       </p>
       <div>
         <button type="button" onClick={refreshWithRestore}>

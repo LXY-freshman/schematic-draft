@@ -59,12 +59,8 @@ export async function clickCommand(
 /** Run one workflow command from the Netlist menu. */
 export async function clickNetlistWorkflowCommand(
   page: Page,
-  command: "open-analog-simulation" | "check-and-save",
+  command: "check-and-save",
 ): Promise<void> {
-  if (command === "open-analog-simulation") {
-    await page.getByTestId(command).click();
-    return;
-  }
   const details = await openMenu(page, "Netlist");
   await details.getByTestId(command).click();
 }
@@ -244,6 +240,44 @@ export async function downloadBytes(
   const chunks: Buffer[] = [];
   for await (const chunk of stream) chunks.push(Buffer.from(chunk));
   return Buffer.concat(chunks);
+}
+
+/**
+ * The bytes a Save would put on disk.
+ *
+ * Saving goes through the desktop shell's file bridge, which a plain Vite
+ * server does not answer, so a fake main process accepts the write once per
+ * page and hands the text straight back. That keeps the editor's real
+ * serialize-and-write path under test in place of a browser download.
+ */
+const projectFileSinks = new WeakMap<Page, { text: string | null }>();
+
+export async function projectFileBytes(page: Page): Promise<Buffer> {
+  let sink = projectFileSinks.get(page);
+  if (!sink) {
+    const created: { text: string | null } = { text: null };
+    sink = created;
+    projectFileSinks.set(page, created);
+    await page.route("**/api/file/save", (route) => {
+      const body = route.request().postDataJSON() as { text: string };
+      created.text = body.text;
+      return route.fulfill({
+        json: {
+          status: "saved",
+          file: {
+            path: "C:\\e2e\\project.icproj.json",
+            name: "project.icproj.json",
+          },
+        },
+      });
+    });
+  }
+  const written = sink;
+  written.text = null;
+  const details = await openMenu(page, "File");
+  await details.getByTestId("save-project-file").click();
+  await expect.poll(() => written.text).not.toBeNull();
+  return Buffer.from(written.text!, "utf8");
 }
 
 export interface RecoveryRecordView {
