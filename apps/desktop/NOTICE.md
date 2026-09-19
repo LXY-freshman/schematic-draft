@@ -13,8 +13,9 @@ computer:
 
 - the editor is served from bundled files over a private `app://` scheme
   instead of a web server;
-- a Project is an ordinary `.icproj.json` file opened and saved through the
-  native file dialogs, wherever you keep it, instead of a cloud account;
+- a Project is an ordinary file on your disk — `.schdraft`, or the portable
+  `.icproj.json` interchange form — opened and saved through the native file
+  dialogs, wherever you keep it, instead of a cloud account;
 - every outbound network request is refused before a connection is made;
 - the hosted-only code (accounts, Cloud Projects, Gallery and moderation,
   publishing, usage analytics, the Agent API and its MCP server, and the hosted
@@ -25,7 +26,11 @@ computer:
 The AGPL gives you the right to obtain, study, modify and redistribute the
 complete corresponding source code of this program, including the
 modifications listed above. The source tree that produced this build ships
-alongside it, under `source\`; if you received a binary without it, the upstream
+alongside it, under `source\`, and is published at
+
+- https://github.com/LXY-freshman/schematic-draft
+
+If you received a binary without either, the upstream
 project above plus this notice describe what changed. The desktop shell is
 `apps/desktop/**`; the file open/save surface is
 `apps/editor/src/features/editor-shell/**`; the rest of the difference is

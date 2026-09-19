@@ -11,7 +11,32 @@ It is a fork of [Analog Canvas](https://github.com/cascode-ai/analog-canvas)
 Gallery, no Agent API, no analytics, no simulation service. The desktop shell
 refuses every outbound request, so "offline" is enforced rather than promised.
 
-[Documentation](docs/README.md) · [Upstream project](https://github.com/cascode-ai/analog-canvas)
+[Download](#download) · [Documentation](docs/README.md) · [中文说明](apps/desktop/README.md) · [Upstream project](https://github.com/cascode-ai/analog-canvas)
+
+## Download
+
+Windows 10 or 11, x64, from the
+[latest release](https://github.com/LXY-freshman/schematic-draft/releases/latest).
+Both files are the same program; pick whichever suits you:
+
+- **`schematic-draft-<version>-win-x64.zip`** — extract it and the
+  `Schematic Draft\` folder inside is a complete installation. Run
+  `schematic-draft.exe` in it. Nothing else to do, nothing to uninstall: the
+  folder holds the Projects and the preferences it writes, so moving it to
+  another drive or another machine moves your work with it.
+- **`schematic-draft-<version>-win-x64-setup.exe`** — installs for the current
+  user, so no administrator is needed. It asks which folder to install into, adds
+  Start-menu and desktop shortcuts, and appears in Apps & features.
+  **Uninstalling keeps the Projects you saved** and tells you where they are.
+
+Either way the program writes nothing outside its own folder except the per-user
+registry entries that let Explorer open a `.schdraft` file by double-click, which
+**Help → Open .schdraft Files With This Copy** turns off. Both copies can coexist;
+they do not share data. The build is not code-signed, so Windows SmartScreen may
+warn about an unknown publisher — **More info → Run anyway**.
+
+Chinese usage notes: [apps/desktop/README.md](apps/desktop/README.md).
+To build it yourself, see [Build it](#build-it).
 
 ## Highlights
 
