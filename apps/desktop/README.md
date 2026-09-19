@@ -9,11 +9,31 @@ Windows 本地离线运行的电路原理图编辑器。基于开源项目
 | 路径                                                  | 说明                                                                         |
 | ----------------------------------------------------- | ---------------------------------------------------------------------------- |
 | `Schematic Draft\schematic-draft.exe`                 | 直接双击运行，推荐日常使用；整个 `Schematic Draft\` 文件夹就是完整的一份安装 |
+| `installer\Schematic Draft-0.9.2-win-x64-setup.exe`   | 安装包：可以自己选安装目录，建开始菜单和桌面快捷方式，按当前用户装、不要管理员 |
 | `portable\Schematic Draft-0.9.2-win-x64-portable.exe` | 单文件便携版，功能相同；每次启动会先解压到临时目录，启动稍慢                 |
 | `source\`                                             | 完整源码（不含 node_modules），可自行审计和重新构建                          |
 
+三种形式是同一个程序，挑一种用就行：解压版最简单，安装包给你快捷方式和"应用和功能"里的条目，
+便携版适合放 U 盘。装了安装包，`Schematic Draft\` 那份也照样能跑，但两份是两套数据，不共用。
+
 首次运行如果 Windows SmartScreen 提示"未知发布者"，点"更多信息 → 仍要运行"即可，
 程序没有做代码签名。
+
+## 安装与卸载
+
+安装包按**当前用户**安装，不需要管理员权限：
+
+- 默认装到 `%LOCALAPPDATA%\Programs\schematic-draft`，安装时可以改成任何位置。
+  装在哪里，下面说的 `Projects\` 和 `AppData\` 就在哪里 —— 想让工程待在 D 盘，
+  安装时就把目录选成 `D:\Schematic Draft` 之类。
+- **卸载会保留你的工程。** `Projects\` 在程序文件夹里面，卸载只删程序，那个文件夹原样留下，
+  卸载完会弹一次窗告诉你路径；确实不要了，自己把整个文件夹删掉。
+- 用新版本覆盖安装时，`AppData\`（窗口大小、界面偏好、崩溃恢复副本）也一起保留，
+  升级不会顺手把它们清掉；只有真正卸载才删 `AppData\`，那里面几乎全是 Chromium 缓存。
+- 卸载还会把 `.schdraft` 的注册表关联交还，同样只在它还指向**被卸载的这一份**程序时才删 ——
+  另一个文件夹里的副本、或者后来被别的程序抢走的关联，都不动。
+- 也可以在安装时选"所有用户"装到 `C:\Program Files`（要管理员），但那里程序写不进自己的文件夹，
+  会走下面说的退回规则，就不再是"一个文件夹搬走就是迁移"了。
 
 ## 数据放在哪里
 
@@ -118,10 +138,15 @@ pnpm build                                        # 工作区各包 + 编辑器�
 node apps/desktop/scripts/make-icons.mjs          # 图标
 node apps/desktop/scripts/build.mjs               # 主进程打包
 cd apps/desktop && ./node_modules/.bin/electron-builder --win portable --x64 --publish never
+cd apps/desktop && ./node_modules/.bin/electron-builder --win nsis --x64 --publish never
 ```
 
-NSIS 安装包（`--win nsis`）在 Linux 上需要 Wine，因此这里只产出便携版和解压版；
-在 Windows 上装好 Node/pnpm 后直接运行同样的命令即可得到安装包。
+安装包（`--win nsis`）在 Linux 上要装 Wine：NSIS 生成 `Uninstall.exe` 的唯一办法，
+是把刚编出来的安装器跑一次，而那是个 Windows 程序。
+`sudo dpkg --add-architecture i386 && sudo apt install wine wine32:i386`
+（NSIS 的 stub 是 32 位的，只有 wine64 跑不起来）。没装 Wine 时
+`sync-to-windows.sh` 会跳过安装包、照常产出其余内容。卸载时保留工程的那段逻辑在
+`apps/desktop/build/installer.nsh`，electron-builder 按文件名自动带上。
 
 网络不通 GitHub 时，设置镜像：
 `ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/`、

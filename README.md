@@ -71,15 +71,18 @@ pnpm install --frozen-lockfile
 pnpm build          # once after install, and after pulling package changes
 pnpm dev            # editor in a browser at http://localhost:5173
 pnpm desktop:start  # editor in the Electron window
-pnpm desktop:dist   # portable Windows .exe under output/desktop/
+pnpm desktop:dist   # portable Windows .exe and installer under output/desktop/
 ```
 
 `pnpm build` is not optional before the first `pnpm dev`: the development
 server's Vite configuration loads some workspace packages from their built
 `dist/` output.
 
-`pnpm desktop:dist` produces a portable executable — no installer, no service,
-nothing written outside the directory you run it from and the files you save. See
+`pnpm desktop:dist` produces a portable executable and a per-user installer — no
+service, and nothing written outside the program's own folder and the files you
+save. Uninstalling keeps the Projects saved inside that folder. Building the
+installer on Linux needs Wine, which is the only thing that can run the NSIS
+stub that writes `Uninstall.exe`. See
 [`apps/desktop/README.md`](apps/desktop/README.md) for the shell's window, file
 bridge, and network-lockdown contract.
 

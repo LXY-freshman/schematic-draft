@@ -9,15 +9,24 @@ import {
   associationCommands,
   associationTargets,
   claimsExtension,
+  EXTENSION_KEY,
   LEGACY_EXTENSION_KEY,
+  PROG_ID_KEY,
   registryValue,
   releaseExtensionCommands,
   removalCommands,
   targetFingerprint,
 } from "./file-association.js";
-import { canWriteDirectory, resolveInstallRoot } from "./install-paths.js";
+import {
+  APP_DATA_FOLDER,
+  canWriteDirectory,
+  PROJECTS_FOLDER,
+  resolveInstallRoot,
+} from "./install-paths.js";
 import { projectPathFromArgv } from "./open-request.js";
 import {
+  LEGACY_PROJECT_FILE_EXTENSION,
+  PROJECT_FILE_EXTENSION,
   projectNameFromPath,
   type ProjectFileDialogs,
 } from "./project-files.js";
@@ -484,5 +493,44 @@ describe("windows file association", () => {
     expect(
       associationCommands(exe, "Schematic Draft Project").flat().join(" "),
     ).not.toContain(".icproj");
+  });
+});
+
+describe("windows installer script", () => {
+  // The uninstaller is NSIS and cannot read any of this, so build/installer.nsh
+  // spells the same names again. Pinned here because the drift is silent in both
+  // directions: an uninstaller that deletes a folder the application saves work
+  // in, or that leaves a registry claim behind under a name it no longer knows.
+  const script = async () =>
+    readFile(new URL("../build/installer.nsh", import.meta.url), "utf8");
+  const defines = async () =>
+    new Map(
+      [...(await script()).matchAll(/^!define (\w+) "(.*)"$/gmu)].map(
+        ([, name, value]) => [name, value],
+      ),
+    );
+
+  it("names the same folders and registry keys the shell writes", async () => {
+    const defined = await defines();
+    expect(defined.get("PROJECTS_FOLDER")).toBe(PROJECTS_FOLDER);
+    expect(defined.get("APP_STATE_FOLDER")).toBe(APP_DATA_FOLDER);
+    expect(defined.get("PROJECT_EXTENSION")).toBe(PROJECT_FILE_EXTENSION);
+    expect(defined.get("LEGACY_PROJECT_EXTENSION")).toBe(
+      LEGACY_PROJECT_FILE_EXTENSION,
+    );
+    // NSIS names a hive in the instruction rather than the key path, so the two
+    // halves are checked as the one key they add up to.
+    expect(
+      `HKCU\\${defined.get("CLASSES_KEY")}\\${defined.get("PROJECT_EXTENSION")}`,
+    ).toBe(EXTENSION_KEY);
+    expect(
+      `HKCU\\${defined.get("CLASSES_KEY")}\\${defined.get("PROJECT_PROG_ID")}`,
+    ).toBe(PROG_ID_KEY);
+  });
+
+  it("never removes the install folder wholesale", async () => {
+    // The one line that would undo the point of the script: $INSTDIR holds the
+    // user's circuits, so only named entries inside it may be deleted.
+    expect(await script()).not.toMatch(/RMDir \/r "?\$INSTDIR"?(\s|$)/u);
   });
 });

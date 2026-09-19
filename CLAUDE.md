@@ -36,7 +36,7 @@ pnpm build                        # build everything (pnpm -r, topological); nee
 pnpm dev                          # editor dev server (Vite, http://localhost:5173) — browser, no file bridge
 pnpm desktop:build                # editor bundle + Electron main process
 pnpm desktop:start                # run the Electron shell
-pnpm desktop:dist                 # portable Windows .exe into output/desktop/
+pnpm desktop:dist                 # portable Windows .exe + installer into output/desktop/
 
 pnpm typecheck                    # single root tsc pass (also the only typecheck of test files)
 pnpm format:check                 # Prettier for code/JSON/YAML (pnpm format to write); Markdown is not covered

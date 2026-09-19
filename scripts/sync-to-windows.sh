@@ -9,15 +9,12 @@
 #   Schematic Draft/   ready-to-run program folder (schematic-draft.exe), which
 #                      also holds the Projects/ and AppData/ it writes, so the
 #                      whole folder can be moved or copied as one installation
+#   installer/         per-user Windows installer, when Wine is available here
 #   portable/          single-file portable build of the same app; it keeps its
 #                      own Projects/ and AppData/ beside the .exe, which is why
 #                      it gets a folder of its own
 #   source/            the source tree (no node_modules, no dist)
 #   README.md          how to use, what is guaranteed, how to rebuild
-#
-# The NSIS installer target needs Wine on Linux, so it is not built here; run
-# `pnpm --filter @icm/desktop exec electron-builder --win nsis` on a Windows
-# host or a Linux box with Wine if an installer is wanted.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -42,6 +39,20 @@ node apps/desktop/scripts/build.mjs
 echo "== packaging (portable exe + unpacked folder)"
 (cd apps/desktop && ./node_modules/.bin/electron-builder --win portable --x64 --publish never)
 
+# The installer is compiled by a Linux-native makensis, but NSIS can only produce
+# Uninstall.exe by running the installer stub it just built — a Windows binary,
+# hence Wine. Everything else here is complete without it, so a machine with no
+# Wine gets a note rather than a failed build.
+installer=""
+if command -v wine >/dev/null 2>&1; then
+  echo "== packaging (installer)"
+  (cd apps/desktop && ./node_modules/.bin/electron-builder --win nsis --x64 --publish never)
+  installer="yes"
+else
+  echo "== skipping installer: wine not found"
+  echo "   (sudo dpkg --add-architecture i386 && sudo apt install wine wine32:i386)"
+fi
+
 echo "== syncing to $target"
 mkdir -p "$target" "$target/portable"
 rm -rf "$target/source"
@@ -60,6 +71,11 @@ mkdir -p "$program"
 cp -r output/desktop/win-unpacked/. "$program/"
 rm -f "$target/portable"/*-portable.exe
 cp output/desktop/*-portable.exe "$target/portable/"
+if [ -n "$installer" ]; then
+  mkdir -p "$target/installer"
+  rm -f "$target/installer"/*-setup.exe
+  cp output/desktop/*-setup.exe "$target/installer/"
+fi
 cp apps/desktop/README.md "$target/README.md"
 
 # Source snapshot: everything git tracks plus the uncommitted working tree,

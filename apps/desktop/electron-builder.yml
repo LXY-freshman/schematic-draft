@@ -44,6 +44,9 @@ win:
   signAndEditExecutable: true
 
 nsis:
+  # build/installer.nsh (this target's buildResources) is picked up by name: it
+  # keeps the saved Projects when the program is uninstalled and hands the
+  # Windows file association back.
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true

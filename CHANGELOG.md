@@ -89,6 +89,21 @@ needed a server.
   own `Projects\` and `AppData\` beside the executable. Rebuilding replaces the
   program and leaves both of those directories alone.
 
+### Installing it
+
+- A Windows installer ships beside the ready-to-run folder and the portable
+  build. It installs for the current user, so it needs no administrator, and it
+  asks which folder to install into — that folder is then the whole installation,
+  `Projects\` and `AppData\` included.
+- **Uninstalling keeps the Projects you saved.** They sit inside the installed
+  folder, so the uninstaller removes the program around them and then names the
+  path it left them at. Deleting them stays your decision.
+- Installing a newer version over an older one also keeps `AppData\`, so a
+  version bump is not a reset of window size, preferences and the recovery copy.
+  A real uninstall does take that folder, which is nearly all browser cache.
+- Uninstalling hands the `.schdraft` association back — and only while it still
+  names the copy being removed, so another copy's claim survives.
+
 ### Double-clicking a Project
 
 - An installed copy claims `.schdraft` for itself the first time it runs, so
