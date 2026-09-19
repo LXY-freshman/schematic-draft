@@ -6,15 +6,16 @@ Windows 本地离线运行的电路原理图编辑器。基于开源项目
 
 ## 目录内容
 
-| 路径                                                  | 说明                                                                         |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `Schematic Draft\schematic-draft.exe`                 | 直接双击运行，推荐日常使用；整个 `Schematic Draft\` 文件夹就是完整的一份安装 |
-| `installer\Schematic Draft-0.9.2-win-x64-setup.exe`   | 安装包：可以自己选安装目录，建开始菜单和桌面快捷方式，按当前用户装、不要管理员 |
-| `portable\Schematic Draft-0.9.2-win-x64-portable.exe` | 单文件便携版，功能相同；每次启动会先解压到临时目录，启动稍慢                 |
-| `source\`                                             | 完整源码（不含 node_modules），可自行审计和重新构建                          |
+| 路径                                                   | 说明                                                                         |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `Schematic Draft\schematic-draft.exe`                  | 直接双击运行，推荐日常使用；整个 `Schematic Draft\` 文件夹就是完整的一份安装 |
+| `release\schematic-draft-<版本>-win-x64.zip`           | 压缩包：解压出来就是上面那个 `Schematic Draft\` 文件夹，要拿给别人就给这个   |
+| `release\schematic-draft-<版本>-win-x64-setup.exe`     | 安装包：可以自己选安装目录，建开始菜单和桌面快捷方式，按当前用户装、不要管理员 |
+| `source\`                                              | 完整源码（不含 node_modules），可自行审计和重新构建                          |
 
-三种形式是同一个程序，挑一种用就行：解压版最简单，安装包给你快捷方式和"应用和功能"里的条目，
-便携版适合放 U 盘。装了安装包，`Schematic Draft\` 那份也照样能跑，但两份是两套数据，不共用。
+两种形式是同一个程序，挑一种用就行：压缩包解压出来就能跑，整个文件夹搬到别的盘、别的电脑
+也还是能跑；安装包给你快捷方式和"应用和功能"里的条目。两份同时放着也没问题，但它们各自
+带自己的 `Projects\`，数据不共用。
 
 首次运行如果 Windows SmartScreen 提示"未知发布者"，点"更多信息 → 仍要运行"即可，
 程序没有做代码签名。
@@ -64,8 +65,8 @@ Schematic Draft\
 - 菜单 `File → Open Projects Folder` 直接打开 `Projects\`；`Help → About` 显示当前实际使用的路径。
 - 移动文件夹以后第一次启动，"上次打开的文件"路径失效，程序会提示一次并停在空工程上，
   重新 `Open Project…` 打开新位置的文件即可。
-- 便携版（`portable\`）同样把 `Projects\` 和 `AppData\` 建在 **它自己所在的文件夹**里，
-  所以它单独放一个文件夹；它和 `Schematic Draft\` 里的那份是两套数据，不共用。
+- 压缩包解压出来的那份和安装包装出来的那份是各自独立的安装，`Projects\` 和 `AppData\`
+  都在自己的文件夹里，不共用。
 - 如果把程序放在没有写权限的位置（`C:\Program Files`、只读共享盘），程序写不进自己的文件夹，
   会退回到 `%APPDATA%\Schematic Draft\` 和 `文档\Schematic Draft\`；`Help → About` 会照实显示。
 
@@ -86,8 +87,6 @@ Schematic Draft\
   取消勾选就把上面那两个键删掉（后缀那一个只在它还指向本程序时才删，
   别的程序后来抢走了就不动它）。取消的选择记在 `AppData\file-association.json` 里，
   下次启动不会偷偷改回去；
-- **便携版不会自动关联**（它跑在临时解压目录里，路径明天就失效了）。确实要关联的话，
-  在便携版里手动勾选那个菜单项，它写的是你双击的那个 exe 的路径；
 - 没有关联也一样能用：程序内 `File → Open Project…`，或者在资源管理器里右键
   `打开方式 → 选择其他应用`，或者命令行 `schematic-draft.exe "D:\...\amp.schdraft"`。
 - 程序已经开着的时候再双击一个工程，会在**已经开着的窗口**里打开它，不会再启动一份；
@@ -137,8 +136,8 @@ scripts/sync-to-windows.sh /mnt/d/AI/Claude/schematic-draft   # 全量构建并�
 pnpm build                                        # 工作区各包 + 编辑器前端
 node apps/desktop/scripts/make-icons.mjs          # 图标
 node apps/desktop/scripts/build.mjs               # 主进程打包
-cd apps/desktop && ./node_modules/.bin/electron-builder --win portable --x64 --publish never
 cd apps/desktop && ./node_modules/.bin/electron-builder --win nsis --x64 --publish never
+node apps/desktop/scripts/package-zip.mjs         # 压缩包
 ```
 
 安装包（`--win nsis`）在 Linux 上要装 Wine：NSIS 生成 `Uninstall.exe` 的唯一办法，
@@ -147,6 +146,10 @@ cd apps/desktop && ./node_modules/.bin/electron-builder --win nsis --x64 --publi
 （NSIS 的 stub 是 32 位的，只有 wine64 跑不起来）。没装 Wine 时
 `sync-to-windows.sh` 会跳过安装包、照常产出其余内容。卸载时保留工程的那段逻辑在
 `apps/desktop/build/installer.nsh`，electron-builder 按文件名自动带上。
+
+压缩包由 `package-zip.mjs` 打，需要 `zip`（`sudo apt install zip`）。
+electron-builder 自带的 `zip` 目标对 Windows 是不带顶层文件夹的，解压会把两百多个文件
+铺在当前目录，所以这一步自己来。
 
 网络不通 GitHub 时，设置镜像：
 `ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/`、

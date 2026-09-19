@@ -36,7 +36,7 @@ pnpm build                        # build everything (pnpm -r, topological); nee
 pnpm dev                          # editor dev server (Vite, http://localhost:5173) — browser, no file bridge
 pnpm desktop:build                # editor bundle + Electron main process
 pnpm desktop:start                # run the Electron shell
-pnpm desktop:dist                 # portable Windows .exe + installer into output/desktop/
+pnpm desktop:dist                 # release zip + Windows installer into output/desktop/
 
 pnpm typecheck                    # single root tsc pass (also the only typecheck of test files)
 pnpm format:check                 # Prettier for code/JSON/YAML (pnpm format to write); Markdown is not covered
@@ -184,7 +184,8 @@ on math-typesetting) is the root every domain package shares. Roughly bottom-up:
 - `apps/desktop` — the Electron shell: privileged `app://schematic-draft`
   scheme, `webRequest` network lockdown, external links handed to the system
   browser, native file dialogs, and the `/api/file/{open,read,save}` bridge.
-  `electron-builder` produces the portable `.exe`. See
+  `electron-builder` produces the per-user installer, and
+  `scripts/package-zip.mjs` the ready-to-run folder as a zip. See
   [apps/desktop/README.md](apps/desktop/README.md).
 
 ### Build mechanics

@@ -57,7 +57,6 @@ const EDITOR_ROUTE = `${APP_ORIGIN}/editor`;
  * installation. See `install-paths.ts`.
  */
 let installRoot = resolveInstallRoot({
-  portableDirectory: process.env["PORTABLE_EXECUTABLE_DIR"],
   executablePath: app.getPath("exe"),
   packaged: app.isPackaged,
   // A development run must not litter the repository: `output/` is ignored.
@@ -277,20 +276,6 @@ async function saveWindowState(window: BrowserWindow): Promise<void> {
 let associationActive = false;
 let associationWanted = true;
 
-/**
- * The executable a person actually launches. The portable build runs from a
- * temporary unpack directory, so its own path would be stale by tomorrow.
- */
-function launchExecutable(): string {
-  const portable = process.env["PORTABLE_EXECUTABLE_FILE"]?.trim();
-  return portable !== undefined && portable.length > 0
-    ? portable
-    : app.getPath("exe");
-}
-
-const isPortableBuild =
-  (process.env["PORTABLE_EXECUTABLE_DIR"] ?? "").trim().length > 0;
-
 function associationChoiceFile(): string {
   return join(app.getPath("userData"), "file-association.json");
 }
@@ -344,7 +329,7 @@ async function queryAssociation(): Promise<boolean> {
   if (process.platform !== "win32") return false;
   if (!(await ownsExtension(EXTENSION_KEY))) return false;
   const target = await reg(["query", PROG_ID_KEY, "/v", TARGET_VALUE_NAME]);
-  return target.ok && associationTargets(target.output, launchExecutable());
+  return target.ok && associationTargets(target.output, app.getPath("exe"));
 }
 
 /** Whether an extension key is still this application's own claim. */
@@ -355,7 +340,7 @@ async function ownsExtension(key: string): Promise<boolean> {
 
 async function applyAssociation(): Promise<boolean> {
   for (const args of associationCommands(
-    launchExecutable(),
+    app.getPath("exe"),
     `${PRODUCT_NAME} Project`,
   )) {
     if (!(await reg(args)).ok) return false;
@@ -385,13 +370,12 @@ async function withdrawAssociation(): Promise<boolean> {
 
 /**
  * Keep the association pointing at this copy, including after the folder has
- * been moved. A portable copy claims nothing unless it is asked to, and a
- * refusal is remembered.
+ * been moved. A refusal is remembered.
  */
 async function ensureFileAssociation(): Promise<void> {
   if (process.platform !== "win32" || !app.isPackaged) return;
   associationActive = await queryAssociation();
-  if (associationActive || isPortableBuild || !associationWanted) return;
+  if (associationActive || !associationWanted) return;
   associationActive = await applyAssociation();
 }
 

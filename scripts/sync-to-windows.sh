@@ -9,10 +9,8 @@
 #   Schematic Draft/   ready-to-run program folder (schematic-draft.exe), which
 #                      also holds the Projects/ and AppData/ it writes, so the
 #                      whole folder can be moved or copied as one installation
-#   installer/         per-user Windows installer, when Wine is available here
-#   portable/          single-file portable build of the same app; it keeps its
-#                      own Projects/ and AppData/ beside the .exe, which is why
-#                      it gets a folder of its own
+#   release/           the two published downloads: the same program folder as a
+#                      zip, and the per-user installer (installer needs Wine)
 #   source/            the source tree (no node_modules, no dist)
 #   README.md          how to use, what is guaranteed, how to rebuild
 set -euo pipefail
@@ -36,30 +34,39 @@ echo "== building desktop shell"
 node apps/desktop/scripts/make-icons.mjs
 node apps/desktop/scripts/build.mjs
 
-echo "== packaging (portable exe + unpacked folder)"
-(cd apps/desktop && ./node_modules/.bin/electron-builder --win portable --x64 --publish never)
-
 # The installer is compiled by a Linux-native makensis, but NSIS can only produce
 # Uninstall.exe by running the installer stub it just built — a Windows binary,
-# hence Wine. Everything else here is complete without it, so a machine with no
-# Wine gets a note rather than a failed build.
+# hence Wine. The zip is complete without it, so a machine with no Wine gets a
+# note and the program folder alone.
 installer=""
 if command -v wine >/dev/null 2>&1; then
-  echo "== packaging (installer)"
+  echo "== packaging (installer + program folder)"
   (cd apps/desktop && ./node_modules/.bin/electron-builder --win nsis --x64 --publish never)
   installer="yes"
 else
   echo "== skipping installer: wine not found"
   echo "   (sudo dpkg --add-architecture i386 && sudo apt install wine wine32:i386)"
+  echo "== packaging (program folder)"
+  (cd apps/desktop && ./node_modules/.bin/electron-builder --win --dir --x64 --publish never)
 fi
 
+echo "== packaging (zip)"
+node apps/desktop/scripts/package-zip.mjs
+
 echo "== syncing to $target"
-mkdir -p "$target" "$target/portable"
+mkdir -p "$target" "$target/release"
 rm -rf "$target/source"
-# Leftovers from the previous layout: the program folder was `app/` and the
-# portable .exe sat loose in the root. Neither ever held a person's files.
-rm -rf "$target/app"
+# Leftovers from earlier layouts: the program folder was `app/`, the single-file
+# portable build had `portable/`, and the installer had `installer/`. Remove the
+# programs and, as the uninstaller does, leave any saved work behind: rmdir
+# refuses a folder that still holds something.
+rm -rf "$target/app" "$target/installer"
 rm -f "$target"/*-portable.exe
+if [ -d "$target/portable" ]; then
+  rm -f "$target/portable"/*-portable.exe
+  rm -rf "$target/portable/AppData"
+  rmdir "$target/portable/Projects" "$target/portable" 2>/dev/null || true
+fi
 
 # Replace the program, never the person's work: Projects/ and AppData/ live
 # inside the program folder now, so a rebuild keeps them and clears the rest.
@@ -69,12 +76,13 @@ if [ -d "$program" ]; then
 fi
 mkdir -p "$program"
 cp -r output/desktop/win-unpacked/. "$program/"
-rm -f "$target/portable"/*-portable.exe
-cp output/desktop/*-portable.exe "$target/portable/"
+
+# The published downloads, side by side: the same program folder as a zip, and
+# the installer that lays it down with shortcuts.
+rm -f "$target/release"/*.zip "$target/release"/*-setup.exe
+cp output/desktop/*-win-x64.zip "$target/release/"
 if [ -n "$installer" ]; then
-  mkdir -p "$target/installer"
-  rm -f "$target/installer"/*-setup.exe
-  cp output/desktop/*-setup.exe "$target/installer/"
+  cp output/desktop/*-setup.exe "$target/release/"
 fi
 cp apps/desktop/README.md "$target/README.md"
 

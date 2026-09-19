@@ -99,7 +99,7 @@ the extension only while it still names this application's document type: once
 something else owns the extension, that entry is not ours to delete. The
 document type goes the same way — only while its open command still names the
 executable being removed, so uninstalling one copy leaves another copy's claim
-(a portable build, a second folder) alone.
+(a second folder, a copy extracted from the release zip) alone.
 
 An update keeps the association: the program that replaces this one wants it.
 */

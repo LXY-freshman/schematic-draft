@@ -2,8 +2,9 @@
 
 ## Run the desktop application
 
-Launch `Schematic Draft.exe`. It is portable: no installer, no service, and
-nothing written outside the folder it runs from. That folder holds the program,
+Launch `schematic-draft.exe`. Whether you extracted the release zip or ran the
+installer, the folder it sits in is the whole installation: no service, and
+nothing written outside that folder. It holds the program,
 the `Projects/` directory new Projects are saved into, and the `AppData/`
 directory that keeps the window size and the crash-recovery copy, so moving the
 folder moves the whole installation. A copy placed somewhere it cannot write —
@@ -371,9 +372,9 @@ original testbench files: import builds the circuit and does not retain the deck
 pnpm desktop:dist
 ```
 
-The portable executable and the unpacked program folder land under
-`output/desktop/`. Copy either anywhere and run it; it needs no installer and no
-privileges, and it keeps its files in its own folder. See
+The release zip, the installer, and the program folder they both carry land under
+`output/desktop/`. Copy the folder anywhere and run it; it needs no installer and
+no privileges, and it keeps its files in its own folder. See
 [`apps/desktop/README.md`](../../apps/desktop/README.md) for what the shell does
 and does not allow.
 

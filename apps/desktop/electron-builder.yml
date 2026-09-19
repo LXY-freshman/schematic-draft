@@ -37,9 +37,9 @@ win:
   target:
     - target: nsis
       arch: [x64]
-    - target: portable
-      arch: [x64]
-  artifactName: "${productName}-${version}-${os}-${arch}-setup.${ext}"
+  # Lower case, no spaces: GitHub rewrites a space in a release asset name as a
+  # dot, so the name a person downloads would not be the name built here.
+  artifactName: "schematic-draft-${version}-${os}-${arch}-setup.${ext}"
   verifyUpdateCodeSignature: false
   signAndEditExecutable: true
 
@@ -54,6 +54,7 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: Schematic Draft
   deleteAppDataOnUninstall: false
-
-portable:
-  artifactName: "${productName}-${version}-${os}-${arch}-portable.${ext}"
+# The other half of a release — the ready-to-run folder as a zip — is built by
+# scripts/package-zip.mjs. electron-builder's own `zip` target archives the
+# folder's contents without the folder, which would spill 200 files wherever it
+# was extracted.

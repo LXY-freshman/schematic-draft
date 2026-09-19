@@ -11,7 +11,7 @@ hosted features some of them mention are gone.
 ## Unreleased — Schematic Draft fork
 
 Schematic Draft is Analog Canvas running entirely on your own machine, packaged
-as a portable Windows application. The schematic editor, hierarchy, SPICE
+as a Windows desktop application. The schematic editor, hierarchy, SPICE
 interchange, and formal export are unchanged. What is gone is everything that
 needed a server.
 
@@ -85,16 +85,16 @@ needed a server.
   elevation, a read-only share — keeps working and falls back to the per-user
   AppData and Documents locations, which About then reports instead.
 - The delivered program folder is named `Schematic Draft\` rather than `app\`,
-  and the single-file portable build sits in `portable\` because it keeps its
-  own `Projects\` and `AppData\` beside the executable. Rebuilding replaces the
-  program and leaves both of those directories alone.
+  and a release ships it as a zip whose one top-level entry is that folder:
+  extracting it anywhere gives a complete installation. Rebuilding replaces the
+  program and leaves `Projects\` and `AppData\` alone.
 
 ### Installing it
 
-- A Windows installer ships beside the ready-to-run folder and the portable
-  build. It installs for the current user, so it needs no administrator, and it
-  asks which folder to install into — that folder is then the whole installation,
-  `Projects\` and `AppData\` included.
+- A Windows installer ships beside that zip — the same program, laid down with
+  shortcuts. It installs for the current user, so it needs no administrator, and
+  it asks which folder to install into — that folder is then the whole
+  installation, `Projects\` and `AppData\` included.
 - **Uninstalling keeps the Projects you saved.** They sit inside the installed
   folder, so the uninstaller removes the program around them and then names the
   path it left them at. Deleting them stays your decision.
@@ -106,7 +106,8 @@ needed a server.
 
 ### Double-clicking a Project
 
-- An installed copy claims `.schdraft` for itself the first time it runs, so
+- An installed copy — or one extracted from the release zip — claims `.schdraft`
+  for itself the first time it runs, so
   double-clicking a Project in Explorer opens it here. The entries are per-user
   (`HKCU\Software\Classes`): no elevation, no other account affected, and the
   open command names this folder's executable, so a folder that moved re-points
@@ -119,8 +120,6 @@ needed a server.
   still points here — if another application has claimed it since, that entry is
   not this one's to delete. Turning it off is remembered, so a later launch does
   not quietly claim the extension again.
-- The single-file portable build claims nothing unless that menu item is ticked,
-  because it runs from a temporary directory whose path is stale by tomorrow.
 - **Help → About** states whether the association is in place.
 
 ### Simulation

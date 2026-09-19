@@ -19,8 +19,6 @@ export const PROJECTS_FOLDER = "Projects";
 export const APP_DATA_FOLDER = "AppData";
 
 export interface InstallProbe {
-  /** `PORTABLE_EXECUTABLE_DIR`, set only by the single-file portable build. */
-  portableDirectory: string | undefined;
   /** `app.getPath("exe")`. */
   executablePath: string;
   /** `app.isPackaged`. */
@@ -34,18 +32,13 @@ export interface InstallProbe {
 /**
  * The folder this copy owns, or `null` when it cannot write there.
  *
- * A portable build unpacks itself into a temporary directory, so the folder a
- * person actually sees — and moves — is the one holding the `.exe` they
- * double-clicked, not the one this code runs from.
+ * Both Windows forms — installed, or extracted from the release zip — run from
+ * the folder they were put in, so that folder is the installation.
  */
 export function resolveInstallRoot(probe: InstallProbe): string | null {
-  const portable = probe.portableDirectory?.trim();
-  const root =
-    portable !== undefined && portable.length > 0
-      ? portable
-      : probe.packaged
-        ? dirname(probe.executablePath)
-        : probe.developmentDirectory;
+  const root = probe.packaged
+    ? dirname(probe.executablePath)
+    : probe.developmentDirectory;
   return probe.canWrite(root) ? root : null;
 }
 

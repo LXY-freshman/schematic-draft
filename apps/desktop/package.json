@@ -12,7 +12,7 @@
     "build": "node scripts/build.mjs",
     "icons": "node scripts/make-icons.mjs",
     "start": "electron .",
-    "dist:win": "node scripts/build.mjs && electron-builder --win --x64"
+    "dist:win": "node scripts/build.mjs && electron-builder --win --x64 && node scripts/package-zip.mjs"
   },
   "devDependencies": {
     "electron": "44.4.2",

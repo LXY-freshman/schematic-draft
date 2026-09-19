@@ -328,7 +328,6 @@ describe("install paths", () => {
   it("keeps an installed copy's files inside its own folder", () => {
     expect(
       resolveInstallRoot({
-        portableDirectory: undefined,
         executablePath: join("D:", "Tools", "Schematic Draft", "app.exe"),
         packaged: true,
         developmentDirectory: join("repo", "output"),
@@ -337,35 +336,15 @@ describe("install paths", () => {
     ).toBe(join("D:", "Tools", "Schematic Draft"));
   });
 
-  it("follows the portable build to the folder a person actually sees", () => {
-    // The portable .exe unpacks itself into a temporary directory, so the folder
-    // holding the executable that was double-clicked is the one that moves.
-    const chosen = join("E:", "Circuits");
-    for (const portableDirectory of [chosen, `${chosen} `]) {
-      expect(
-        resolveInstallRoot({
-          portableDirectory,
-          executablePath: join("C:", "Temp", "unpacked", "app.exe"),
-          packaged: true,
-          developmentDirectory: join("repo", "output"),
-          canWrite: writable,
-        }),
-      ).toBe(chosen);
-    }
-  });
-
   it("sends a development run to its own directory, not the install folder", () => {
-    for (const portableDirectory of [undefined, "", "   "]) {
-      expect(
-        resolveInstallRoot({
-          portableDirectory,
-          executablePath: join("repo", "node_modules", "electron", "app.exe"),
-          packaged: false,
-          developmentDirectory: join("repo", "output", "desktop-data"),
-          canWrite: writable,
-        }),
-      ).toBe(join("repo", "output", "desktop-data"));
-    }
+    expect(
+      resolveInstallRoot({
+        executablePath: join("repo", "node_modules", "electron", "app.exe"),
+        packaged: false,
+        developmentDirectory: join("repo", "output", "desktop-data"),
+        canWrite: writable,
+      }),
+    ).toBe(join("repo", "output", "desktop-data"));
   });
 
   it("reports no folder of its own when it cannot write there", () => {
@@ -373,7 +352,6 @@ describe("install paths", () => {
     // caller falls back to the per-user locations.
     expect(
       resolveInstallRoot({
-        portableDirectory: undefined,
         executablePath: join("C:", "Program Files", "sd", "app.exe"),
         packaged: true,
         developmentDirectory: join("repo", "output"),
