@@ -8,9 +8,10 @@ Entries at and below `0.9.2` are inherited from
 this application was forked from. They describe the shared editing core; the
 hosted features some of them mention are gone.
 
-## Unreleased — Schematic Draft fork
+## 1.0.0 — Schematic Draft fork (2026-09-19)
 
-Schematic Draft is Analog Canvas running entirely on your own machine, packaged
+The first public release of the fork, and the release everything below `0.9.2`
+leads up to: Analog Canvas running entirely on your own machine, packaged
 as a Windows desktop application. The schematic editor, hierarchy, SPICE
 interchange, and formal export are unchanged. What is gone is everything that
 needed a server.
