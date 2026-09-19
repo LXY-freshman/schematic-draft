@@ -1,4 +1,10 @@
-import { useId, useState, type ReactNode } from "react";
+import {
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import type { EditorTool } from "../../interaction/interaction-state";
 import { ToolIcon } from "./tool-icon";
@@ -6,6 +12,76 @@ import { ToolIcon } from "./tool-icon";
 interface ToolbarCommand {
   enabled: boolean;
   execute: () => void;
+}
+
+/** How close to the window edge a tooltip may come before it is pushed back. */
+const TOOLTIP_EDGE_MARGIN = 8;
+
+/**
+ * Where a tooltip centred under its button has to sit to stay in the window.
+ *
+ * The buttons at either end of the toolbar are the problem: the tooltip for the
+ * first one reaches past the left edge and the window clips whatever hangs over
+ * — the text is not merely cropped, it is gone. Sliding the tooltip back inside
+ * keeps it readable while it still points at its button. A tooltip wider than
+ * the window cannot be placed at all, so it is centred, which shows as much of
+ * it as there is room for.
+ */
+export function tooltipCenter(
+  center: number,
+  width: number,
+  viewport: number,
+): number {
+  const half = width / 2;
+  if (width + TOOLTIP_EDGE_MARGIN * 2 >= viewport) return viewport / 2;
+  return Math.min(
+    Math.max(center, TOOLTIP_EDGE_MARGIN + half),
+    viewport - TOOLTIP_EDGE_MARGIN - half,
+  );
+}
+
+interface TooltipAnchor {
+  left: number;
+  top: number;
+}
+
+function ToolbarTooltip({
+  id,
+  text,
+  anchor,
+}: {
+  id: string;
+  text: string;
+  anchor: TooltipAnchor;
+}) {
+  const element = useRef<HTMLSpanElement>(null);
+  const [left, setLeft] = useState(anchor.left);
+  // Measured rather than estimated: the text is translated and the font is the
+  // one the machine actually has. Laid out before the browser paints, so the
+  // tooltip never appears at the edge first and then jumps.
+  useLayoutEffect(() => {
+    const node = element.current;
+    if (node === null) return;
+    setLeft(
+      tooltipCenter(
+        anchor.left,
+        node.getBoundingClientRect().width,
+        window.innerWidth,
+      ),
+    );
+  }, [anchor.left, text]);
+  return createPortal(
+    <span
+      ref={element}
+      id={id}
+      role="tooltip"
+      className="instant-toolbar-tooltip"
+      style={{ left, top: anchor.top }}
+    >
+      {text}
+    </span>,
+    document.body,
+  );
 }
 
 export interface DrawingToolbarProps {
@@ -47,10 +123,7 @@ function ImmediatePanelButton({
   children: ReactNode;
 }) {
   const tooltipId = useId();
-  const [position, setPosition] = useState<{
-    left: number;
-    top: number;
-  } | null>(null);
+  const [position, setPosition] = useState<TooltipAnchor | null>(null);
   const show = (target: HTMLElement): void => {
     const bounds = target.getBoundingClientRect();
     setPosition({
@@ -78,19 +151,9 @@ function ImmediatePanelButton({
       >
         {children}
       </button>
-      {position && typeof document !== "undefined"
-        ? createPortal(
-            <span
-              id={tooltipId}
-              role="tooltip"
-              className="instant-toolbar-tooltip"
-              style={position}
-            >
-              {tooltip}
-            </span>,
-            document.body,
-          )
-        : null}
+      {position && typeof document !== "undefined" ? (
+        <ToolbarTooltip id={tooltipId} text={tooltip} anchor={position} />
+      ) : null}
     </>
   );
 }

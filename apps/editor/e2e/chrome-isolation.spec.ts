@@ -69,3 +69,34 @@ test("carries the version and project resource links inside Help", async ({
   await page.keyboard.press("Escape");
   await expect(about).toHaveCount(0);
 });
+
+test("keeps toolbar tooltips inside the window at both ends", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 720 });
+  await page.goto("/editor");
+
+  // Gallery leads the toolbar and Project Code ends it, so their tooltips are
+  // the two that a centred placement pushes out of the window — where they are
+  // clipped away rather than scrolled to, leaving the button unexplained.
+  for (const testId of ["examples-toggle", "project-code-toggle"]) {
+    await page.getByTestId(testId).hover();
+    const tooltip = page.getByRole("tooltip");
+    await expect(tooltip).toBeVisible();
+    const box = await tooltip.boundingBox();
+    if (!box) throw new Error(`The ${testId} tooltip is not measurable`);
+    expect(box.width).toBeGreaterThan(0);
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(1024);
+    // Still an explanation of the button it belongs to, not a box parked in a
+    // corner: it stays within its own width of the button it points at.
+    const button = await page.getByTestId(testId).boundingBox();
+    if (!button) throw new Error(`The ${testId} button is not measurable`);
+    expect(
+      Math.abs(box.x + box.width / 2 - (button.x + button.width / 2)),
+    ).toBeLessThanOrEqual(box.width);
+    expect(box.y).toBeGreaterThanOrEqual(button.y + button.height);
+    await page.mouse.move(512, 600);
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
+  }
+});
