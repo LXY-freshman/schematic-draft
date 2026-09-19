@@ -19,6 +19,14 @@ directories:
 files:
   - dist/**
   - package.json
+  # Said outright rather than left to inference. electron-builder collects the
+  # production dependencies it discovers, and what it discovers depends on how
+  # it was invoked: run through pnpm it finds the workspace root and sweeps its
+  # dependencies — ~105 MB — into app.asar, run directly from this directory it
+  # finds none. Nothing here loads from node_modules (the main process is one
+  # esbuild bundle, the editor is resources/editor), so the same source has to
+  # produce the same download either way.
+  - "!node_modules/**"
 
 extraResources:
   - from: ../editor/dist
