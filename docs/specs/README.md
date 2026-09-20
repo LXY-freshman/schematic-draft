@@ -5,23 +5,23 @@ against. They describe required behavior and invariants, not task history.
 
 ## Specifications
 
-| Specification                                                | Status   | Covers                                                                                      |
-| ------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------------- |
-| [`project-file-format.md`](project-file-format.md)           | accepted | Project JSON, source manifest, symbol lock, canonical save/load                             |
-| [`schematic-model.md`](schematic-model.md)                   | accepted | Document, instance, net, route, junction, annotation, presentation                          |
-| [`edit-engine.md`](edit-engine.md)                           | accepted | Typed edits, transactions, revision, undo/redo, atomicity                                   |
-| [`circuit-ir.md`](circuit-ir.md)                             | accepted | Transient dialect-neutral import boundary                                                   |
-| [`symbol-dsl.md`](symbol-dsl.md)                             | accepted | Geometry, electrical/visual pins, variants, validation                                      |
-| [`spice-frontend.md`](spice-frontend.md)                     | accepted | Lossless syntax, dialects, includes, expressions, elaboration                               |
-| [`connectivity-and-routing.md`](connectivity-and-routing.md) | accepted | Physical/Logical Nets, Route graph, contacts, guidance, cuts, and locks                     |
-| [`visual-language.md`](visual-language.md)                   | accepted | Razavi visual tokens, annotations, overlays, golden output                                  |
-| [`razavi-visual-contract.md`](razavi-visual-contract.md)     | accepted | Razavi authority, construction, interface-symbol semantics, exposure, and pixel fidelity    |
-| [`persistence-and-recovery.md`](persistence-and-recovery.md) | accepted | File save, browser recovery records, unsaved state, recovery migration                      |
-| [`export.md`](export.md)                                     | accepted | Formal SVG source and derived PNG/PDF contracts                                             |
-| [`netlist-export.md`](netlist-export.md)                     | accepted | Deterministic structural SPICE/Spectre export and diagnostics                               |
-| [`netlist-conversion.md`](netlist-conversion.md)             | accepted | SPICE/SCS structural conversion, HTTP protocol and import rejection boundaries              |
-| [`performance.md`](performance.md)                           | accepted | Representative workloads and release budgets                                                |
-| [`editor-interaction.md`](editor-interaction.md)             | accepted | Direct manipulation, manual authoring, gestures, and automation boundary                    |
+| Specification                                                | Status   | Covers                                                                                   |
+| ------------------------------------------------------------ | -------- | ---------------------------------------------------------------------------------------- |
+| [`project-file-format.md`](project-file-format.md)           | accepted | Project JSON, source manifest, symbol lock, canonical save/load                          |
+| [`schematic-model.md`](schematic-model.md)                   | accepted | Document, instance, net, route, junction, annotation, presentation                       |
+| [`edit-engine.md`](edit-engine.md)                           | accepted | Typed edits, transactions, revision, undo/redo, atomicity                                |
+| [`circuit-ir.md`](circuit-ir.md)                             | accepted | Transient dialect-neutral import boundary                                                |
+| [`symbol-dsl.md`](symbol-dsl.md)                             | accepted | Geometry, electrical/visual pins, variants, validation                                   |
+| [`spice-frontend.md`](spice-frontend.md)                     | accepted | Lossless syntax, dialects, includes, expressions, elaboration                            |
+| [`connectivity-and-routing.md`](connectivity-and-routing.md) | accepted | Physical/Logical Nets, Route graph, contacts, guidance, cuts, and locks                  |
+| [`visual-language.md`](visual-language.md)                   | accepted | Razavi visual tokens, annotations, overlays, golden output                               |
+| [`razavi-visual-contract.md`](razavi-visual-contract.md)     | accepted | Razavi authority, construction, interface-symbol semantics, exposure, and pixel fidelity |
+| [`persistence-and-recovery.md`](persistence-and-recovery.md) | accepted | File save, browser recovery records, unsaved state, recovery migration                   |
+| [`export.md`](export.md)                                     | accepted | Formal SVG source, derived PNG/PDF, and the Visio fidelity contract                      |
+| [`netlist-export.md`](netlist-export.md)                     | accepted | Deterministic structural SPICE/Spectre export and diagnostics                            |
+| [`netlist-conversion.md`](netlist-conversion.md)             | accepted | SPICE/SCS structural conversion, HTTP protocol and import rejection boundaries           |
+| [`performance.md`](performance.md)                           | accepted | Representative workloads and release budgets                                             |
+| [`editor-interaction.md`](editor-interaction.md)             | accepted | Direct manipulation, manual authoring, gestures, and automation boundary                 |
 
 Create a specification when a stable cross-module contract is needed; do not
 create empty files only to mirror this table. Start from

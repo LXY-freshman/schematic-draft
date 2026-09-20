@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Masters xmlns="http://schemas.microsoft.com/office/visio/2012/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xml:space="preserve">
+  <Master ID="1" NameU="Ground" IsCustomNameU="1" Name="Ground" IsCustomName="1" Prompt="Ground" IconSize="1" AlignName="2" MatchByName="0" IconUpdate="1" UniqueID="{A32E5090-3255-4EC7-945E-8B9E403D7DCD}" BaseID="{F702F1F6-0470-46C1-9338-F998437BDA6B}" PatternFlags="0" Hidden="0" MasterType="2">
+    <PageSheet LineStyle="0" FillStyle="0" TextStyle="0">
+      <Cell N="PageWidth" V="0.3"/>
+      <Cell N="PageHeight" V="0.3875"/>
+      <Cell N="PageScale" V="1" U="IN_F"/>
+      <Cell N="DrawingScale" V="1" U="IN_F"/>
+      <Cell N="DrawingSizeType" V="0"/>
+      <Cell N="DrawingScaleType" V="0"/>
+      <Cell N="DrawingResizeType" V="1"/>
+      <Cell N="InhibitSnap" V="0"/>
+      <Cell N="UIVisibility" V="0"/>
+      <Cell N="ShdwType" V="0"/>
+      <Cell N="ShdwObliqueAngle" V="0"/>
+      <Cell N="ShdwScaleFactor" V="1"/>
+      <Cell N="ShdwOffsetX" V="0"/>
+      <Cell N="ShdwOffsetY" V="0"/>
+    </PageSheet>
+    <Rel r:id="rId1"/>
+  </Master>
+  <Master ID="2" NameU="NMOS" IsCustomNameU="1" Name="NMOS" IsCustomName="1" Prompt="NMOS" IconSize="1" AlignName="2" MatchByName="0" IconUpdate="1" UniqueID="{7A30F167-5D6E-4C78-8356-A959F4FF3172}" BaseID="{D2898A91-14C9-422E-A279-2BCFAA5A3124}" PatternFlags="0" Hidden="0" MasterType="2">
+    <PageSheet LineStyle="0" FillStyle="0" TextStyle="0">
+      <Cell N="PageWidth" V="0.6"/>
+      <Cell N="PageHeight" V="0.6"/>
+      <Cell N="PageScale" V="1" U="IN_F"/>
+      <Cell N="DrawingScale" V="1" U="IN_F"/>
+      <Cell N="DrawingSizeType" V="0"/>
+      <Cell N="DrawingScaleType" V="0"/>
+      <Cell N="DrawingResizeType" V="1"/>
+      <Cell N="InhibitSnap" V="0"/>
+      <Cell N="UIVisibility" V="0"/>
+      <Cell N="ShdwType" V="0"/>
+      <Cell N="ShdwObliqueAngle" V="0"/>
+      <Cell N="ShdwScaleFactor" V="1"/>
+      <Cell N="ShdwOffsetX" V="0"/>
+      <Cell N="ShdwOffsetY" V="0"/>
+    </PageSheet>
+    <Rel r:id="rId2"/>
+  </Master>
+  <Master ID="3" NameU="Port" IsCustomNameU="1" Name="Port" IsCustomName="1" Prompt="Port" IconSize="1" AlignName="2" MatchByName="0" IconUpdate="1" UniqueID="{62C259FC-3D1A-4F8B-B13D-2DD2B9EB59E1}" BaseID="{684CA55A-F8D4-4B8D-9B5D-9BD40B72F007}" PatternFlags="0" Hidden="0" MasterType="2">
+    <PageSheet LineStyle="0" FillStyle="0" TextStyle="0">
+      <Cell N="PageWidth" V="0.225"/>
+      <Cell N="PageHeight" V="0.175"/>
+      <Cell N="PageScale" V="1" U="IN_F"/>
+      <Cell N="DrawingScale" V="1" U="IN_F"/>
+      <Cell N="DrawingSizeType" V="0"/>
+      <Cell N="DrawingScaleType" V="0"/>
+      <Cell N="DrawingResizeType" V="1"/>
+      <Cell N="InhibitSnap" V="0"/>
+      <Cell N="UIVisibility" V="0"/>
+      <Cell N="ShdwType" V="0"/>
+      <Cell N="ShdwObliqueAngle" V="0"/>
+      <Cell N="ShdwScaleFactor" V="1"/>
+      <Cell N="ShdwOffsetX" V="0"/>
+      <Cell N="ShdwOffsetY" V="0"/>
+    </PageSheet>
+    <Rel r:id="rId3"/>
+  </Master>
+  <Master ID="4" NameU="Filled Port" IsCustomNameU="1" Name="Filled Port" IsCustomName="1" Prompt="Filled Port" IconSize="1" AlignName="2" MatchByName="0" IconUpdate="1" UniqueID="{DBDACD1F-3149-4420-801A-830186C27E6A}" BaseID="{4FC1F909-690D-4296-A862-D1F73B9DE09C}" PatternFlags="0" Hidden="0" MasterType="2">
+    <PageSheet LineStyle="0" FillStyle="0" TextStyle="0">
+      <Cell N="PageWidth" V="0.225"/>
+      <Cell N="PageHeight" V="0.175"/>
+      <Cell N="PageScale" V="1" U="IN_F"/>
+      <Cell N="DrawingScale" V="1" U="IN_F"/>
+      <Cell N="DrawingSizeType" V="0"/>
+      <Cell N="DrawingScaleType" V="0"/>
+      <Cell N="DrawingResizeType" V="1"/>
+      <Cell N="InhibitSnap" V="0"/>
+      <Cell N="UIVisibility" V="0"/>
+      <Cell N="ShdwType" V="0"/>
+      <Cell N="ShdwObliqueAngle" V="0"/>
+      <Cell N="ShdwScaleFactor" V="1"/>
+      <Cell N="ShdwOffsetX" V="0"/>
+      <Cell N="ShdwOffsetY" V="0"/>
+    </PageSheet>
+    <Rel r:id="rId4"/>
+  </Master>
+  <Master ID="5" NameU="Wire" IsCustomNameU="1" Name="Wire" IsCustomName="1" Prompt="Schematic wire" IconSize="1" AlignName="2" MatchByName="0" IconUpdate="1" UniqueID="{85AEC3F9-F78E-4FEE-858E-681786D97644}" BaseID="{781A39DF-B6E3-49A8-9657-37916D3909E2}" PatternFlags="0" Hidden="0" MasterType="541">
+    <PageSheet LineStyle="0" FillStyle="0" TextStyle="0">
+      <Cell N="PageWidth" V="0.125"/>
+      <Cell N="PageHeight" V="0.125"/>
+      <Cell N="PageScale" V="1" U="IN_F"/>
+      <Cell N="DrawingScale" V="1" U="IN_F"/>
+      <Cell N="DrawingSizeType" V="0"/>
+      <Cell N="DrawingScaleType" V="0"/>
+      <Cell N="DrawingResizeType" V="1"/>
+      <Cell N="InhibitSnap" V="0"/>
+      <Cell N="UIVisibility" V="0"/>
+      <Cell N="ShdwType" V="0"/>
+      <Cell N="ShdwObliqueAngle" V="0"/>
+      <Cell N="ShdwScaleFactor" V="1"/>
+      <Cell N="ShdwOffsetX" V="0"/>
+      <Cell N="ShdwOffsetY" V="0"/>
+    </PageSheet>
+    <Rel r:id="rId5"/>
+  </Master>
+</Masters>

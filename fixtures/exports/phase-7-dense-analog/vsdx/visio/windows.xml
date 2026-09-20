@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Windows xmlns="http://schemas.microsoft.com/office/visio/2012/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xml:space="preserve">
+  <Window ID="0" WindowType="Drawing" WindowState="1073741824" ContainerType="Page" Page="0" ViewScale="-1" ViewCenterX="2.621854" ViewCenterY="1.392949">
+    <ShowRulers>1</ShowRulers>
+    <ShowGrid>1</ShowGrid>
+    <ShowGuides>1</ShowGuides>
+    <ShowConnectionPoints>1</ShowConnectionPoints>
+    <GlueSettings>9</GlueSettings>
+    <SnapSettings>65847</SnapSettings>
+    <SnapExtensions>34</SnapExtensions>
+    <DynamicGridEnabled>1</DynamicGridEnabled>
+  </Window>
+</Windows>

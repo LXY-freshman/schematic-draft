@@ -8,6 +8,30 @@ Entries at and below `0.9.2` are inherited from
 this application was forked from. They describe the shared editing core; the
 hosted features some of them mention are gone.
 
+## Unreleased
+
+### Export a drawing you can keep editing
+
+- **File → Export drawing → Visio** writes the open Document as a `.vsdx`.
+  Devices arrive as Visio shapes rather than loose lines, and each wire is a
+  connector glued to the pins at its ends, so dragging a transistor in Visio
+  drags its wires along with it. Reference designators, parameters, net names
+  and the owning Cell ride along as Shape Data, and the page sits on Visio's
+  eighth-inch grid, so anything you draw afterwards lines up with the pins.
+- **Visio stencil** exports the symbol library itself as a `.vssx`, so devices
+  the drawing did not happen to use can be dragged in beside the ones it did.
+  It is named for the library rather than the Project, because it is the same
+  stencil whichever circuit is open.
+- The status line names what Visio could not be given, counted by kind, at the
+  moment the file is written: formulas are written as their source text, marks
+  that stay upright on the canvas are baked at the orientation the device was
+  placed in, and pin names a symbol draws are left off. The
+  [export specification](docs/specs/export.md) lists the whole contract.
+- Only the open Document is exported, and nothing reads a `.vsdx` back: the
+  Project file you opened stays the original, and an edit made in Visio stays
+  in Visio. The export itself is local — Visio does not need to be installed to
+  produce the file, and producing it contacts nothing.
+
 ## 1.0.0 — Schematic Draft fork (2026-09-19)
 
 The first public release of the fork, and the release everything below `0.9.2`

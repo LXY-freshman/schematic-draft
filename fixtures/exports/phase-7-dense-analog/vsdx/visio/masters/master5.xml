@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<MasterContents xmlns="http://schemas.microsoft.com/office/visio/2012/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xml:space="preserve">
+  <Shapes>
+    <Shape ID="5" Type="Shape" LineStyle="0" FillStyle="0" TextStyle="0">
+      <Cell N="PinX" V="0.0625" F="GUARD((BeginX+EndX)/2)"/>
+      <Cell N="PinY" V="0.0625" F="GUARD((BeginY+EndY)/2)"/>
+      <Cell N="Width" V="0.125" F="GUARD(EndX-BeginX)"/>
+      <Cell N="Height" V="0" F="GUARD(EndY-BeginY)"/>
+      <Cell N="LocPinX" V="0.0625" F="GUARD(Width*0.5)"/>
+      <Cell N="LocPinY" V="0" F="GUARD(Height*0.5)"/>
+      <Cell N="Angle" V="0" F="GUARD(0DA)"/>
+      <Cell N="FlipX" V="0" F="GUARD(FALSE)"/>
+      <Cell N="FlipY" V="0" F="GUARD(FALSE)"/>
+      <Cell N="ResizeMode" V="0"/>
+      <Cell N="BeginX" V="0"/>
+      <Cell N="BeginY" V="0.0625"/>
+      <Cell N="EndX" V="0.125"/>
+      <Cell N="EndY" V="0.0625"/>
+      <Cell N="LockHeight" V="1"/>
+      <Cell N="LockCalcWH" V="1"/>
+      <Cell N="NoAlignBox" V="1"/>
+      <Cell N="DynFeedback" V="2"/>
+      <Cell N="GlueType" V="2"/>
+      <Cell N="ObjType" V="2"/>
+      <Cell N="NoLiveDynamics" V="1"/>
+      <Cell N="ShapeSplittable" V="1"/>
+      <Cell N="LineWeight" V="0.02" U="PT"/>
+      <Cell N="LineColor" V="0"/>
+      <Cell N="LinePattern" V="1"/>
+      <Cell N="Rounding" V="0"/>
+      <Cell N="LineCap" V="1"/>
+      <Cell N="BeginArrow" V="0"/>
+      <Cell N="EndArrow" V="0"/>
+      <Cell N="FillPattern" V="0"/>
+      <Cell N="ShdwPattern" V="0"/>
+      <Section N="Geometry" IX="0">
+        <Cell N="NoFill" V="1"/>
+        <Cell N="NoLine" V="0"/>
+        <Cell N="NoShow" V="0"/>
+        <Cell N="NoSnap" V="0"/>
+        <Cell N="NoQuickDrag" V="0"/>
+        <Row T="MoveTo" IX="1">
+          <Cell N="X" V="0"/>
+          <Cell N="Y" V="0"/>
+        </Row>
+        <Row T="LineTo" IX="2">
+          <Cell N="X" V="0.125" F="Width*1"/>
+          <Cell N="Y" V="0" F="Height*1"/>
+        </Row>
+      </Section>
+    </Shape>
+  </Shapes>
+</MasterContents>

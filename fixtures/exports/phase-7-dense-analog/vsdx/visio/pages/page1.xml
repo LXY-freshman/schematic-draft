@@ -1,0 +1,453 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<PageContents xmlns="http://schemas.microsoft.com/office/visio/2012/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xml:space="preserve">
+  <Shapes>
+    <Shape ID="5" Type="Group" Master="1">
+      <Cell N="PinX" V="2.621854"/>
+      <Cell N="PinY" V="0.44375"/>
+      <Cell N="Angle" V="0"/>
+      <Cell N="FlipX" V="0"/>
+      <Cell N="FlipY" V="0"/>
+      <Section N="Property">
+        <Row N="Symbol">
+          <Cell N="Value" V="Ground" U="STR"/>
+          <Cell N="Label" V="Symbol"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+        <Row N="Cell">
+          <Cell N="Value" V="Differential Stage" U="STR"/>
+          <Cell N="Label" V="Cell"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+        <Row N="IcmInstanceId">
+          <Cell N="Value" V="GND" U="STR"/>
+          <Cell N="Label" V="icm:instanceId"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+      </Section>
+      <Shapes>
+        <Shape ID="6" Type="Shape" MasterShape="6"/>
+        <Shape ID="7" Type="Shape" MasterShape="7"/>
+      </Shapes>
+    </Shape>
+    <Shape ID="8" Type="Group" Master="2">
+      <Cell N="PinX" V="1.996854"/>
+      <Cell N="PinY" V="1.7125"/>
+      <Cell N="Angle" V="0"/>
+      <Cell N="FlipX" V="0"/>
+      <Cell N="FlipY" V="0"/>
+      <Section N="Property">
+        <Row N="Reference">
+          <Cell N="Value" V="M1" U="STR"/>
+          <Cell N="Label" V="Reference"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+        <Row N="Symbol">
+          <Cell N="Value" V="NMOS" U="STR"/>
+          <Cell N="Label" V="Symbol"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+        <Row N="Cell">
+          <Cell N="Value" V="Differential Stage" U="STR"/>
+          <Cell N="Label" V="Cell"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+        <Row N="IcmInstanceId">
+          <Cell N="Value" V="M1" U="STR"/>
+          <Cell N="Label" V="icm:instanceId"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+      </Section>
+      <Shapes>
+        <Shape ID="9" Type="Shape" MasterShape="6"/>
+      </Shapes>
+    </Shape>
+    <Shape ID="10" Type="Group" Master="2">
+      <Cell N="PinX" V="3.246854"/>
+      <Cell N="PinY" V="1.7125"/>
+      <Cell N="Angle" V="0"/>
+      <Cell N="FlipX" V="0"/>
+      <Cell N="FlipY" V="0"/>
+      <Section N="Property">
+        <Row N="Reference">
+          <Cell N="Value" V="M2" U="STR"/>
+          <Cell N="Label" V="Reference"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+        <Row N="Symbol">
+          <Cell N="Value" V="NMOS" U="STR"/>
+          <Cell N="Label" V="Symbol"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+        <Row N="Cell">
+          <Cell N="Value" V="Differential Stage" U="STR"/>
+          <Cell N="Label" V="Cell"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+        <Row N="IcmInstanceId">
+          <Cell N="Value" V="M2" U="STR"/>
+          <Cell N="Label" V="icm:instanceId"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+      </Section>
+      <Shapes>
+        <Shape ID="11" Type="Shape" MasterShape="6"/>
+      </Shapes>
+    </Shape>
+    <Shape ID="12" Type="Group" Master="3">
+      <Cell N="PinX" V="0.684354"/>
+      <Cell N="PinY" V="1.7125"/>
+      <Cell N="Angle" V="0"/>
+      <Cell N="FlipX" V="0"/>
+      <Cell N="FlipY" V="0"/>
+      <Section N="Property">
+        <Row N="Symbol">
+          <Cell N="Value" V="Port" U="STR"/>
+          <Cell N="Label" V="Symbol"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+        <Row N="Cell">
+          <Cell N="Value" V="Differential Stage" U="STR"/>
+          <Cell N="Label" V="Cell"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+        <Row N="IcmInstanceId">
+          <Cell N="Value" V="VINP" U="STR"/>
+          <Cell N="Label" V="icm:instanceId"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+      </Section>
+      <Shapes>
+        <Shape ID="13" Type="Shape" MasterShape="6"/>
+      </Shapes>
+    </Shape>
+    <Shape ID="14" Type="Group" Master="4">
+      <Cell N="PinX" V="4.559354"/>
+      <Cell N="PinY" V="2.2125"/>
+      <Cell N="Angle" V="3.141593"/>
+      <Cell N="FlipX" V="0"/>
+      <Cell N="FlipY" V="0"/>
+      <Section N="Property">
+        <Row N="Symbol">
+          <Cell N="Value" V="Filled Port" U="STR"/>
+          <Cell N="Label" V="Symbol"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+        <Row N="Cell">
+          <Cell N="Value" V="Differential Stage" U="STR"/>
+          <Cell N="Label" V="Cell"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+        <Row N="IcmInstanceId">
+          <Cell N="Value" V="VOUT" U="STR"/>
+          <Cell N="Label" V="icm:instanceId"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+      </Section>
+      <Shapes>
+        <Shape ID="15" Type="Shape" MasterShape="6"/>
+      </Shapes>
+    </Shape>
+    <Shape ID="16" Type="Shape" Master="5">
+      <Cell N="PinX" V="2.371854" F="GUARD((BeginX+EndX)/2)"/>
+      <Cell N="PinY" V="1.025" F="GUARD((BeginY+EndY)/2)"/>
+      <Cell N="Width" V="0.5" F="GUARD(EndX-BeginX)"/>
+      <Cell N="Height" V="-0.875" F="GUARD(EndY-BeginY)"/>
+      <Cell N="LocPinX" V="0.25" F="GUARD(Width*0.5)"/>
+      <Cell N="LocPinY" V="-0.4375" F="GUARD(Height*0.5)"/>
+      <Cell N="BeginX" V="2.121854" F="PAR(PNT(Sheet.8!Connections.Row_3.X,Sheet.8!Connections.Row_3.Y))"/>
+      <Cell N="BeginY" V="1.4625" F="PAR(PNT(Sheet.8!Connections.Row_3.X,Sheet.8!Connections.Row_3.Y))"/>
+      <Cell N="EndX" V="2.621854" F="PAR(PNT(Sheet.5!Connections.Row_1.X,Sheet.5!Connections.Row_1.Y))"/>
+      <Cell N="EndY" V="0.5875" F="PAR(PNT(Sheet.5!Connections.Row_1.X,Sheet.5!Connections.Row_1.Y))"/>
+      <Cell N="BegTrigger" V="2" F="_XFTRIGGER(Sheet.8!EventXFMod)"/>
+      <Cell N="EndTrigger" V="2" F="_XFTRIGGER(Sheet.5!EventXFMod)"/>
+      <Section N="Property">
+        <Row N="IcmNetId">
+          <Cell N="Value" V="net-tail" U="STR"/>
+          <Cell N="Label" V="icm:netId"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+        <Row N="IcmRouteId">
+          <Cell N="Value" V="route-tail-left" U="STR"/>
+          <Cell N="Label" V="icm:routeId"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+      </Section>
+      <Section N="Geometry" IX="0">
+        <Row T="MoveTo" IX="1">
+          <Cell N="X" V="0"/>
+          <Cell N="Y" V="0"/>
+        </Row>
+        <Row T="LineTo" IX="2">
+          <Cell N="X" V="-0.125"/>
+          <Cell N="Y" V="-0.5"/>
+        </Row>
+        <Row T="LineTo" IX="3">
+          <Cell N="X" V="0.5"/>
+          <Cell N="Y" V="-0.5"/>
+        </Row>
+        <Row T="LineTo" IX="4">
+          <Cell N="X" V="0.5" F="Width*1"/>
+          <Cell N="Y" V="-0.875" F="Height*1"/>
+        </Row>
+      </Section>
+    </Shape>
+    <Shape ID="17" Type="Shape" Master="5">
+      <Cell N="PinX" V="2.996854" F="GUARD((BeginX+EndX)/2)"/>
+      <Cell N="PinY" V="1.025" F="GUARD((BeginY+EndY)/2)"/>
+      <Cell N="Width" V="-0.75" F="GUARD(EndX-BeginX)"/>
+      <Cell N="Height" V="-0.875" F="GUARD(EndY-BeginY)"/>
+      <Cell N="LocPinX" V="-0.375" F="GUARD(Width*0.5)"/>
+      <Cell N="LocPinY" V="-0.4375" F="GUARD(Height*0.5)"/>
+      <Cell N="BeginX" V="3.371854" F="PAR(PNT(Sheet.10!Connections.Row_3.X,Sheet.10!Connections.Row_3.Y))"/>
+      <Cell N="BeginY" V="1.4625" F="PAR(PNT(Sheet.10!Connections.Row_3.X,Sheet.10!Connections.Row_3.Y))"/>
+      <Cell N="EndX" V="2.621854" F="PAR(PNT(Sheet.5!Connections.Row_1.X,Sheet.5!Connections.Row_1.Y))"/>
+      <Cell N="EndY" V="0.5875" F="PAR(PNT(Sheet.5!Connections.Row_1.X,Sheet.5!Connections.Row_1.Y))"/>
+      <Cell N="BegTrigger" V="2" F="_XFTRIGGER(Sheet.10!EventXFMod)"/>
+      <Cell N="EndTrigger" V="2" F="_XFTRIGGER(Sheet.5!EventXFMod)"/>
+      <Section N="Property">
+        <Row N="IcmNetId">
+          <Cell N="Value" V="net-tail" U="STR"/>
+          <Cell N="Label" V="icm:netId"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+        <Row N="IcmRouteId">
+          <Cell N="Value" V="route-tail-right" U="STR"/>
+          <Cell N="Label" V="icm:routeId"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+      </Section>
+      <Section N="Geometry" IX="0">
+        <Row T="MoveTo" IX="1">
+          <Cell N="X" V="0"/>
+          <Cell N="Y" V="0"/>
+        </Row>
+        <Row T="LineTo" IX="2">
+          <Cell N="X" V="-0.125"/>
+          <Cell N="Y" V="-0.5"/>
+        </Row>
+        <Row T="LineTo" IX="3">
+          <Cell N="X" V="-0.75"/>
+          <Cell N="Y" V="-0.5"/>
+        </Row>
+        <Row T="LineTo" IX="4">
+          <Cell N="X" V="-0.75" F="Width*1"/>
+          <Cell N="Y" V="-0.875" F="Height*1"/>
+        </Row>
+      </Section>
+    </Shape>
+    <Shape ID="18" Type="Shape" Master="5">
+      <Cell N="PinX" V="1.246854" F="GUARD((BeginX+EndX)/2)"/>
+      <Cell N="PinY" V="1.7125" F="GUARD((BeginY+EndY)/2)"/>
+      <Cell N="Width" V="1" F="GUARD(EndX-BeginX)"/>
+      <Cell N="Height" V="0" F="GUARD(EndY-BeginY)"/>
+      <Cell N="LocPinX" V="0.5" F="GUARD(Width*0.5)"/>
+      <Cell N="LocPinY" V="0" F="GUARD(Height*0.5)"/>
+      <Cell N="BeginX" V="0.746854" F="PAR(PNT(Sheet.12!Connections.Row_1.X,Sheet.12!Connections.Row_1.Y))"/>
+      <Cell N="BeginY" V="1.7125" F="PAR(PNT(Sheet.12!Connections.Row_1.X,Sheet.12!Connections.Row_1.Y))"/>
+      <Cell N="EndX" V="1.746854" F="PAR(PNT(Sheet.8!Connections.Row_2.X,Sheet.8!Connections.Row_2.Y))"/>
+      <Cell N="EndY" V="1.7125" F="PAR(PNT(Sheet.8!Connections.Row_2.X,Sheet.8!Connections.Row_2.Y))"/>
+      <Cell N="BegTrigger" V="2" F="_XFTRIGGER(Sheet.12!EventXFMod)"/>
+      <Cell N="EndTrigger" V="2" F="_XFTRIGGER(Sheet.8!EventXFMod)"/>
+      <Section N="Property">
+        <Row N="Net">
+          <Cell N="Value" V="VINP" U="STR"/>
+          <Cell N="Label" V="Net"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+        <Row N="IcmNetId">
+          <Cell N="Value" V="net-vinp" U="STR"/>
+          <Cell N="Label" V="icm:netId"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+        <Row N="IcmRouteId">
+          <Cell N="Value" V="route-vinp" U="STR"/>
+          <Cell N="Label" V="icm:routeId"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+      </Section>
+      <Section N="Geometry" IX="0">
+        <Row T="MoveTo" IX="1">
+          <Cell N="X" V="0"/>
+          <Cell N="Y" V="0"/>
+        </Row>
+        <Row T="LineTo" IX="2">
+          <Cell N="X" V="1" F="Width*1"/>
+          <Cell N="Y" V="0" F="Height*1"/>
+        </Row>
+      </Section>
+    </Shape>
+    <Shape ID="19" Type="Shape" Master="5">
+      <Cell N="PinX" V="3.309354" F="GUARD((BeginX+EndX)/2)"/>
+      <Cell N="PinY" V="2.0875" F="GUARD((BeginY+EndY)/2)"/>
+      <Cell N="Width" V="2.375" F="GUARD(EndX-BeginX)"/>
+      <Cell N="Height" V="0.25" F="GUARD(EndY-BeginY)"/>
+      <Cell N="LocPinX" V="1.1875" F="GUARD(Width*0.5)"/>
+      <Cell N="LocPinY" V="0.125" F="GUARD(Height*0.5)"/>
+      <Cell N="BeginX" V="2.121854" F="PAR(PNT(Sheet.8!Connections.Row_1.X,Sheet.8!Connections.Row_1.Y))"/>
+      <Cell N="BeginY" V="1.9625" F="PAR(PNT(Sheet.8!Connections.Row_1.X,Sheet.8!Connections.Row_1.Y))"/>
+      <Cell N="EndX" V="4.496854" F="PAR(PNT(Sheet.14!Connections.Row_1.X,Sheet.14!Connections.Row_1.Y))"/>
+      <Cell N="EndY" V="2.2125" F="PAR(PNT(Sheet.14!Connections.Row_1.X,Sheet.14!Connections.Row_1.Y))"/>
+      <Cell N="BegTrigger" V="2" F="_XFTRIGGER(Sheet.8!EventXFMod)"/>
+      <Cell N="EndTrigger" V="2" F="_XFTRIGGER(Sheet.14!EventXFMod)"/>
+      <Section N="Property">
+        <Row N="Net">
+          <Cell N="Value" V="VOUT" U="STR"/>
+          <Cell N="Label" V="Net"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+        <Row N="IcmNetId">
+          <Cell N="Value" V="net-vout" U="STR"/>
+          <Cell N="Label" V="icm:netId"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+        <Row N="IcmRouteId">
+          <Cell N="Value" V="route-vout" U="STR"/>
+          <Cell N="Label" V="icm:routeId"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+      </Section>
+      <Section N="Geometry" IX="0">
+        <Row T="MoveTo" IX="1">
+          <Cell N="X" V="0"/>
+          <Cell N="Y" V="0"/>
+        </Row>
+        <Row T="LineTo" IX="2">
+          <Cell N="X" V="0.5"/>
+          <Cell N="Y" V="0.25"/>
+        </Row>
+        <Row T="LineTo" IX="3">
+          <Cell N="X" V="2.375" F="Width*1"/>
+          <Cell N="Y" V="0.25" F="Height*1"/>
+        </Row>
+      </Section>
+    </Shape>
+    <Shape ID="20" Type="Shape">
+      <Cell N="PinX" V="0.435927" F="Sheet.12!PinX-0.248427"/>
+      <Cell N="PinY" V="1.908356" F="Sheet.12!PinY+0.195856"/>
+      <Cell N="Width" V="0.371854"/>
+      <Cell N="Height" V="0.255083"/>
+      <Cell N="LocPinX" V="0.185927" F="Width*0.5"/>
+      <Cell N="LocPinY" V="0.127541" F="Height*0.5"/>
+      <Cell N="Angle" V="0"/>
+      <Cell N="FlipX" V="0"/>
+      <Cell N="FlipY" V="0"/>
+      <Cell N="LinePattern" V="0"/>
+      <Cell N="FillPattern" V="0"/>
+      <Cell N="ShdwPattern" V="0"/>
+      <Cell N="LeftMargin" V="0"/>
+      <Cell N="RightMargin" V="0"/>
+      <Cell N="TopMargin" V="0"/>
+      <Cell N="BottomMargin" V="0"/>
+      <Cell N="VerticalAlign" V="1"/>
+      <Cell N="TxtWidth" V="1.487414" F="Width*4"/>
+      <Cell N="TxtPinX" V="0.371854" F="Width"/>
+      <Cell N="TxtLocPinX" V="1.487414" F="TxtWidth"/>
+      <Cell N="TxtHeight" V="0.255083" F="Height"/>
+      <Cell N="TxtPinY" V="0.127541" F="Height*0.5"/>
+      <Cell N="TxtLocPinY" V="0.127541" F="TxtHeight*0.5"/>
+      <Section N="Character">
+        <Row IX="0">
+          <Cell N="Font" V="Arial"/>
+          <Cell N="Size" V="0.18895" U="PT"/>
+          <Cell N="Color" V="#000"/>
+          <Cell N="Style" V="0"/>
+          <Cell N="Pos" V="0"/>
+          <Cell N="FontScale" V="1"/>
+        </Row>
+        <Row IX="1">
+          <Cell N="Font" V="Arial"/>
+          <Cell N="Size" V="0.18895" U="PT"/>
+          <Cell N="Color" V="#000"/>
+          <Cell N="Style" V="0"/>
+          <Cell N="Pos" V="2"/>
+          <Cell N="FontScale" V="1"/>
+        </Row>
+      </Section>
+      <Section N="Paragraph">
+        <Row IX="0">
+          <Cell N="HorzAlign" V="2"/>
+        </Row>
+      </Section>
+      <Section N="Property">
+        <Row N="IcmAnnotationId">
+          <Cell N="Value" V="label-vinp" U="STR"/>
+          <Cell N="Label" V="icm:annotationId"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+      </Section>
+      <Text>
+        <pp IX="0"/>
+        <cp IX="0"/>V<cp IX="1"/>in+
+</Text>
+      </Shape>
+      <Shape ID="21" Type="Shape">
+        <Cell N="PinX" V="4.80778" F="Sheet.14!PinX+0.248427"/>
+        <Cell N="PinY" V="2.408356" F="Sheet.14!PinY+0.195856"/>
+        <Cell N="Width" V="0.371854"/>
+        <Cell N="Height" V="0.255083"/>
+        <Cell N="LocPinX" V="0.185927" F="Width*0.5"/>
+        <Cell N="LocPinY" V="0.127541" F="Height*0.5"/>
+        <Cell N="Angle" V="0"/>
+        <Cell N="FlipX" V="0"/>
+        <Cell N="FlipY" V="0"/>
+        <Cell N="LinePattern" V="0"/>
+        <Cell N="FillPattern" V="0"/>
+        <Cell N="ShdwPattern" V="0"/>
+        <Cell N="LeftMargin" V="0"/>
+        <Cell N="RightMargin" V="0"/>
+        <Cell N="TopMargin" V="0"/>
+        <Cell N="BottomMargin" V="0"/>
+        <Cell N="VerticalAlign" V="1"/>
+        <Cell N="TxtWidth" V="1.487414" F="Width*4"/>
+        <Cell N="TxtPinX" V="0" F="0"/>
+        <Cell N="TxtLocPinX" V="0" F="0"/>
+        <Cell N="TxtHeight" V="0.255083" F="Height"/>
+        <Cell N="TxtPinY" V="0.127541" F="Height*0.5"/>
+        <Cell N="TxtLocPinY" V="0.127541" F="TxtHeight*0.5"/>
+        <Section N="Character">
+          <Row IX="0">
+            <Cell N="Font" V="Arial"/>
+            <Cell N="Size" V="0.18895" U="PT"/>
+            <Cell N="Color" V="#000"/>
+            <Cell N="Style" V="0"/>
+            <Cell N="Pos" V="0"/>
+            <Cell N="FontScale" V="1"/>
+          </Row>
+          <Row IX="1">
+            <Cell N="Font" V="Arial"/>
+            <Cell N="Size" V="0.18895" U="PT"/>
+            <Cell N="Color" V="#000"/>
+            <Cell N="Style" V="0"/>
+            <Cell N="Pos" V="2"/>
+            <Cell N="FontScale" V="1"/>
+          </Row>
+        </Section>
+        <Section N="Paragraph">
+          <Row IX="0">
+            <Cell N="HorzAlign" V="0"/>
+          </Row>
+        </Section>
+        <Section N="Property">
+          <Row N="IcmAnnotationId">
+            <Cell N="Value" V="label-vout" U="STR"/>
+            <Cell N="Label" V="icm:annotationId"/>
+            <Cell N="Type" V="0"/>
+          </Row>
+        </Section>
+        <Text>
+          <pp IX="0"/>
+          <cp IX="0"/>V<cp IX="1"/>out
+</Text>
+        </Shape>
+      </Shapes>
+      <Connects>
+        <Connect FromSheet="16" FromCell="BeginX" FromPart="9" ToSheet="8" ToCell="Connections.Row_3.X" ToPart="102"/>
+        <Connect FromSheet="16" FromCell="EndX" FromPart="12" ToSheet="5" ToCell="Connections.Row_1.X" ToPart="100"/>
+        <Connect FromSheet="17" FromCell="BeginX" FromPart="9" ToSheet="10" ToCell="Connections.Row_3.X" ToPart="102"/>
+        <Connect FromSheet="17" FromCell="EndX" FromPart="12" ToSheet="5" ToCell="Connections.Row_1.X" ToPart="100"/>
+        <Connect FromSheet="18" FromCell="BeginX" FromPart="9" ToSheet="12" ToCell="Connections.Row_1.X" ToPart="100"/>
+        <Connect FromSheet="18" FromCell="EndX" FromPart="12" ToSheet="8" ToCell="Connections.Row_2.X" ToPart="101"/>
+        <Connect FromSheet="19" FromCell="BeginX" FromPart="9" ToSheet="8" ToCell="Connections.Row_1.X" ToPart="100"/>
+        <Connect FromSheet="19" FromCell="EndX" FromPart="12" ToSheet="14" ToCell="Connections.Row_1.X" ToPart="100"/>
+      </Connects>
+    </PageContents>
