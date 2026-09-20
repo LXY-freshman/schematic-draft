@@ -96,22 +96,36 @@ export interface VisioMasterSource {
   readonly variant: SymbolVariant | undefined;
   /** False when the symbol yields one master and the name needs no suffix. */
   readonly disambiguate: boolean;
+  /**
+   * What this master draws, when the symbol draws more than one thing.
+   *
+   * A block whose body came out of its own formula shares neither key, name nor
+   * identity with the next one: `visioAdaptiveBodyKey` supplies a string that
+   * both separates them and reads as what the block says.
+   */
+  readonly bodyKey?: string | undefined;
 }
 
 export function visioSymbolMasterKey(
   symbolId: string,
   variantId: string | undefined,
+  /** Tells apart two masters of one symbol whose body was resolved per instance. */
+  bodyKey?: string,
 ): string {
-  return variantId === undefined ? symbolId : `${symbolId}#${variantId}`;
+  const symbol =
+    variantId === undefined ? symbolId : `${symbolId}#${variantId}`;
+  return bodyKey === undefined ? symbol : `${symbol}@${bodyKey}`;
 }
 
 /**
- * Whether a symbol's artwork can live in a master at all.
+ * Whether a symbol's artwork can live in a *shared* master.
  *
  * A Transfer Function block is drawn from its formula, not from its primitives:
  * the frame widens to fit the text, so two instances of one symbol are two
- * different outlines. A master is a single fixed outline by definition, so
- * these are drawn straight onto the page instead.
+ * different outlines. Each such instance still gets a master — see
+ * `resolveVisioInstanceSymbol` — but the page builds it from the instance's own
+ * parameters, so nothing that enumerates symbols ahead of a document, the
+ * stencil above all, can offer one.
  */
 export function symbolHasVisioMaster(definition: SymbolDefinition): boolean {
   return definition.formulaPresentation?.adaptiveFrame === undefined;
@@ -515,7 +529,7 @@ export function buildSymbolMaster(
   const { definition, variant } = source;
   if (!symbolHasVisioMaster(definition)) {
     throw new Error(
-      `Symbol "${definition.id}" is drawn from its formula and has no fixed master`,
+      `Symbol "${definition.id}" is drawn from its formula; resolve its body with resolveVisioInstanceSymbol first`,
     );
   }
   const frame = masterFrame(definition);
@@ -558,10 +572,17 @@ export function buildSymbolMaster(
   );
 
   const variantId = variant?.id;
-  const key = visioSymbolMasterKey(definition.id, variantId);
-  const name = source.disambiguate
+  const key = visioSymbolMasterKey(definition.id, variantId, source.bodyKey);
+  const variantName = source.disambiguate
     ? `${definition.name} (${variantId ?? "base"})`
     : definition.name;
+  // The body key is the master's name as well as its key, so two drawings of
+  // one symbol are two names in the Shapes window rather than one name twice —
+  // which is a master a document can no longer address unambiguously.
+  const name =
+    source.bodyKey === undefined
+      ? variantName
+      : `${variantName} · ${source.bodyKey}`;
   const escapedName = escapeXmlAttribute(name);
   const width = formatVisioNumber(frame.widthInches);
   const height = formatVisioNumber(frame.heightInches);

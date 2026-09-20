@@ -7,6 +7,7 @@ export * from "./page.js";
 export * from "./parts.js";
 export * from "./path-data.js";
 export * from "./shape-data.js";
+export * from "./signal-flow-block.js";
 export * from "./stencil.js";
 export * from "./symbol-master.js";
 export * from "./text.js";

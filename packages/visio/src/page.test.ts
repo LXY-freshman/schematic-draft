@@ -418,6 +418,92 @@ describe("labels on the page", () => {
   });
 });
 
+/**
+ * Two integrators reading `1/s` and one reading `K/s`, wired in a chain.
+ *
+ * A signal-flow block's frame is as wide as the expression inside it, so these
+ * are two drawings, not three and not one.
+ */
+function signalFlowDocument(): SchematicDocument {
+  const document = createEmptyDocument("doc-flow", "Chain");
+  const block = (
+    id: string,
+    x: number,
+    formula?: string,
+  ): SchematicDocument["instances"][number] => ({
+    id,
+    symbolId: "integrator",
+    placement: { position: { x, y: 0 }, rotation: 0, mirror: "none" },
+    ...(formula ? { signalFlowParameters: { formula } } : {}),
+  });
+  document.instances.push(
+    block("U1", 0),
+    block("U2", 200),
+    block("U3", 400, "K/s"),
+  );
+  document.nets.push({
+    id: "net-mid",
+    terminals: [
+      { instanceId: "U1", pinName: "Y" },
+      { instanceId: "U2", pinName: "A" },
+    ],
+  });
+  document.routes.push(
+    createRoutePath({
+      id: "route-chain",
+      netId: "net-mid",
+      start: { kind: "terminal", instanceId: "U1", pinName: "Y" },
+      end: { kind: "terminal", instanceId: "U2", pinName: "A" },
+      bends: [],
+      modes: ["manual"],
+    }),
+  );
+  return document;
+}
+
+describe("signal-flow blocks on the page", () => {
+  const flow = buildVisioPage(signalFlowDocument(), resolver);
+
+  it("draws a block whose body comes out of its own formula", () => {
+    // The frame and its two leads, as a placed group like any other instance:
+    // nothing about an adaptive block reaches the page as a special case.
+    expect(flow.counts.instanceShapes).toBe(3);
+    expect(shapeXml(flow.body, 5)).toContain(
+      '<Shapes><Shape ID="6" Type="Shape" MasterShape="6"/>',
+    );
+  });
+
+  it("gives one master to every distinct drawing and no more", () => {
+    // U1 and U2 read the same, so they are one master; U3 is a second. The
+    // master the symbol is named for keeps the symbol's own name.
+    expect(flow.masters.map((master) => master.name)).toEqual([
+      "Integrator (1/s)",
+      "Integrator (1/s) · K/s",
+      "Wire",
+    ]);
+    const [first, second, third] = shapeTags(flow.body).map((tag) =>
+      attribute(tag, "Master"),
+    );
+    expect(first).toBe(second);
+    expect(third).not.toBe(first);
+  });
+
+  it("glues a wire to a connection point the resolved body put there", () => {
+    // The pins moved out with the leads, so this only holds if the master was
+    // built from the same resolved definition the page placed.
+    expect(flow.counts.glue).toBe(2);
+  });
+
+  it("says which formula each block was left without", () => {
+    // The body text is still missing, and the caveat names the text this block
+    // would have shown rather than the one its symbol is named for.
+    expect(flow.caveats).toEqual([
+      { kind: "body-text", detail: "1/s" },
+      { kind: "body-text", detail: "K/s" },
+    ]);
+  });
+});
+
 describe("packVisioDocument", () => {
   it("writes the page into a package Visio can open", () => {
     const entries = unzipSync(packVisioDocument(document, resolver));

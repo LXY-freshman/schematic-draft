@@ -36,7 +36,11 @@ import type {
   SchematicDocument,
 } from "@icm/model";
 import { routeEnd } from "@icm/model";
-import type { SymbolResolver } from "@icm/symbols";
+import type {
+  SymbolDefinition,
+  SymbolResolver,
+  SymbolVariant,
+} from "@icm/symbols";
 
 import { DEFAULT_PAGE_NAME, packVisioDrawing } from "./drawing.js";
 import type { VisioDrawing } from "./drawing.js";
@@ -55,6 +59,10 @@ import type { VisioMaster } from "./masters.js";
 import type { VisioPageDescription } from "./parts.js";
 import { instanceShapeData, shapeDataSection } from "./shape-data.js";
 import type { VisioShapeDataRow } from "./shape-data.js";
+import {
+  resolveVisioInstanceSymbol,
+  visioAdaptiveBodyKey,
+} from "./signal-flow-block.js";
 import {
   buildSymbolMaster,
   symbolHasVisioMaster,
@@ -92,7 +100,6 @@ const EMPTY_PAGE_HEIGHT_INCHES = 11;
 export type VisioPageCaveat =
   | VisioMasterCaveat
   | VisioTextCaveat
-  | { readonly kind: "adaptive-symbol"; readonly detail: string }
   | { readonly kind: "annotation-ornament"; readonly detail: string }
   | { readonly kind: "unplaced-instance"; readonly detail: string }
   | { readonly kind: "unresolved-route"; readonly detail: string }
@@ -128,6 +135,52 @@ interface PlacedInstance {
 }
 
 /**
+ * The symbol an instance is drawn from, resolved once per instance.
+ *
+ * A signal-flow block's body comes out of its own formula, so the definition
+ * the page draws is not always the one the resolver returned. Everything
+ * downstream — the master, the placement, the page extent — has to agree on
+ * which it is, so the answer is computed once and carried.
+ */
+function drawnSymbol(
+  instance: SchematicDocument["instances"][number],
+  resolver: SymbolResolver,
+): {
+  /** What the resolver returned, whose declared variants name the master. */
+  shared: SymbolDefinition;
+  definition: SymbolDefinition;
+  variant: SymbolVariant | undefined;
+  bodyKey: string | undefined;
+  masterKey: string;
+} {
+  const resolved = resolver.resolve(
+    instance.symbolId,
+    instance.symbolVariantId,
+  );
+  if (!resolved) {
+    throw new Error(`Unresolved symbol: ${instance.symbolId}`);
+  }
+  const bodyKey = visioAdaptiveBodyKey(
+    resolved.definition,
+    instance.signalFlowParameters,
+  );
+  return {
+    shared: resolved.definition,
+    definition: resolveVisioInstanceSymbol(
+      resolved.definition,
+      instance.signalFlowParameters,
+    ),
+    variant: resolved.variant,
+    bodyKey,
+    masterKey: visioSymbolMasterKey(
+      resolved.definition.id,
+      resolved.variant?.id,
+      bodyKey,
+    ),
+  };
+}
+
+/**
  * The masters a document reaches, numbered from 1 in the order its instances
  * first use them.
  *
@@ -143,29 +196,29 @@ function collectSymbolMasters(
 ): Map<string, VisioSymbolMaster> {
   const masters = new Map<string, VisioSymbolMaster>();
   for (const instance of instances) {
-    const resolved = resolver.resolve(
-      instance.symbolId,
-      instance.symbolVariantId,
-    );
-    if (!resolved) {
-      throw new Error(`Unresolved symbol: ${instance.symbolId}`);
-    }
-    if (!symbolHasVisioMaster(resolved.definition)) continue;
-    const key = visioSymbolMasterKey(
-      resolved.definition.id,
-      resolved.variant?.id,
-    );
-    if (masters.has(key)) continue;
-    const source = visioMasterSourcesForSymbol(resolved.definition).find(
-      (candidate) => candidate.variant?.id === resolved.variant?.id,
-    );
+    const drawn = drawnSymbol(instance, resolver);
+    if (masters.has(drawn.masterKey)) continue;
+    // A shared master comes from the symbol's own declared sources, so a
+    // variant it does not declare is caught here. A body resolved per instance
+    // has no such list to check against: the definition being drawn is the
+    // whole source.
+    const source = symbolHasVisioMaster(drawn.shared)
+      ? visioMasterSourcesForSymbol(drawn.shared).find(
+          (candidate) => candidate.variant?.id === drawn.variant?.id,
+        )
+      : {
+          definition: drawn.definition,
+          variant: drawn.variant,
+          disambiguate: false,
+          bodyKey: drawn.bodyKey,
+        };
     if (!source) {
       throw new Error(
-        `Symbol "${resolved.definition.id}" resolved to a variant it does not declare`,
+        `Symbol "${drawn.shared.id}" resolved to a variant it does not declare`,
       );
     }
     const symbolMaster = buildSymbolMaster(source, masters.size + 1, profile);
-    masters.set(key, symbolMaster);
+    masters.set(drawn.masterKey, symbolMaster);
     caveats.push(...symbolMaster.caveats);
   }
   return masters;
@@ -414,20 +467,11 @@ export function buildVisioPage(
   const wireMasterId = symbolMasters.size + 1;
   const nodeMasterId = symbolMasters.size + 2;
 
-  // An adaptive block is drawn from its typeset formula, so it has no master
-  // and nothing on the page yet; the text half of the export owns it.
-  const drawable = placed.filter((instance) => {
-    const resolved = resolver.resolve(
-      instance.symbolId,
-      instance.symbolVariantId,
-    )!;
-    if (symbolHasVisioMaster(resolved.definition)) return true;
-    caveats.push({
-      kind: "adaptive-symbol",
-      detail: `${instance.reference ?? instance.id} (${resolved.definition.id})`,
-    });
-    return false;
-  });
+  // An adaptive block's body was resolved from its own formula, so by here
+  // every placed instance has a master to instantiate.
+  const drawnSymbols = new Map(
+    placed.map((instance) => [instance.id, drawnSymbol(instance, resolver)]),
+  );
 
   for (const route of document.routes) {
     if (!routingGeometry.routes.has(route.id)) {
@@ -449,14 +493,10 @@ export function buildVisioPage(
   );
 
   const extent: DocumentPoint[] = [
-    ...drawable.flatMap((instance) => {
-      const resolved = resolver.resolve(
-        instance.symbolId,
-        instance.symbolVariantId,
-      )!;
+    ...placed.flatMap((instance) => {
       const placement = instance.placement!;
       return placedSymbolBoxCorners(
-        resolved.definition.viewBox,
+        drawnSymbols.get(instance.id)!.definition.viewBox,
         placement.position,
         placement,
       );
@@ -484,14 +524,9 @@ export function buildVisioPage(
 
   let nextShapeId = FIRST_PAGE_SHAPE_ID;
   const instancesById = new Map<string, PlacedInstance>();
-  const instanceShapes = drawable.map((instance) => {
-    const resolved = resolver.resolve(
-      instance.symbolId,
-      instance.symbolVariantId,
-    )!;
-    const symbolMaster = symbolMasters.get(
-      visioSymbolMasterKey(resolved.definition.id, resolved.variant?.id),
-    )!;
+  const instanceShapes = placed.map((instance) => {
+    const drawn = drawnSymbols.get(instance.id)!;
+    const symbolMaster = symbolMasters.get(drawn.masterKey)!;
     const shapeId = nextShapeId;
     // The group's own ID, then one for each child Visio will instantiate.
     nextShapeId += 1 + symbolMaster.childShapeIds.length;
@@ -500,7 +535,7 @@ export function buildVisioPage(
       symbolMaster,
       shapeId,
       placement: visioShapePlacement(
-        resolved.definition.viewBox,
+        drawn.definition.viewBox,
         instance.placement!.position,
         instance.placement!,
         frame,
