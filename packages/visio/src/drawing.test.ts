@@ -7,6 +7,7 @@ import {
   buildVisioDrawingParts,
   packVisioDrawing,
 } from "./drawing.js";
+import { buildSymbolLibraryMasters } from "./stencil.js";
 import { VISIO_NAMESPACE } from "./xml.js";
 
 const page = {
@@ -121,6 +122,24 @@ describe("packVisioDrawing", () => {
     expect(() => packVisioDrawing({ page: { ...page, name: " " } })).toThrow(
       /needs a name/,
     );
+  });
+
+  it("carries masters only when the drawing has some", () => {
+    const bare = readPackage(packVisioDrawing({ page }));
+    expect([...bare.keys()].some((path) => path.includes("masters"))).toBe(
+      false,
+    );
+    expect(bare.get("visio/_rels/document.xml.rels")).not.toContain("masters");
+
+    const [master] = buildSymbolLibraryMasters().map((built) => built.master);
+    const stocked = readPackage(packVisioDrawing({ page, masters: [master!] }));
+    expect(stocked.has("visio/masters/masters.xml")).toBe(true);
+    expect(stocked.has(`visio/masters/master${master!.id}.xml`)).toBe(true);
+    expect(stocked.get("visio/_rels/document.xml.rels")).toContain(
+      'Target="masters/masters.xml"',
+    );
+    // The page still exists to be drawn on, unlike a stencil's.
+    expect(stocked.has("visio/pages/page1.xml")).toBe(true);
   });
 
   it("titles the document after the page unless told otherwise", () => {

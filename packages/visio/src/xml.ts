@@ -21,6 +21,10 @@ export const VISIO_NAMESPACE =
 export const RELATIONSHIP_NAMESPACE =
   "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 
+/** Namespace of the `.rels` parts themselves, which is a different one. */
+export const PACKAGE_RELATIONSHIPS_NAMESPACE =
+  "http://schemas.openxmlformats.org/package/2006/relationships";
+
 /**
  * Characters XML 1.0 cannot represent at all — the C0 controls other than tab,
  * newline and carriage return. Project text reaches Visio parts verbatim, so a

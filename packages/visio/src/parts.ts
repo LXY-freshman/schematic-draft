@@ -9,7 +9,9 @@
 
 import type { OpcPart } from "./opc.js";
 import { CONTENT_TYPES_PART } from "./opc.js";
+import { MASTERS_PART } from "./masters.js";
 import {
+  PACKAGE_RELATIONSHIPS_NAMESPACE,
   RELATIONSHIP_NAMESPACE,
   VISIO_NAMESPACE,
   XML_DECLARATION,
@@ -25,11 +27,17 @@ export const PAGE_CONTENTS_PART = "visio/pages/page1.xml";
 export const WINDOWS_PART = "visio/windows.xml";
 export const CORE_PROPERTIES_PART = "docProps/core.xml";
 
-/** Content type that makes the package a drawing rather than a stencil. */
-const DRAWING_CONTENT_TYPE = "application/vnd.ms-visio.drawing.main+xml";
+/**
+ * What a package is for. The two kinds share every part but one: the content
+ * type of the document part is the only thing that tells Visio whether to open
+ * a drawing window or a stencil window.
+ */
+export type VisioPackageKind = "drawing" | "stencil";
 
-const PACKAGE_RELATIONSHIPS_NAMESPACE =
-  "http://schemas.openxmlformats.org/package/2006/relationships";
+const DOCUMENT_CONTENT_TYPES: Record<VisioPackageKind, string> = {
+  drawing: "application/vnd.ms-visio.drawing.main+xml",
+  stencil: "application/vnd.ms-visio.stencil.main+xml",
+};
 
 export interface VisioPageDescription {
   /** Universal page name; Visio also shows it on the page tab. */
@@ -43,10 +51,31 @@ export interface VisioDocumentMetadata {
   readonly creator: string;
 }
 
-export function contentTypesPart(): OpcPart {
+export interface VisioPackageLayout {
+  readonly kind: VisioPackageKind;
+  /** Paths of the `masterN.xml` parts, if the package carries masters. */
+  readonly masterPaths: readonly string[];
+  /** A stencil has a page sheet but no page contents to declare. */
+  readonly hasPageContents: boolean;
+}
+
+export function contentTypesPart(layout: VisioPackageLayout): OpcPart {
+  const masters =
+    layout.masterPaths.length === 0
+      ? ""
+      : `<Override PartName="/${MASTERS_PART}" ContentType="application/vnd.ms-visio.masters+xml"/>` +
+        layout.masterPaths
+          .map(
+            (path) =>
+              `<Override PartName="/${path}" ContentType="application/vnd.ms-visio.master+xml"/>`,
+          )
+          .join("");
+  const pageContents = layout.hasPageContents
+    ? `<Override PartName="/${PAGE_CONTENTS_PART}" ContentType="application/vnd.ms-visio.page+xml"/>`
+    : "";
   return {
     path: CONTENT_TYPES_PART,
-    content: `${XML_DECLARATION}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/${DOCUMENT_PART}" ContentType="${DRAWING_CONTENT_TYPE}"/><Override PartName="/${PAGES_PART}" ContentType="application/vnd.ms-visio.pages+xml"/><Override PartName="/${PAGE_CONTENTS_PART}" ContentType="application/vnd.ms-visio.page+xml"/><Override PartName="/${WINDOWS_PART}" ContentType="application/vnd.ms-visio.windows+xml"/><Override PartName="/${CORE_PROPERTIES_PART}" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>`,
+    content: `${XML_DECLARATION}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/${DOCUMENT_PART}" ContentType="${DOCUMENT_CONTENT_TYPES[layout.kind]}"/>${masters}<Override PartName="/${PAGES_PART}" ContentType="application/vnd.ms-visio.pages+xml"/>${pageContents}<Override PartName="/${WINDOWS_PART}" ContentType="application/vnd.ms-visio.windows+xml"/><Override PartName="/${CORE_PROPERTIES_PART}" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>`,
   };
 }
 
@@ -104,10 +133,14 @@ export function documentPart(): OpcPart {
   };
 }
 
-export function documentRelationshipsPart(): OpcPart {
+export function documentRelationshipsPart(layout: VisioPackageLayout): OpcPart {
+  const masters =
+    layout.masterPaths.length === 0
+      ? ""
+      : `<Relationship Id="rId3" Type="http://schemas.microsoft.com/visio/2010/relationships/masters" Target="masters/masters.xml"/>`;
   return {
     path: "visio/_rels/document.xml.rels",
-    content: `${XML_DECLARATION}<Relationships xmlns="${PACKAGE_RELATIONSHIPS_NAMESPACE}"><Relationship Id="rId1" Type="http://schemas.microsoft.com/visio/2010/relationships/pages" Target="pages/pages.xml"/><Relationship Id="rId2" Type="http://schemas.microsoft.com/visio/2010/relationships/windows" Target="windows.xml"/></Relationships>`,
+    content: `${XML_DECLARATION}<Relationships xmlns="${PACKAGE_RELATIONSHIPS_NAMESPACE}"><Relationship Id="rId1" Type="http://schemas.microsoft.com/visio/2010/relationships/pages" Target="pages/pages.xml"/><Relationship Id="rId2" Type="http://schemas.microsoft.com/visio/2010/relationships/windows" Target="windows.xml"/>${masters}</Relationships>`,
   };
 }
 
@@ -116,8 +149,14 @@ export function documentRelationshipsPart(): OpcPart {
  * to the drawing, not to whatever paper the machine's default printer holds.
  * `PageScale` equals `DrawingScale`, so the drawing is 1:1 and one grid step is
  * the connection grid.
+ *
+ * A stencil declares the same page and leaves it empty — Visio wants somewhere
+ * to drop a master being edited, and the stencil window never shows it.
  */
-export function pagesPart(page: VisioPageDescription): OpcPart {
+export function pagesPart(
+  page: VisioPageDescription,
+  layout: VisioPackageLayout,
+): OpcPart {
   const width = formatVisioNumber(page.widthInches);
   const height = formatVisioNumber(page.heightInches);
   const grid = formatVisioNumber(CONNECTION_GRID_INCHES);
@@ -137,7 +176,7 @@ export function pagesPart(page: VisioPageDescription): OpcPart {
       `<Cell N="ShdwOffsetX" V="0"/><Cell N="ShdwOffsetY" V="0"/>` +
       `<Cell N="PageShapeSplit" V="1"/>` +
       `</PageSheet>` +
-      `<Rel r:id="rId1"/>` +
+      (layout.hasPageContents ? `<Rel r:id="rId1"/>` : "") +
       `</Page></Pages>`,
   };
 }

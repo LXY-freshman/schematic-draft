@@ -318,6 +318,9 @@ importers:
 
   packages/visio:
     dependencies:
+      "@icm/derived":
+        specifier: workspace:*
+        version: link:../derived
       "@icm/symbols":
         specifier: workspace:*
         version: link:../symbols

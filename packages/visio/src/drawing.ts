@@ -6,6 +6,8 @@
  * or writes files, and nothing here needs Visio to be installed.
  */
 
+import { masterContentsPartPath, masterParts } from "./masters.js";
+import type { VisioMaster } from "./masters.js";
 import { packOpcPackage } from "./opc.js";
 import type { OpcPart } from "./opc.js";
 import {
@@ -19,7 +21,7 @@ import {
   pagesRelationshipsPart,
   windowsPart,
 } from "./parts.js";
-import type { VisioPageDescription } from "./parts.js";
+import type { VisioPackageLayout, VisioPageDescription } from "./parts.js";
 
 export const DEFAULT_PAGE_NAME = "Schematic";
 
@@ -32,10 +34,12 @@ export interface VisioDrawing {
   readonly page: VisioPageDescription;
   /** Shown in Visio's document properties; defaults to the page name. */
   readonly title?: string;
+  /** Reusable shape definitions the page's shapes refer to by name. */
+  readonly masters?: readonly VisioMaster[];
 }
 
 /** Recorded as the author of every package this exporter writes. */
-const CREATOR = "Schematic Draft";
+export const VISIO_CREATOR = "Schematic Draft";
 
 export function buildVisioDrawingParts(drawing: VisioDrawing): OpcPart[] {
   const page = drawing.page;
@@ -48,16 +52,24 @@ export function buildVisioDrawingParts(drawing: VisioDrawing): OpcPart[] {
     throw new Error("A Visio page needs a name");
   }
 
+  const masters = drawing.masters ?? [];
+  const layout: VisioPackageLayout = {
+    kind: "drawing",
+    masterPaths: masters.map((master) => masterContentsPartPath(master)),
+    hasPageContents: true,
+  };
+
   return [
-    contentTypesPart(),
+    contentTypesPart(layout),
     packageRelationshipsPart(),
     corePropertiesPart({
       title: drawing.title ?? page.name,
-      creator: CREATOR,
+      creator: VISIO_CREATOR,
     }),
     documentPart(),
-    documentRelationshipsPart(),
-    pagesPart(page),
+    documentRelationshipsPart(layout),
+    ...masterParts(masters),
+    pagesPart(page, layout),
     pagesRelationshipsPart(),
     pageContentsPart(""),
     windowsPart(page),
