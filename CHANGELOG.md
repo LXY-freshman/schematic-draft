@@ -8,7 +8,7 @@ Entries at and below `0.9.2` are inherited from
 this application was forked from. They describe the shared editing core; the
 hosted features some of them mention are gone.
 
-## Unreleased
+## 1.1.0 — Visio export (2026-09-20)
 
 ### Export a drawing you can keep editing
 
