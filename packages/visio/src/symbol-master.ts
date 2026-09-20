@@ -78,6 +78,15 @@ export interface VisioSymbolMaster {
   readonly variantId: string | undefined;
   readonly master: VisioMaster;
   readonly connections: readonly VisioConnectionPoint[];
+  /**
+   * The artwork shapes inside the group, by their sheet ID within the master.
+   *
+   * A page that instantiates this master has to repeat them: Visio gives every
+   * child of a placed group its own page shape ID, and it takes those IDs from
+   * the page whether the file offered them or not. A page that stays silent
+   * therefore has its next shapes overwritten one by one. See `page.ts`.
+   */
+  readonly childShapeIds: readonly number[];
   readonly caveats: readonly VisioMasterCaveat[];
 }
 
@@ -109,32 +118,35 @@ export function symbolHasVisioMaster(definition: SymbolDefinition): boolean {
 }
 
 /**
- * The symbol and variant combinations a document can actually reach.
+ * The masters one symbol yields.
  *
  * A symbol with a default variant never resolves to its variant-free artwork,
  * so that artwork is not worth a master: the four-terminal MOSFET drawing
  * behind `nmos` is unreachable once `textbook-3terminal` is its default.
  */
+export function visioMasterSourcesForSymbol(
+  definition: SymbolDefinition,
+): VisioMasterSource[] {
+  if (!symbolHasVisioMaster(definition)) return [];
+  const reachable: (SymbolVariant | undefined)[] = [];
+  if (
+    definition.variants.length === 0 ||
+    definition.defaultVariantId === undefined
+  ) {
+    reachable.push(undefined);
+  }
+  reachable.push(...definition.variants);
+  const disambiguate = reachable.length > 1;
+  return reachable.map((variant) => ({ definition, variant, disambiguate }));
+}
+
+/** The symbol and variant combinations a document can actually reach. */
 export function enumerateVisioMasterSources(
   definitions: readonly SymbolDefinition[],
 ): VisioMasterSource[] {
-  const sources: VisioMasterSource[] = [];
-  for (const definition of definitions) {
-    if (!symbolHasVisioMaster(definition)) continue;
-    const reachable: (SymbolVariant | undefined)[] = [];
-    if (
-      definition.variants.length === 0 ||
-      definition.defaultVariantId === undefined
-    ) {
-      reachable.push(undefined);
-    }
-    reachable.push(...definition.variants);
-    const disambiguate = reachable.length > 1;
-    for (const variant of reachable) {
-      sources.push({ definition, variant, disambiguate });
-    }
-  }
-  return sources;
+  return definitions.flatMap((definition) =>
+    visioMasterSourcesForSymbol(definition),
+  );
 }
 
 interface MasterFrame {
@@ -538,13 +550,11 @@ export function buildSymbolMaster(
   });
   const connections = anchors.map((anchor) => anchor.connection);
 
+  const childShapeIds = [...buckets.values()].map(
+    (_bucket, index) => GROUP_SHAPE_ID + 1 + index,
+  );
   const children = [...buckets.values()].map((bucket, index) =>
-    artworkShape(
-      GROUP_SHAPE_ID + 1 + index,
-      bucket.style,
-      bucket.primitives,
-      frame,
-    ),
+    artworkShape(childShapeIds[index]!, bucket.style, bucket.primitives, frame),
   );
 
   const variantId = variant?.id;
@@ -581,6 +591,7 @@ export function buildSymbolMaster(
     symbolId: definition.id,
     variantId,
     connections,
+    childShapeIds,
     caveats: collectCaveats(definition, primitives),
     master: {
       id: masterId,

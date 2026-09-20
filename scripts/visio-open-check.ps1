@@ -21,7 +21,14 @@ param(
     [Parameter(Mandatory = $true)][string]$Path,
     # Report every master's shapes, connection points and geometry sections.
     # Off by default because a full symbol stencil prints 70 of them.
-    [switch]$MasterDetail
+    [switch]$MasterDetail,
+    # Report each page shape's placement, geometry rows and Shape Data rows —
+    # the numbers the export computed, read back through Visio's own parser.
+    [switch]$ShapeDetail,
+    # Move one glued instance and check its connectors follow. This is the only
+    # way to tell a recorded `<Connect>` from a live glue: a connector that is
+    # merely drawn between two pins stays put when the pin moves.
+    [switch]$GlueTest
 )
 
 $ErrorActionPreference = 'Stop'
@@ -29,6 +36,8 @@ $full = (Resolve-Path -LiteralPath $Path).Path
 
 # ShapeSheet section indices, from the Visio type library.
 $visSectionConnectionPts = 7
+$visSectionFirstComponent = 10
+$visSectionProp = 243
 
 $visio = New-Object -ComObject Visio.InvisibleApp
 # IDNO: answer every dialog rather than blocking on one. A package Visio wants
@@ -60,9 +69,67 @@ try {
                 $sheet.CellsU('DrawingScale').ResultIU)
         foreach ($shape in $page.Shapes) {
             $master = if ($shape.Master) { $shape.Master.NameU } else { '(local)' }
-            Write-Output ("  shape {0} '{1}' master={2}" -f $shape.ID, $shape.NameU, $master)
+            if ($ShapeDetail) {
+                $rows = 0
+                for ($i = 0; $i -lt $shape.GeometryCount; $i++) {
+                    $rows += $shape.RowCount($visSectionFirstComponent + $i)
+                }
+                Write-Output ("  shape {0} '{1}' master={2} pin=({3:n4},{4:n4}) angle={5:n2}deg flip=({6},{7}) geometry={8}rows data={9}rows connects={10}" -f `
+                        $shape.ID, $shape.NameU, $master, `
+                        $shape.CellsU('PinX').ResultIU, $shape.CellsU('PinY').ResultIU, `
+                        $shape.CellsU('Angle').Result('deg'), `
+                        $shape.CellsU('FlipX').ResultIU, $shape.CellsU('FlipY').ResultIU, `
+                        $rows, $shape.RowCount($visSectionProp), $shape.Connects.Count)
+            }
+            else {
+                Write-Output ("  shape {0} '{1}' master={2}" -f $shape.ID, $shape.NameU, $master)
+            }
+        }
+
+        if ($GlueTest) {
+            # The busiest instance: the most glued connectors makes the strongest
+            # statement when they all follow.
+            $target = $null
+            $best = 0
+            foreach ($shape in $page.Shapes) {
+                if ($shape.OneD -ne 0) { continue }
+                $held = @($page.Connects | Where-Object { $_.ToSheet.ID -eq $shape.ID })
+                if ($held.Count -gt $best) { $best = $held.Count; $target = $shape }
+            }
+            if (-not $target) {
+                Write-Output 'glue test: no glued instance on this page'
+            }
+            else {
+                $held = @($page.Connects | Where-Object { $_.ToSheet.ID -eq $target.ID })
+                $before = @{}
+                foreach ($connect in $held) {
+                    $wire = $connect.FromSheet
+                    $before[$connect.FromCell] = @(
+                        $wire.CellsU('BeginX').ResultIU, $wire.CellsU('BeginY').ResultIU,
+                        $wire.CellsU('EndX').ResultIU, $wire.CellsU('EndY').ResultIU)
+                }
+                $shift = 0.5
+                $target.CellsU('PinX').ResultIU = $target.CellsU('PinX').ResultIU + $shift
+                $moved = 0
+                foreach ($connect in $held) {
+                    $wire = $connect.FromSheet
+                    $was = $before[$connect.FromCell]
+                    $isBegin = $connect.FromPart -eq 9
+                    $x = if ($isBegin) { $wire.CellsU('BeginX').ResultIU } else { $wire.CellsU('EndX').ResultIU }
+                    $wasX = if ($isBegin) { $was[0] } else { $was[2] }
+                    if ([math]::Abs(($x - $wasX) - $shift) -lt 0.001) { $moved++ }
+                    else {
+                        Write-Output ("  glue MISSED: wire {0} {1} moved {2:n4} in, expected {3:n4}" -f `
+                                $wire.ID, $connect.FromCell, ($x - $wasX), $shift)
+                    }
+                }
+                Write-Output ("glue test: moved shape {0} '{1}' by {2} in; {3} of {4} glued ends followed" -f `
+                        $target.ID, $target.NameU, $shift, $moved, $held.Count)
+            }
         }
     }
+    # Nothing here is worth keeping, and an unsaved document would otherwise ask.
+    $doc.Saved = $true
     $doc.Close()
 }
 finally {

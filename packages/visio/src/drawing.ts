@@ -36,6 +36,11 @@ export interface VisioDrawing {
   readonly title?: string;
   /** Reusable shape definitions the page's shapes refer to by name. */
   readonly masters?: readonly VisioMaster[];
+  /**
+   * The page's `<Shapes>` and `<Connects>` elements, already serialized. Empty
+   * for a drawing with nothing on it, which is still a drawing Visio opens.
+   */
+  readonly pageBody?: string;
 }
 
 /** Recorded as the author of every package this exporter writes. */
@@ -71,7 +76,7 @@ export function buildVisioDrawingParts(drawing: VisioDrawing): OpcPart[] {
     ...masterParts(masters),
     pagesPart(page, layout),
     pagesRelationshipsPart(),
-    pageContentsPart(""),
+    pageContentsPart(drawing.pageBody ?? ""),
     windowsPart(page),
   ];
 }

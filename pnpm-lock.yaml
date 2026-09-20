@@ -321,6 +321,9 @@ importers:
       "@icm/derived":
         specifier: workspace:*
         version: link:../derived
+      "@icm/model":
+        specifier: workspace:*
+        version: link:../model
       "@icm/symbols":
         specifier: workspace:*
         version: link:../symbols

@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@icm/derived": "workspace:*",
+    "@icm/model": "workspace:*",
     "@icm/symbols": "workspace:*",
     "fflate": "0.8.3"
   }

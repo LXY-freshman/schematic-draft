@@ -24,6 +24,22 @@ import {
 
 export const MASTERS_PART = "visio/masters/masters.xml";
 
+/**
+ * What kind of thing a master is.
+ *
+ * Visio keeps this in `MasterType`, and it is not decoration: a master declared
+ * a connector is offered by the connector tools and is laid out as a line
+ * between two shapes, while a plain master is furniture that happens to have a
+ * line in it. The values are Visio's own — 2 for a shape, 541 for a connector —
+ * read from the dynamic connector in `BASICELECTRICAL_DIAGRAM_M.VSTX`.
+ */
+export type VisioMasterType = "shape" | "connector";
+
+const MASTER_TYPE_VALUES: Record<VisioMasterType, string> = {
+  shape: "2",
+  connector: "541",
+};
+
 export interface VisioMaster {
   /** Visio master ID, unique in the package and referenced by page shapes. */
   readonly id: number;
@@ -31,6 +47,8 @@ export interface VisioMaster {
   readonly name: string;
   /** Tooltip shown over the stencil entry. */
   readonly prompt: string;
+  /** Defaults to `"shape"`. */
+  readonly masterType?: VisioMasterType;
   readonly uniqueId: string;
   readonly baseId: string;
   readonly widthInches: number;
@@ -61,7 +79,7 @@ export function mastersPart(masters: readonly VisioMaster[]): OpcPart {
     return (
       `<Master ID="${master.id}" NameU="${name}" IsCustomNameU="1" Name="${name}" IsCustomName="1"` +
       ` Prompt="${escapeXmlAttribute(master.prompt)}" IconSize="1" AlignName="2" MatchByName="0" IconUpdate="1"` +
-      ` UniqueID="${master.uniqueId}" BaseID="${master.baseId}" PatternFlags="0" Hidden="0" MasterType="2">` +
+      ` UniqueID="${master.uniqueId}" BaseID="${master.baseId}" PatternFlags="0" Hidden="0" MasterType="${MASTER_TYPE_VALUES[master.masterType ?? "shape"]}">` +
       `<PageSheet LineStyle="0" FillStyle="0" TextStyle="0">` +
       `<Cell N="PageWidth" V="${formatVisioNumber(master.widthInches)}"/>` +
       `<Cell N="PageHeight" V="${formatVisioNumber(master.heightInches)}"/>` +

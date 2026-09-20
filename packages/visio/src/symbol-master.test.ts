@@ -248,4 +248,17 @@ describe("the built-in symbol catalog", () => {
       expect(sections).toHaveLength(drawn.length);
     }
   });
+
+  it("names every artwork shape a placed group will instantiate", () => {
+    // A page has to reserve a shape ID for each of these: Visio numbers the
+    // children of a placed group from the group's ID up, and takes those IDs
+    // from the page whether or not the file offered them.
+    for (const built of masters) {
+      const artwork = [
+        ...built.master.shapes.matchAll(/<Shape ID="(\d+)" Type="Shape"/g),
+      ].map((match) => Number(match[1]));
+      expect(built.childShapeIds).toEqual(artwork);
+      expect(artwork.length).toBeGreaterThan(0);
+    }
+  });
 });

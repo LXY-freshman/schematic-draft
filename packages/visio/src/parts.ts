@@ -188,7 +188,7 @@ export function pagesRelationshipsPart(): OpcPart {
   };
 }
 
-/** The page's shapes. `body` is empty until this package can emit shapes. */
+/** The page's shapes and glue records, already serialized. */
 export function pageContentsPart(body: string): OpcPart {
   const open = `<PageContents xmlns="${VISIO_NAMESPACE}" xmlns:r="${RELATIONSHIP_NAMESPACE}" xml:space="preserve">`;
   return {
