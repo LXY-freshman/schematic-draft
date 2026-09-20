@@ -3031,32 +3031,36 @@ export function App({ project: initialProject }: AppProps) {
       report: setStatus,
     },
   });
-  const { exportSvg, exportDesignNetlist, exportRaster, importSpiceFiles } =
-    createEditorFileCommands({
-      project,
-      document,
-      resolver,
-      defaultViewBox: DEFAULT_VIEWBOX,
-      // Asked at export time, which is one of the moments an
-      // electrical verdict belongs to.
-      electricalWarningsPresent: () =>
-        requestElectricalDiagnostics().length > 0,
-      netlistProfile: netlistPreferences.profile,
-      netlistPortCase: netlistPreferences.portCase,
-      netlistConfigurationError: netlistPreferences.error,
-      guardDirtyReplacement,
-      replaceActiveProject,
-      showNetlist: (format, namingProfile) => {
-        netlistPreferences.selectFormat(format);
-        setNetlistNamingProfile(namingProfile);
-        showProjectPanel("netlist");
-      },
-      setImportReport,
-      setImportReviewOpen,
-      setSelectionOpen,
-      setStatus,
-      onChunkLoadFailure: setChunkLoadFailure,
-    });
+  const {
+    exportSvg,
+    exportDesignNetlist,
+    exportRaster,
+    exportVisio,
+    importSpiceFiles,
+  } = createEditorFileCommands({
+    project,
+    document,
+    resolver,
+    defaultViewBox: DEFAULT_VIEWBOX,
+    // Asked at export time, which is one of the moments an
+    // electrical verdict belongs to.
+    electricalWarningsPresent: () => requestElectricalDiagnostics().length > 0,
+    netlistProfile: netlistPreferences.profile,
+    netlistPortCase: netlistPreferences.portCase,
+    netlistConfigurationError: netlistPreferences.error,
+    guardDirtyReplacement,
+    replaceActiveProject,
+    showNetlist: (format, namingProfile) => {
+      netlistPreferences.selectFormat(format);
+      setNetlistNamingProfile(namingProfile);
+      showProjectPanel("netlist");
+    },
+    setImportReport,
+    setImportReviewOpen,
+    setSelectionOpen,
+    setStatus,
+    onChunkLoadFailure: setChunkLoadFailure,
+  });
 
   // Single entry point for selecting a drafting object. Editing is opened
   // separately (double-click/Enter) so selection and text caret ownership do
@@ -3557,6 +3561,7 @@ export function App({ project: initialProject }: AppProps) {
             void importSpiceFiles(files, namingProfile),
           onExportSvg: exportSvg,
           onExportRaster: (format) => void exportRaster(format),
+          onExportVisio: (kind) => void exportVisio(kind),
           onRevert: revertToSavedProjectBaseline,
           onOpenRecovery: openRecoveryDialog,
         }}

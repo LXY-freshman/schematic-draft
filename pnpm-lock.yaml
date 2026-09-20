@@ -122,6 +122,9 @@ importers:
       "@icm/symbols":
         specifier: workspace:*
         version: link:../../packages/symbols
+      "@icm/visio":
+        specifier: workspace:*
+        version: link:../../packages/visio
       "@lezer/json":
         specifier: 1.0.3
         version: 1.0.3

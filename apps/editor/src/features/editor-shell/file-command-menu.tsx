@@ -18,6 +18,7 @@ export interface FileCommandMenuProps {
   ) => void;
   onExportSvg: () => void;
   onExportRaster: (format: "png" | "pdf") => void;
+  onExportVisio: (kind: "drawing" | "stencil") => void;
   onRevert: () => void;
   onOpenRecovery: () => void;
 }
@@ -101,6 +102,7 @@ export function FileCommandMenu({
   onImportSpice,
   onExportSvg,
   onExportRaster,
+  onExportVisio,
   onRevert,
   onOpenRecovery,
 }: FileCommandMenuProps) {
@@ -206,6 +208,20 @@ export function FileCommandMenu({
               onClick={() => onExportRaster("pdf")}
             >
               PDF
+            </button>
+            <button
+              type="button"
+              aria-label="Export Visio"
+              onClick={() => onExportVisio("drawing")}
+            >
+              Visio
+            </button>
+            <button
+              type="button"
+              aria-label="Export Visio stencil"
+              onClick={() => onExportVisio("stencil")}
+            >
+              Visio stencil
             </button>
           </ExportSubmenu>
         </div>

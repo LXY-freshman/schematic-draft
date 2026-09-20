@@ -1,7 +1,10 @@
 import { createEmptyProject } from "@icm/model";
+import { builtInSymbols, InMemorySymbolResolver } from "@icm/symbols";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  createVisioExportArtifact,
+  createVisioStencilArtifact,
   describeExportFailure,
   planDesignNetlistExport,
 } from "./editor-export-commands";
@@ -70,6 +73,70 @@ describe("editor export commands", () => {
     expect(plan.artifact.extension).toBe("spi");
     expect(plan.artifact.mediaType).toBe("application/x-spice");
     expect(plan.artifact.report).toBe("SPICE netlist copied");
+  });
+});
+
+describe("Visio export", () => {
+  const resolver = new InMemorySymbolResolver(builtInSymbols);
+
+  function circuit() {
+    const project = createEmptyProject("project", "My Circuit");
+    const document = project.documents[0]!;
+    document.instances.push({
+      id: "R1",
+      symbolId: "resistor",
+      reference: "R1",
+      placement: { position: { x: 0, y: 0 }, rotation: 0, mirror: "none" },
+    });
+    return { project, document };
+  }
+
+  it("writes the Document as an OPC package Visio can open", async () => {
+    const { document } = circuit();
+    const artifact = await createVisioExportArtifact(
+      document,
+      resolver,
+      "My Circuit",
+    );
+    expect(artifact.mediaType).toBe("application/vnd.ms-visio.drawing");
+    expect(artifact.extension).toBe("vsdx");
+    // A `.vsdx` is an OPC package, so its bytes begin the way every zip does.
+    const bytes = artifact.bytes as Uint8Array;
+    expect([...bytes.slice(0, 4)]).toEqual([0x50, 0x4b, 0x03, 0x04]);
+    // Nothing about a resistor on a page is beyond what Visio can carry.
+    expect(artifact.report).toBe(
+      `Exported Visio revision ${document.revision}`,
+    );
+    expect(artifact.baseName).toBeUndefined();
+  });
+
+  it("says in the status what the page could not carry", async () => {
+    // An instance with no placement is not on the page at all, which is the
+    // kind of loss a reader has to be told about rather than left to find.
+    const { document } = circuit();
+    document.instances.push({
+      id: "R2",
+      symbolId: "resistor",
+      reference: "R2",
+      placement: null,
+    });
+    const artifact = await createVisioExportArtifact(
+      document,
+      resolver,
+      "My Circuit",
+    );
+    expect(artifact.report).toContain(
+      "instances left off the page for want of a placement (1)",
+    );
+  });
+
+  it("names the stencil after the library rather than the open project", async () => {
+    // The stencil is the same symbols whatever circuit is open; three copies
+    // named after three projects would suggest they differ.
+    const artifact = await createVisioStencilArtifact();
+    expect(artifact.extension).toBe("vssx");
+    expect(artifact.baseName).toBe("Schematic Draft symbols");
+    expect(artifact.report).toBe("Exported the Visio symbol stencil");
   });
 });
 

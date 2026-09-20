@@ -14,6 +14,7 @@ const handlers = {
   onImportSpice: vi.fn(),
   onExportSvg: vi.fn(),
   onExportRaster: vi.fn(),
+  onExportVisio: vi.fn(),
   onRevert: vi.fn(),
   onOpenRecovery: vi.fn(),
 };
@@ -41,6 +42,10 @@ describe("FileCommandMenu", () => {
     expect(markup).toContain("Import Cadence SPICE (`!` globals)…");
     expect(markup).toContain('data-testid="cadence-spice-files"');
     expect(markup).toContain("Recover Local Work…");
+    // The drawing submenu offers the Visio file and the stencil beside it: the
+    // drawing alone only lets someone rearrange the devices already placed.
+    expect(markup).toContain('aria-label="Export Visio"');
+    expect(markup).toContain('aria-label="Export Visio stencil"');
     expect(markup).not.toContain("Cloud");
     expect(markup).not.toContain("Export Project File…");
   });

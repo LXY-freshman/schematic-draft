@@ -45,7 +45,10 @@ export async function clickCommand(
   button: string,
 ): Promise<void> {
   const details = await openMenu(page, menu);
-  if (menu === "File" && /^Export (?:SVG|PNG|PDF)$/u.test(button)) {
+  if (
+    menu === "File" &&
+    /^Export (?:SVG|PNG|PDF|Visio(?: stencil)?)$/u.test(button)
+  ) {
     const group = details.getByRole("button", {
       name: "Export drawing",
       exact: true,

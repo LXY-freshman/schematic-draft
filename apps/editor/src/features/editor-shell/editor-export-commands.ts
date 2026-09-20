@@ -11,6 +11,7 @@ import type {
 } from "@icm/netlist";
 import type { CircuitProject, SchematicDocument } from "@icm/model";
 import type { SymbolResolver } from "@icm/symbols";
+import type { VisioPageCaveat } from "@icm/visio";
 import { prepareDocumentFormulaArtifacts } from "../text-editing/formula-artifacts";
 import {
   ChunkLoadError,
@@ -23,6 +24,13 @@ export interface EditorExportArtifact {
   mediaType: string;
   extension: string;
   report: string;
+  /**
+   * What to call the file, when the project's name is the wrong answer. The
+   * symbol stencil is the only one so far: it is the same library whatever
+   * circuit is open, and naming three copies of it after three projects would
+   * suggest they differ.
+   */
+  baseName?: string;
 }
 
 async function preparedFormalExportSource(
@@ -156,6 +164,97 @@ export async function createVisualExportArtifact(
   };
 }
 
+/**
+ * What each Visio caveat means to someone who is about to open the file.
+ *
+ * A `.vsdx` is exported to be worked in, not looked at, so anything the package
+ * could not carry is something the user would otherwise discover by moving a
+ * transistor. Each phrase is printed with its count after it, which is why none
+ * of them is inflected for one.
+ */
+const VISIO_CAVEAT_PHRASES: Record<VisioPageCaveat["kind"], string> = {
+  "annotation-ornament": "annotation ornaments dropped",
+  "body-text": "symbol body text drawn on the page instead of in the symbol",
+  "formula-text": "formulas written as their source",
+  "overbar-text": "overbar rules dropped",
+  "pin-name-text": "pin names left off the symbol",
+  "stacked-fraction": "fractions flattened onto one line",
+  "unglued-wire-end": "wire ends not glued to a pin",
+  "unplaced-instance": "instances left off the page for want of a placement",
+  "unresolved-route": "wires left off the page for want of geometry",
+  "upright-mark": "symbol marks that turn with the shape",
+};
+
+/** Names every kind of loss the page reported, with how often it happened. */
+function summarizeVisioCaveats(caveats: readonly VisioPageCaveat[]): string {
+  const counts = new Map<VisioPageCaveat["kind"], number>();
+  for (const caveat of caveats) {
+    counts.set(caveat.kind, (counts.get(caveat.kind) ?? 0) + 1);
+  }
+  return [...counts]
+    .sort(([left], [right]) => left.localeCompare(right, "en"))
+    .map(([kind, count]) => `${VISIO_CAVEAT_PHRASES[kind]} (${count})`)
+    .join(", ");
+}
+
+/**
+ * The open Document as a Visio drawing.
+ *
+ * Unlike the other three this is not derived from the formal SVG: a flat scene
+ * would arrive in Visio as loose geometry, which is the one thing a drawing
+ * exported to be edited must not be. It comes from the Document instead, so the
+ * instances are shapes, the wires are connectors glued to their pins, and the
+ * connectivity survives being rearranged.
+ */
+export async function createVisioExportArtifact(
+  document: SchematicDocument,
+  resolver: SymbolResolver,
+  projectName: string,
+): Promise<EditorExportArtifact> {
+  const {
+    VISIO_DRAWING_EXTENSION,
+    VISIO_DRAWING_MEDIA_TYPE,
+    packVisioDrawing,
+    visioDrawingForDocument,
+  } = await importChunk("Visio export", () => import("@icm/visio"));
+  const { drawing, page } = visioDrawingForDocument(document, resolver);
+  const lost = summarizeVisioCaveats(page.caveats);
+  return {
+    // The package is titled after the project, the way the SVG export titles
+    // its scene; the page keeps the Document's own name, since a project with
+    // several Documents exports one of them at a time.
+    bytes: packVisioDrawing({ ...drawing, title: projectName }) as BlobPart,
+    mediaType: VISIO_DRAWING_MEDIA_TYPE,
+    extension: VISIO_DRAWING_EXTENSION,
+    report:
+      `Exported Visio revision ${document.revision}` +
+      (lost === "" ? "" : `; ${lost}`),
+  };
+}
+
+/**
+ * The built-in symbol library as a Visio stencil.
+ *
+ * The drawing alone only lets someone rearrange the devices already on the
+ * page. The stencil is what lets them add one, so it is offered beside the
+ * drawing rather than left as something only the repository can produce.
+ */
+export async function createVisioStencilArtifact(): Promise<EditorExportArtifact> {
+  const {
+    DEFAULT_STENCIL_TITLE,
+    VISIO_STENCIL_EXTENSION,
+    VISIO_STENCIL_MEDIA_TYPE,
+    packSymbolLibraryStencil,
+  } = await importChunk("Visio export", () => import("@icm/visio"));
+  return {
+    bytes: packSymbolLibraryStencil() as BlobPart,
+    mediaType: VISIO_STENCIL_MEDIA_TYPE,
+    extension: VISIO_STENCIL_EXTENSION,
+    baseName: DEFAULT_STENCIL_TITLE,
+    report: "Exported the Visio symbol stencil",
+  };
+}
+
 /** Deliver a prepared artifact through the browser download surface. */
 export function requestBrowserDownload(
   artifact: EditorExportArtifact,
@@ -166,7 +265,7 @@ export function requestBrowserDownload(
   );
   const anchor = window.document.createElement("a");
   anchor.href = url;
-  anchor.download = `${safeExportBaseName(baseName)}.${artifact.extension}`;
+  anchor.download = `${safeExportBaseName(artifact.baseName ?? baseName)}.${artifact.extension}`;
   anchor.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }

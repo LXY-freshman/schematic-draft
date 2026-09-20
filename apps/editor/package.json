@@ -29,6 +29,7 @@
     "@icm/render-svg": "workspace:*",
     "@icm/spice": "workspace:*",
     "@icm/symbols": "workspace:*",
+    "@icm/visio": "workspace:*",
     "fflate": "0.8.3",
     "mathlive": "0.110.0",
     "react": "19.2.8",

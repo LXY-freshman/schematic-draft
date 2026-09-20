@@ -10,6 +10,8 @@ import { importSpiceSources } from "@icm/spice";
 import type { SymbolResolver } from "@icm/symbols";
 
 import {
+  createVisioExportArtifact,
+  createVisioStencilArtifact,
   createVisualExportArtifact,
   createSvgExportArtifact,
   describeExportFailure,
@@ -135,6 +137,34 @@ export function createEditorFileCommands({
     }
   };
 
+  /**
+   * The Visio drawing, or the stencil its shapes come from.
+   *
+   * Both go out through the same download surface the other exports use, and
+   * the drawing's status line carries whatever the page could not carry with
+   * it — the export is meant to be worked in, so a silent loss would be found
+   * by dragging a device rather than by reading.
+   */
+  const exportVisio = async (
+    kind: "drawing" | "stencil" = "drawing",
+  ): Promise<void> => {
+    setStatus(
+      kind === "stencil" ? "Preparing Visio stencil" : "Preparing Visio export",
+    );
+    try {
+      const artifact =
+        kind === "stencil"
+          ? await createVisioStencilArtifact()
+          : await createVisioExportArtifact(document, resolver, project.name);
+      requestBrowserDownload(artifact, project.name);
+      setStatus(artifact.report);
+    } catch (error) {
+      const failure = describeExportFailure(error);
+      setStatus(failure.status);
+      if (failure.chunkFeature) onChunkLoadFailure?.(failure.chunkFeature);
+    }
+  };
+
   const importSpiceFiles = async (
     files: FileList | null,
     namingProfile: "native" | "cadence-bang" = "native",
@@ -209,6 +239,7 @@ export function createEditorFileCommands({
     exportSvg,
     exportDesignNetlist,
     exportRaster,
+    exportVisio,
     importSpiceFiles,
   };
 }
