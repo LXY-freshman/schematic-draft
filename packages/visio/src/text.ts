@@ -14,6 +14,8 @@
 
 import type { RichTextDocument, RichTextRun } from "@icm/model";
 
+import { pinCells } from "./follow.js";
+import type { VisioShapeFollow } from "./follow.js";
 import type { PagePoint } from "./geometry.js";
 import { escapeXmlAttribute, escapeXmlText, formatVisioNumber } from "./xml.js";
 
@@ -251,15 +253,8 @@ export interface VisioTextShape {
   readonly id: number;
   /** Where the middle of the text box lands on the page. */
   readonly pin: PagePoint;
-  /**
-   * Keeps the text with another shape, by the page offset between their pins.
-   *
-   * Visio recalculates a cell written as a formula, so a label whose pin is
-   * `Sheet.5!PinX` plus a constant travels with shape 5 when the user drags it.
-   * Dragging the label itself replaces the formula with a value, which is what
-   * a user who moves a label away from its device means to happen.
-   */
-  readonly follows?: { readonly sheetId: number; readonly offset: PagePoint };
+  /** Keeps the text with another shape; see {@link pinCells}. */
+  readonly follows?: VisioShapeFollow;
   readonly widthInches: number;
   readonly heightInches: number;
   /** Radians counterclockwise, as every Visio angle is. */
@@ -278,17 +273,6 @@ export interface VisioTextShape {
  * label, and no master, since every label is a different size.
  */
 export function textShape(shape: VisioTextShape): string {
-  const pinCell = (
-    name: "PinX" | "PinY",
-    value: number,
-    offset: number | undefined,
-  ): string => {
-    const formula =
-      shape.follows && offset !== undefined
-        ? ` F="Sheet.${shape.follows.sheetId}!${name}${offset < 0 ? "-" : "+"}${formatVisioNumber(Math.abs(offset))}"`
-        : "";
-    return `<Cell N="${name}" V="${formatVisioNumber(value)}"${formula}/>`;
-  };
   const blockWidth = shape.widthInches * TEXT_BLOCK_WIDTH_FACTOR;
   const anchor = TEXT_BLOCK_ANCHOR[shape.alignment];
   const anchorPin =
@@ -305,8 +289,7 @@ export function textShape(shape: VisioTextShape): string {
         : blockWidth;
   return (
     `<Shape ID="${shape.id}" Type="Shape">` +
-    pinCell("PinX", shape.pin.x, shape.follows?.offset.x) +
-    pinCell("PinY", shape.pin.y, shape.follows?.offset.y) +
+    pinCells(shape.pin, shape.follows) +
     `<Cell N="Width" V="${formatVisioNumber(shape.widthInches)}"/>` +
     `<Cell N="Height" V="${formatVisioNumber(shape.heightInches)}"/>` +
     `<Cell N="LocPinX" V="${formatVisioNumber(shape.widthInches / 2)}" F="Width*0.5"/>` +
@@ -323,6 +306,14 @@ export function textShape(shape: VisioTextShape): string {
     `<Cell N="TxtWidth" V="${formatVisioNumber(blockWidth)}" F="Width*${TEXT_BLOCK_WIDTH_FACTOR}"/>` +
     `<Cell N="TxtPinX" V="${formatVisioNumber(anchorPin)}" F="${anchor.pin}"/>` +
     `<Cell N="TxtLocPinX" V="${formatVisioNumber(anchorLocPin)}" F="${anchor.locPin}"/>` +
+    // A shape that writes some of the text-block cells and leaves the rest out
+    // gets nothing for the rest — not the defaults a Visio-authored shape
+    // inherits. An unwritten `TxtHeight` is zero, and a line centred in a
+    // zero-height block sits on the shape's bottom edge: every label half a box
+    // low, and a fraction's numerator struck through by its own bar.
+    `<Cell N="TxtHeight" V="${formatVisioNumber(shape.heightInches)}" F="Height"/>` +
+    `<Cell N="TxtPinY" V="${formatVisioNumber(shape.heightInches / 2)}" F="Height*0.5"/>` +
+    `<Cell N="TxtLocPinY" V="${formatVisioNumber(shape.heightInches / 2)}" F="TxtHeight*0.5"/>` +
     shape.content.characterSection +
     `<Section N="Paragraph"><Row IX="0">` +
     `<Cell N="HorzAlign" V="${HORIZONTAL_ALIGNMENT[shape.alignment]}"/>` +

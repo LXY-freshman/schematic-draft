@@ -11,8 +11,8 @@
  * than one master, which is what {@link visioAdaptiveBodyKey} distinguishes.
  *
  * The formula text itself is not drawn here. The resolved definition keeps its
- * `formulaPresentation`, so the caveat that says the body text is missing is
- * still raised for it.
+ * `formulaPresentation`, and the page writes the text from that — upright, per
+ * instance, glued to the block; see `formula-text.ts`.
  */
 
 import {

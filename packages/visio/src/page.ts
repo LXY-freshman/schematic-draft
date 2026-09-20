@@ -35,7 +35,7 @@ import type {
   RouteEndpoint,
   SchematicDocument,
 } from "@icm/model";
-import { routeEnd } from "@icm/model";
+import { routeEnd, transformPoint } from "@icm/model";
 import type {
   SymbolDefinition,
   SymbolResolver,
@@ -44,6 +44,13 @@ import type {
 
 import { DEFAULT_PAGE_NAME, packVisioDrawing } from "./drawing.js";
 import type { VisioDrawing } from "./drawing.js";
+import type { VisioShapeFollow } from "./follow.js";
+import {
+  FORMULA_RULE_BOX_HEIGHT,
+  formulaRuleShape,
+  resolveVisioFormulaBody,
+} from "./formula-text.js";
+import type { VisioFormulaBody } from "./formula-text.js";
 import {
   boundsOfPoints,
   pageFrameForBounds,
@@ -111,6 +118,8 @@ export interface VisioPageCounts {
   readonly nodeShapes: number;
   readonly wireShapes: number;
   readonly textShapes: number;
+  /** Shapes drawn for a block's body text, its fraction bar included. */
+  readonly formulaShapes: number;
   /** Wire ends glued to a connection point. */
   readonly glue: number;
 }
@@ -219,7 +228,12 @@ function collectSymbolMasters(
     }
     const symbolMaster = buildSymbolMaster(source, masters.size + 1, profile);
     masters.set(drawn.masterKey, symbolMaster);
-    caveats.push(...symbolMaster.caveats);
+    // A master carries no body text — the page draws that itself, upright and
+    // per instance — so the caveat the master raises about it is the stencil's
+    // business rather than the page's. The page answers for its own instances.
+    caveats.push(
+      ...symbolMaster.caveats.filter((caveat) => caveat.kind !== "body-text"),
+    );
   }
   return masters;
 }
@@ -369,6 +383,13 @@ interface PlannedAnnotation {
   readonly presentation: AnnotationPresentation;
 }
 
+/** One instance's body text, and where the instance carried it to. */
+interface PlannedFormula {
+  readonly body: VisioFormulaBody;
+  /** Symbol-local to document coordinates; upright, so a shift and no more. */
+  readonly translate: DocumentPoint;
+}
+
 /**
  * The annotations the page draws, in a stable order.
  *
@@ -473,6 +494,37 @@ export function buildVisioPage(
     placed.map((instance) => [instance.id, drawnSymbol(instance, resolver)]),
   );
 
+  // Body text is upright wherever the block points, so it is translated to the
+  // instance rather than transformed with it — the same thing the canvas does.
+  const formulaBodies = new Map<string, PlannedFormula>();
+  for (const instance of placed) {
+    const presentation = drawnSymbols.get(instance.id)!.shared
+      .formulaPresentation;
+    if (!presentation) continue;
+    const body = resolveVisioFormulaBody(
+      presentation,
+      instance.signalFlowParameters,
+      profile,
+    );
+    if (!body) {
+      caveats.push({ kind: "body-text", detail: presentation.defaultFormula });
+      continue;
+    }
+    const placement = instance.placement!;
+    const world = transformPoint(
+      presentation.center,
+      placement.position,
+      placement,
+    );
+    formulaBodies.set(instance.id, {
+      body,
+      translate: {
+        x: world.x - presentation.center.x,
+        y: world.y - presentation.center.y,
+      },
+    });
+  }
+
   for (const route of document.routes) {
     if (!routingGeometry.routes.has(route.id)) {
       caveats.push({ kind: "unresolved-route", detail: route.id });
@@ -510,6 +562,15 @@ export function buildVisioPage(
       {
         x: presentation.bounds.x + presentation.bounds.width,
         y: presentation.bounds.y + presentation.bounds.height,
+      },
+    ]),
+    // A frame is drawn around its formula, but a formula longer than the frame
+    // a symbol fixed for it hangs out of the drawing the same way a label does.
+    ...[...formulaBodies.values()].flatMap(({ body, translate }) => [
+      { x: body.bounds.x + translate.x, y: body.bounds.y + translate.y },
+      {
+        x: body.bounds.x + body.bounds.width + translate.x,
+        y: body.bounds.y + body.bounds.height + translate.y,
       },
     ]),
   ];
@@ -604,6 +665,75 @@ export function buildVisioPage(
       ),
     });
   });
+
+  // The body text of every block that states one, glued to the block by a pin
+  // formula so it travels when the block does. It is written after the wires
+  // and before the labels, which is the order the schematic paints them in.
+  const formulaShapes: string[] = [];
+  for (const instance of placed) {
+    const planned = formulaBodies.get(instance.id);
+    if (!planned) continue;
+    const { body, translate } = planned;
+    const owner = instancesById.get(instance.id)!;
+    const at = (point: DocumentPoint): PagePoint =>
+      frame.point({ x: point.x + translate.x, y: point.y + translate.y });
+    const follows = (pin: PagePoint): VisioShapeFollow => ({
+      sheetId: owner.shapeId,
+      offset: {
+        x: pin.x - owner.placement.pin.x,
+        y: pin.y - owner.placement.pin.y,
+      },
+    });
+    const identity = shapeDataSection([
+      {
+        name: "IcmInstanceId",
+        label: "icm:instanceId",
+        value: instance.id,
+      },
+    ]);
+    for (const piece of body.pieces) {
+      const pin = at(piece.center);
+      const content = visioTextContent(
+        piece.content,
+        {
+          fontSizeInches: inchesFromUnits(body.fontSize),
+          color: profile.foreground,
+        },
+        `${instance.id} ${piece.role}`,
+      );
+      caveats.push(...content.caveats);
+      formulaShapes.push(
+        textShape({
+          id: nextShapeId++,
+          pin,
+          follows: follows(pin),
+          widthInches: inchesFromUnits(piece.width),
+          heightInches: inchesFromUnits(piece.height),
+          // Upright: a block turned on its side still states its formula the
+          // way round a reader reads it.
+          angleRadians: 0,
+          alignment: piece.alignment,
+          content,
+          propertySection: identity,
+        }),
+      );
+    }
+    if (body.rule) {
+      const from = at(body.rule.from);
+      const to = at(body.rule.to);
+      const pin = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+      formulaShapes.push(
+        formulaRuleShape({
+          id: nextShapeId++,
+          pin,
+          follows: follows(pin),
+          widthInches: Math.abs(to.x - from.x),
+          heightInches: inchesFromUnits(FORMULA_RULE_BOX_HEIGHT),
+          weightInches: inchesFromUnits(body.rule.weight),
+        }),
+      );
+    }
+  }
 
   const instanceById = new Map(
     document.instances.map((instance) => [instance.id, instance]),
@@ -704,6 +834,7 @@ export function buildVisioPage(
       )
       .join("") +
     wireShapes.join("") +
+    formulaShapes.join("") +
     // Text goes on last so a label paints over the wire it sits beside.
     textShapes.join("") +
     `</Shapes>` +
@@ -723,6 +854,7 @@ export function buildVisioPage(
       nodeShapes: nodeShapes.length,
       wireShapes: wireShapes.length,
       textShapes: textShapes.length,
+      formulaShapes: formulaShapes.length,
       glue: connects.length,
     },
   };

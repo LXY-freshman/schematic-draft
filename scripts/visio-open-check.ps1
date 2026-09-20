@@ -113,8 +113,9 @@ try {
                 # followers have to be found by reading the formula. Visio
                 # resolves the `Sheet.31!PinX` the file was written with to the
                 # shape's own name — `ota_5t.31!PinX` — so the name is what the
-                # formula has to be matched against.
-                $reference = [regex]::Escape("$($target.NameU)!")
+                # formula has to be matched against, and a name carrying spaces
+                # or punctuation comes back quoted: `'Integrator (1/s).5'!PinX`.
+                $reference = [regex]::Escape($target.NameU) + "'?!"
                 $labels = @()
                 foreach ($shape in $page.Shapes) {
                     if ($shape.OneD -ne 0 -or $shape.Master) { continue }

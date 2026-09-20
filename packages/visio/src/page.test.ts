@@ -183,6 +183,7 @@ describe("buildVisioPage", () => {
       nodeShapes: 1,
       wireShapes: 3,
       textShapes: 0,
+      formulaShapes: 0,
       glue: 6,
     });
     expect(shapeTags(built.body)).toHaveLength(7);
@@ -494,13 +495,103 @@ describe("signal-flow blocks on the page", () => {
     expect(flow.counts.glue).toBe(2);
   });
 
-  it("says which formula each block was left without", () => {
-    // The body text is still missing, and the caveat names the text this block
-    // would have shown rather than the one its symbol is named for.
-    expect(flow.caveats).toEqual([
-      { kind: "body-text", detail: "1/s" },
-      { kind: "body-text", detail: "K/s" },
-    ]);
+  it("has nothing to apologise for once the body text is written", () => {
+    expect(flow.caveats).toEqual([]);
+  });
+
+  it("stacks each block's fraction over a ruled bar", () => {
+    // 1/s and K/s are both fractions, so each of the three blocks is a
+    // numerator, a denominator and the bar between them.
+    expect(flow.counts.formulaShapes).toBe(9);
+    // Three blocks of three shapes each, after the nine instance shapes and
+    // the one wire.
+    const numerator = shapeXml(flow.body, 15);
+    const denominator = shapeXml(flow.body, 16);
+    const bar = shapeXml(flow.body, 17);
+    expect(numerator).toContain(">1\n</Text>");
+    expect(denominator).toContain(">s\n</Text>");
+    // Page y grows upward: the numerator is above the bar, the denominator below.
+    expect(Number(cell(numerator, "PinY"))).toBeGreaterThan(
+      Number(cell(bar, "PinY")),
+    );
+    expect(Number(cell(denominator, "PinY"))).toBeLessThan(
+      Number(cell(bar, "PinY")),
+    );
+    // The bar is drawn, not connected: a connector would offer to glue itself
+    // to whatever it crosses and reroute when the block moves.
+    expect(bar).toContain('<Row T="RelLineTo" IX="2"');
+    expect(bar).not.toContain("Master=");
+  });
+
+  it("keeps the text with the block it states", () => {
+    // U3 is the third block, so its group is sheet 11 and its numerator the
+    // first formula shape written for it. Drag the block in Visio and Visio
+    // recalculates the text's pin from the block's.
+    const instancePin = Number(cell(shapeXml(flow.body, 11), "PinX"));
+    const numerator = shapeXml(flow.body, 21);
+    expect(numerator).toContain(">K\n</Text>");
+    expect(numerator).toContain(
+      '<Row N="IcmInstanceId"><Cell N="Value" V="U3"',
+    );
+    const followed =
+      /PinX" V="([-\d.]+)" F="Sheet\.11!PinX([-+])([\d.]+)"/.exec(numerator);
+    expect(followed).not.toBeNull();
+    const [, pin, sign, offset] = followed!;
+    // The formula is not decoration: recalculated against the block's own pin
+    // it gives back exactly the value written beside it.
+    expect(Number(pin)).toBeCloseTo(
+      instancePin + (sign === "-" ? -1 : 1) * Number(offset),
+      6,
+    );
+  });
+});
+
+/** One delay block, quarter-turned, with a coefficient in front of it. */
+function delayDocument(): SchematicDocument {
+  const document = createEmptyDocument("doc-delay", "Delay");
+  document.instances.push({
+    id: "U1",
+    symbolId: "unit-delay",
+    placement: { position: { x: 0, y: 0 }, rotation: 90, mirror: "none" },
+    signalFlowParameters: { coefficient: "K" },
+  });
+  return document;
+}
+
+describe("a formula that is not a fraction", () => {
+  const delay = buildVisioPage(delayDocument(), resolver);
+  // The block takes 5 and its two artwork children; the coefficient and the
+  // formula follow it.
+  const coefficient = shapeXml(delay.body, 8);
+  const formula = shapeXml(delay.body, 9);
+
+  it("writes the coefficient and the expression on one line", () => {
+    expect(delay.counts.formulaShapes).toBe(2);
+    // The multiplication sign is drawn with the coefficient, and the
+    // coefficient is anchored by its right edge so it stays beside the
+    // expression whatever Arial makes of the width.
+    expect(coefficient).toContain(">K\u00b7\n</Text>");
+    expect(coefficient).toContain('<Cell N="HorzAlign" V="2"/>');
+    expect(formula).toContain('<Cell N="HorzAlign" V="1"/>');
+    expect(Number(cell(coefficient, "PinX"))).toBeLessThan(
+      Number(cell(formula, "PinX")),
+    );
+  });
+
+  it("raises a script as a script Visio can still edit", () => {
+    // z with a superscript -1, as two character rows: retyping the 1 in Visio
+    // leaves it a superscript, which an outline or a raised literal would not.
+    expect(formula).toContain('<Cell N="Style" V="1"/><Cell N="Pos" V="0"/>');
+    expect(formula).toContain('<Cell N="Style" V="1"/><Cell N="Pos" V="1"/>');
+    expect(formula).toContain('<cp IX="0"/>z<cp IX="1"/>-1');
+  });
+
+  it("leaves the text upright however the block is turned", () => {
+    // The instance is quarter-turned; its formula is not. A reader reads the
+    // expression the way round it was written.
+    expect(Number(cell(shapeXml(delay.body, 5), "Angle"))).not.toBe(0);
+    expect(cell(coefficient, "Angle")).toBe("0");
+    expect(cell(formula, "Angle")).toBe("0");
   });
 });
 
@@ -531,6 +622,7 @@ describe("a document with nothing in it", () => {
       nodeShapes: 0,
       wireShapes: 0,
       textShapes: 0,
+      formulaShapes: 0,
       glue: 0,
     });
     expect(empty.masters).toEqual([]);

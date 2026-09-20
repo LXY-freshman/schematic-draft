@@ -1,4 +1,6 @@
 export * from "./drawing.js";
+export * from "./follow.js";
+export * from "./formula-text.js";
 export * from "./geometry.js";
 export * from "./identifier.js";
 export * from "./masters.js";

@@ -210,4 +210,16 @@ describe("textShape", () => {
     expect(centred).toContain('<Cell N="TxtPinX" V="0.25" F="Width*0.5"/>');
     expect(centred).toContain('<Cell N="TxtLocPinX" V="1" F="TxtWidth*0.5"/>');
   });
+
+  it("centres the text block in the shape that carries it", () => {
+    // Visio gives an unwritten cell nothing rather than the default a shape it
+    // authored would inherit, so a shape that states the horizontal text-block
+    // cells has to state the vertical ones too. Left out, `TxtHeight` is zero
+    // and the line lands on the shape's bottom edge — every label half a box
+    // low against the thing it names.
+    const shape = textShape(base);
+    expect(shape).toContain('<Cell N="TxtHeight" V="0.2" F="Height"/>');
+    expect(shape).toContain('<Cell N="TxtPinY" V="0.1" F="Height*0.5"/>');
+    expect(shape).toContain('<Cell N="TxtLocPinY" V="0.1" F="TxtHeight*0.5"/>');
+  });
 });
