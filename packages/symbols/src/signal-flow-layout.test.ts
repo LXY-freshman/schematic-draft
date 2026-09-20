@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  parseSignalFlowFormulaSegments,
   resolveAdaptiveSignalFlowBlockLayout,
   resolveSignalFlowFormulaLayout,
   resolveSignalFlowPinAt,
@@ -180,5 +181,56 @@ describe("signal-flow layout", () => {
     expect(east.x).toBe(layout!.pinSpan);
     expect(west.y).toBe(0);
     expect(east.y).toBe(0);
+  });
+});
+
+describe("parseSignalFlowFormulaSegments", () => {
+  it("reads a subscript written compactly", () => {
+    expect(parseSignalFlowFormulaSegments("g_m")).toEqual([
+      { kind: "text", value: "g" },
+      { kind: "subscript", value: "m" },
+    ]);
+  });
+
+  it("keeps a sign with the script it belongs to", () => {
+    expect(parseSignalFlowFormulaSegments("z^-1")).toEqual([
+      { kind: "text", value: "z" },
+      { kind: "superscript", value: "-1" },
+    ]);
+    // The second sign starts the next term rather than joining the first script.
+    expect(parseSignalFlowFormulaSegments("z^-1-1")).toEqual([
+      { kind: "text", value: "z" },
+      { kind: "superscript", value: "-1" },
+      { kind: "text", value: "-1" },
+    ]);
+  });
+
+  it("unwraps a parenthesised script", () => {
+    expect(parseSignalFlowFormulaSegments("s^(n+1)")).toEqual([
+      { kind: "text", value: "s" },
+      { kind: "superscript", value: "n+1" },
+    ]);
+  });
+
+  it("leaves a name spelled with underscores alone", () => {
+    // One underscore is subscript syntax; several are part of the name.
+    expect(parseSignalFlowFormulaSegments("very_long_formula")).toEqual([
+      { kind: "text", value: "very_long_formula" },
+    ]);
+  });
+
+  it("treats a marker with nothing after it as text", () => {
+    expect(parseSignalFlowFormulaSegments("g_")).toEqual([
+      { kind: "text", value: "g_" },
+    ]);
+    expect(parseSignalFlowFormulaSegments("a^ b")).toEqual([
+      { kind: "text", value: "a^ b" },
+    ]);
+  });
+
+  it("reads the Unicode spelling the same as the marker spelling", () => {
+    expect(parseSignalFlowFormulaSegments("z⁻¹")).toEqual(
+      parseSignalFlowFormulaSegments("z^-1"),
+    );
   });
 });

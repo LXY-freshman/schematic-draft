@@ -117,6 +117,94 @@ export function normalizeSignalFlowFormula(value: string): string {
   return normalized;
 }
 
+/** One run of a formula: ordinary text, or a script raised or lowered. */
+export interface SignalFlowFormulaSegment {
+  readonly kind: "text" | "superscript" | "subscript";
+  readonly value: string;
+}
+
+/**
+ * Where the script that starts at `start` ends.
+ *
+ * A parenthesised group runs to its closing bracket; anything else is a run of
+ * letters and digits. A sign may prefix a script (z^-1 or z^+1), but a later
+ * sign starts the next formula term and must not be swallowed into it.
+ */
+function scriptEnd(value: string, start: number): number {
+  if (value[start] === "(") {
+    const close = value.indexOf(")", start + 1);
+    return close === -1 ? start : close + 1;
+  }
+  let end = start;
+  if (value[end] === "+" || value[end] === "-") end += 1;
+  while (end < value.length && /[A-Za-z0-9]/u.test(value[end]!)) end += 1;
+  return end;
+}
+
+/**
+ * Split a formula into its plain text and its scripts.
+ *
+ * Every renderer of a signal-flow formula needs this same answer in a different
+ * shape — SVG tspans, Visio character rows — so the syntax lives here, beside
+ * the normalisation that produces it, rather than in one renderer the next has
+ * to copy. A marker with nothing after it is literal text: `g_` is a name.
+ *
+ * One underscore is compact subscript syntax (g_m); several are literal, so
+ * existing names such as very_long_formula keep their authored spelling.
+ */
+export function parseSignalFlowFormulaSegments(
+  value: string,
+): SignalFlowFormulaSegment[] {
+  const normalized = normalizeSignalFlowFormula(value);
+  const segments: SignalFlowFormulaSegment[] = [];
+  const pushText = (text: string): void => {
+    if (text.length === 0) return;
+    const previous = segments.at(-1);
+    if (previous?.kind === "text") {
+      segments[segments.length - 1] = {
+        kind: "text",
+        value: previous.value + text,
+      };
+      return;
+    }
+    segments.push({ kind: "text", value: text });
+  };
+  const underscoreCount = [...normalized].filter(
+    (character) => character === "_",
+  ).length;
+  let cursor = 0;
+  while (cursor < normalized.length) {
+    const superscript = normalized.indexOf("^", cursor);
+    const subscript =
+      underscoreCount === 1 ? normalized.indexOf("_", cursor) : -1;
+    const marker =
+      superscript === -1
+        ? subscript
+        : subscript === -1
+          ? superscript
+          : Math.min(superscript, subscript);
+    if (marker === -1 || marker === normalized.length - 1) {
+      pushText(normalized.slice(cursor));
+      break;
+    }
+    pushText(normalized.slice(cursor, marker));
+    const start = marker + 1;
+    const end = scriptEnd(normalized, start);
+    if (end === start) {
+      pushText(normalized[marker]!);
+      cursor = start;
+      continue;
+    }
+    const raw = normalized.slice(start, end);
+    segments.push({
+      kind: normalized[marker] === "^" ? "superscript" : "subscript",
+      value: raw.startsWith("(") && raw.endsWith(")") ? raw.slice(1, -1) : raw,
+    });
+    cursor = end;
+  }
+  return segments;
+}
+
 function stripOuterParentheses(value: string): string {
   const trimmed = value.trim();
   if (!trimmed.startsWith("(") || !trimmed.endsWith(")")) return trimmed;
