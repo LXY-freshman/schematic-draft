@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 import { buildVisioPage, packVisioDocument } from "./page.js";
 import { PAGE_CONTENTS_PART } from "./parts.js";
 import { DOCUMENT_UNITS_PER_INCH } from "./units.js";
+import { formatVisioNumber } from "./xml.js";
 
 const resolver = new InMemorySymbolResolver(builtInSymbols);
 
@@ -103,6 +104,51 @@ function branchDocument(): SchematicDocument {
 const document = branchDocument();
 const built = buildVisioPage(document, resolver);
 
+/**
+ * The same branch, labelled: a designator that belongs to a device and a Net
+ * Label that belongs to nobody, which are the two ways a label is placed.
+ */
+function labelledDocument(): SchematicDocument {
+  const labelled = branchDocument();
+  labelled.connectivityEvidence.push({
+    id: "claim-mid",
+    kind: "name-claim",
+    netId: "net-mid",
+    name: "MID",
+    owner: { kind: "net-label", annotationId: "ann-net" },
+    scope: "global",
+  });
+  labelled.annotations.push(
+    {
+      id: "ann-label",
+      kind: "instance-label",
+      binding: { kind: "instance-reference", instanceId: "R3" },
+      anchor: {
+        kind: "object",
+        objectId: "R3",
+        // To the right of R3, which is the right of the whole drawing: a
+        // designator is often the outermost thing on a schematic.
+        localOffset: { x: 24, y: -6 },
+        fallbackPosition: { x: 104, y: 14 },
+      },
+      alignment: "start",
+      rotation: 0,
+      locked: false,
+    },
+    {
+      id: "ann-net",
+      kind: "net-label",
+      netId: "net-mid",
+      binding: { kind: "net-name", netId: "net-mid" },
+      anchor: { kind: "free", position: { x: 8, y: 16 } },
+      alignment: "start",
+      rotation: 0,
+      locked: false,
+    },
+  );
+  return labelled;
+}
+
 /** Every page-level `<Shape …>` opening tag, in document order. */
 function shapeTags(body: string): string[] {
   return [...body.matchAll(/<Shape [^>]* Master="[^"]*">/g)].map(
@@ -136,6 +182,7 @@ describe("buildVisioPage", () => {
       instanceShapes: 3,
       nodeShapes: 1,
       wireShapes: 3,
+      textShapes: 0,
       glue: 6,
     });
     expect(shapeTags(built.body)).toHaveLength(7);
@@ -298,6 +345,79 @@ describe("buildVisioPage", () => {
   });
 });
 
+describe("labels on the page", () => {
+  const labelled = buildVisioPage(labelledDocument(), resolver);
+  // Instances take 5-10 and their children, the node 11, the wires 12-14; the
+  // labels follow in annotation ID order.
+  const deviceLabel = shapeXml(labelled.body, 15);
+  const netLabel = shapeXml(labelled.body, 16);
+
+  it("puts one text shape on the page for every visible annotation", () => {
+    expect(labelled.counts.textShapes).toBe(2);
+    // A text shape has no master, so it is not one of the shapes a master is
+    // resolved for; the instances, node and wires are unchanged.
+    expect(shapeTags(labelled.body)).toHaveLength(7);
+  });
+
+  it("keeps a device's label with the device", () => {
+    // A label written as a formula moves when Visio recalculates the cell, so
+    // dragging R3 takes its designator along. The offset is the only thing the
+    // page states; the position is whatever the formula works out to.
+    const instancePin = Number(cell(shapeXml(labelled.body, 9), "PinX"));
+    const labelPin = Number(cell(deviceLabel, "PinX"));
+    expect(deviceLabel).toContain(
+      `F="Sheet.9!PinX+${formatVisioNumber(labelPin - instancePin)}"`,
+    );
+    expect(deviceLabel).toContain('F="Sheet.9!PinY');
+  });
+
+  it("leaves a label that belongs to nobody at a plain coordinate", () => {
+    expect(netLabel).not.toContain("Sheet.");
+  });
+
+  it("writes a designator as the symbol and subscript it is drawn as", () => {
+    expect(deviceLabel).toContain(
+      '<Cell N="Style" V="3"/><Cell N="Pos" V="0"/>',
+    );
+    expect(deviceLabel).toContain(
+      '<Cell N="Style" V="1"/><Cell N="Pos" V="2"/>',
+    );
+    expect(deviceLabel).toContain('<cp IX="0"/>R<cp IX="1"/>3');
+    expect(netLabel).toContain("MID");
+  });
+
+  it("carries the annotation identity back as Shape Data", () => {
+    expect(deviceLabel).toContain(
+      '<Row N="IcmAnnotationId"><Cell N="Value" V="ann-label"',
+    );
+  });
+
+  it("names the mark it draws no geometry for", () => {
+    expect(labelled.caveats).toEqual([
+      {
+        kind: "annotation-ornament",
+        detail: "net-label ann-net: global net badge",
+      },
+    ]);
+  });
+
+  it("makes the page big enough for text that hangs off the drawing", () => {
+    expect(labelled.page.widthInches).toBeGreaterThan(built.page.widthInches);
+    for (const name of ["PinX", "PinY"] as const) {
+      const limit =
+        name === "PinX"
+          ? labelled.page.widthInches
+          : labelled.page.heightInches;
+      for (const match of labelled.body.matchAll(
+        new RegExp(`<Cell N="${name}" V="([^"]*)"`, "g"),
+      )) {
+        expect(Number(match[1])).toBeGreaterThanOrEqual(0);
+        expect(Number(match[1])).toBeLessThanOrEqual(limit);
+      }
+    }
+  });
+});
+
 describe("packVisioDocument", () => {
   it("writes the page into a package Visio can open", () => {
     const entries = unzipSync(packVisioDocument(document, resolver));
@@ -324,6 +444,7 @@ describe("a document with nothing in it", () => {
       instanceShapes: 0,
       nodeShapes: 0,
       wireShapes: 0,
+      textShapes: 0,
       glue: 0,
     });
     expect(empty.masters).toEqual([]);

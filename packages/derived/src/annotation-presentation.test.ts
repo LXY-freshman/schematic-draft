@@ -193,4 +193,58 @@ describe("annotation presentation", () => {
       }),
     ).toBe(true);
   });
+
+  // A hit test wants the box the rotated text occupies; an exporter that can
+  // rotate a box itself wants the box being rotated, and at 45 degrees the two
+  // are the same rectangle — so the unrotated one has to be handed over rather
+  // than worked back out.
+  it("reports the text's own frame beside the rotated box it occupies", () => {
+    const document = createEmptyDocument("rotated", "Rotated");
+    const annotation = {
+      id: "turned-label",
+      kind: "instance-label" as const,
+      content: { runs: [{ kind: "text" as const, value: "Vout" }] },
+      anchor: { kind: "free" as const, position: { x: 40, y: 60 } },
+      alignment: "start" as const,
+      rotation: 90 as const,
+      locked: false,
+    };
+    const profile = resolveSchematicStyleProfile(
+      document.presentation.styleProfileId,
+    );
+    const turned = resolveAnnotationPresentation(
+      document,
+      resolver,
+      annotation,
+      profile,
+    );
+    const upright = resolveAnnotationPresentation(
+      document,
+      resolver,
+      { ...annotation, rotation: 0 as const },
+      profile,
+    );
+    expect(turned.unrotatedBounds).toEqual(upright.bounds);
+    // A quarter turn swaps the axes of the box it occupies.
+    expect(turned.bounds.width).toBeCloseTo(turned.unrotatedBounds.height, 9);
+    expect(turned.bounds.height).toBeCloseTo(turned.unrotatedBounds.width, 9);
+    // Rotating a rectangle about any point moves its centre and the centre of
+    // its axis-aligned box the same way, which is what lets an exporter place
+    // the unrotated box by the middle of `bounds`. A quarter turn in the
+    // document's y-down space sends an offset (dx, dy) to (-dy, dx).
+    const centre = (box: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }): { x: number; y: number } => ({
+      x: box.x + box.width / 2,
+      y: box.y + box.height / 2,
+    });
+    const before = centre(upright.bounds);
+    expect(centre(turned.bounds)).toEqual({
+      x: expect.closeTo(40 - (before.y - 60), 9),
+      y: expect.closeTo(60 + (before.x - 40), 9),
+    });
+  });
 });

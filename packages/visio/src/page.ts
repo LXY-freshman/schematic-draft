@@ -12,14 +12,29 @@
  */
 
 import {
+  annotationFontSize,
+  annotationOwningInstanceId,
   contactRequiresJunctionDot,
   deriveDocumentContactEvidence,
+  isSchematicAnnotationVisible,
+  resolveAnnotationPresentation,
+  resolveAnnotationText,
+  resolveAnnotationTextColor,
   resolveDocumentLogicalNets,
   resolveDocumentRoutingGeometry,
   resolveDocumentStyleProfile,
 } from "@icm/derived";
-import type { CoincidentContact, SchematicStyleProfile } from "@icm/derived";
-import type { Point, RouteEndpoint, SchematicDocument } from "@icm/model";
+import type {
+  AnnotationPresentation,
+  CoincidentContact,
+  SchematicStyleProfile,
+} from "@icm/derived";
+import type {
+  Annotation,
+  Point,
+  RouteEndpoint,
+  SchematicDocument,
+} from "@icm/model";
 import { routeEnd } from "@icm/model";
 import type { SymbolResolver } from "@icm/symbols";
 
@@ -31,7 +46,11 @@ import {
   placedSymbolBoxCorners,
   visioShapePlacement,
 } from "./geometry.js";
-import type { DocumentPoint, PagePoint, VisioPageFrame } from "./geometry.js";
+import type {
+  DocumentPoint,
+  PagePoint,
+  VisioShapePlacement,
+} from "./geometry.js";
 import type { VisioMaster } from "./masters.js";
 import type { VisioPageDescription } from "./parts.js";
 import { instanceShapeData, shapeDataSection } from "./shape-data.js";
@@ -43,6 +62,8 @@ import {
   visioSymbolMasterKey,
 } from "./symbol-master.js";
 import type { VisioMasterCaveat, VisioSymbolMaster } from "./symbol-master.js";
+import { textShape, visioTextContent } from "./text.js";
+import type { VisioTextCaveat } from "./text.js";
 import { inchesFromUnits } from "./units.js";
 import {
   connectRecord,
@@ -70,7 +91,9 @@ const EMPTY_PAGE_HEIGHT_INCHES = 11;
 /** Something the page could not say. Nothing here is dropped quietly. */
 export type VisioPageCaveat =
   | VisioMasterCaveat
+  | VisioTextCaveat
   | { readonly kind: "adaptive-symbol"; readonly detail: string }
+  | { readonly kind: "annotation-ornament"; readonly detail: string }
   | { readonly kind: "unplaced-instance"; readonly detail: string }
   | { readonly kind: "unresolved-route"; readonly detail: string }
   | { readonly kind: "unglued-wire-end"; readonly detail: string };
@@ -80,6 +103,7 @@ export interface VisioPageCounts {
   readonly instanceShapes: number;
   readonly nodeShapes: number;
   readonly wireShapes: number;
+  readonly textShapes: number;
   /** Wire ends glued to a connection point. */
   readonly glue: number;
 }
@@ -97,6 +121,7 @@ interface PlacedInstance {
   readonly instance: SchematicDocument["instances"][number];
   readonly symbolMaster: VisioSymbolMaster;
   readonly shapeId: number;
+  readonly placement: VisioShapePlacement;
   /** Page IDs for the master's artwork children, in the master's order. */
   readonly childShapeIds: readonly number[];
   readonly glueByPinName: ReadonlyMap<string, Omit<WireGlue, "sheetId">>;
@@ -255,20 +280,12 @@ function instanceShape(
   placed: PlacedInstance,
   document: SchematicDocument,
   resolver: SymbolResolver,
-  frame: VisioPageFrame,
 ): string {
-  const { instance, symbolMaster } = placed;
-  const placement = instance.placement!;
+  const { instance, symbolMaster, placement: spot } = placed;
   const resolved = resolver.resolve(
     instance.symbolId,
     instance.symbolVariantId,
   )!;
-  const spot = visioShapePlacement(
-    resolved.definition.viewBox,
-    placement.position,
-    placement,
-    frame,
-  );
   const rows = instanceShapeData(document, instance, resolved);
   // A symbol master is a group, and Visio gives every child of a placed group a
   // page shape ID of its own. It allocates those IDs by counting up from the
@@ -292,6 +309,71 @@ function instanceShape(
     (children === "" ? "" : `<Shapes>${children}</Shapes>`) +
     `</Shape>`
   );
+}
+
+interface PlannedAnnotation {
+  readonly annotation: Annotation;
+  readonly presentation: AnnotationPresentation;
+}
+
+/**
+ * The annotations the page draws, in a stable order.
+ *
+ * Visibility is the schematic's own rule rather than a second one: an
+ * annotation whose text resolves to nothing, or whose Instance is in the Tray,
+ * paints no glyph on the canvas and none on the page either.
+ */
+function planAnnotations(
+  document: SchematicDocument,
+  resolver: SymbolResolver,
+  profile: SchematicStyleProfile,
+  routingGeometry: ReturnType<typeof resolveDocumentRoutingGeometry>,
+  logicalNets: ReturnType<typeof resolveDocumentLogicalNets>,
+): PlannedAnnotation[] {
+  return [...document.annotations]
+    .filter((annotation) =>
+      isSchematicAnnotationVisible(document, annotation, logicalNets),
+    )
+    .sort((left, right) => left.id.localeCompare(right.id, "en"))
+    .map((annotation) => ({
+      annotation,
+      presentation: resolveAnnotationPresentation(
+        document,
+        resolver,
+        annotation,
+        profile,
+        routingGeometry,
+        logicalNets,
+      ),
+    }));
+}
+
+/**
+ * The marks an annotation carries besides its text.
+ *
+ * A current marker is an arrowhead, a voltage marker a pair of polarity signs,
+ * and a global Net Label a badge. All three are geometry the page does not draw
+ * yet, so each is named rather than left to be noticed missing.
+ */
+function annotationOrnament(
+  document: SchematicDocument,
+  annotation: Annotation,
+): string | undefined {
+  if (annotation.kind === "route-marker") {
+    return annotation.markerKind === "voltage"
+      ? "voltage polarity marks"
+      : "current arrowhead";
+  }
+  const global =
+    annotation.kind === "net-label" &&
+    document.connectivityEvidence.some(
+      (evidence) =>
+        evidence.kind === "name-claim" &&
+        evidence.scope === "global" &&
+        evidence.owner.kind === "net-label" &&
+        evidence.owner.annotationId === annotation.id,
+    );
+  return global ? "global net badge" : undefined;
 }
 
 export interface VisioPageOptions {
@@ -357,6 +439,14 @@ export function buildVisioPage(
     document,
     visibleContacts(document, contactEvidence.contacts),
   );
+  const logicalNets = resolveDocumentLogicalNets(document);
+  const annotations = planAnnotations(
+    document,
+    resolver,
+    profile,
+    routingGeometry,
+    logicalNets,
+  );
 
   const extent: DocumentPoint[] = [
     ...drawable.flatMap((instance) => {
@@ -373,6 +463,15 @@ export function buildVisioPage(
     }),
     ...routes.flatMap((route) => [...route.centerline]),
     ...nodes.map((node) => node.at),
+    // A label sits outside the symbol it names, so the page is only big enough
+    // for the drawing once the text is counted too.
+    ...annotations.flatMap(({ presentation }) => [
+      { x: presentation.bounds.x, y: presentation.bounds.y },
+      {
+        x: presentation.bounds.x + presentation.bounds.width,
+        y: presentation.bounds.y + presentation.bounds.height,
+      },
+    ]),
   ];
   const bounds = boundsOfPoints(extent);
   const frame = bounds
@@ -400,6 +499,12 @@ export function buildVisioPage(
       instance,
       symbolMaster,
       shapeId,
+      placement: visioShapePlacement(
+        resolved.definition.viewBox,
+        instance.placement!.position,
+        instance.placement!,
+        frame,
+      ),
       childShapeIds: symbolMaster.childShapeIds,
       glueByPinName: new Map(
         symbolMaster.connections.map((connection, index) => [
@@ -409,7 +514,7 @@ export function buildVisioPage(
       ),
     };
     instancesById.set(instance.id, entry);
-    return instanceShape(entry, document, resolver, frame);
+    return instanceShape(entry, document, resolver);
   });
 
   const nodeIdsToShapeId = new Map<string, number>();
@@ -465,6 +570,82 @@ export function buildVisioPage(
     });
   });
 
+  const instanceById = new Map(
+    document.instances.map((instance) => [instance.id, instance]),
+  );
+  const textShapes = annotations.map(({ annotation, presentation }) => {
+    const shapeId = nextShapeId++;
+    const detail = `${annotation.kind} ${annotation.id}`;
+    const ornament = annotationOrnament(document, annotation);
+    if (ornament) {
+      caveats.push({
+        kind: "annotation-ornament",
+        detail: `${detail}: ${ornament}`,
+      });
+    }
+    const ownerId =
+      annotationOwningInstanceId(annotation) ??
+      (annotation.anchor.kind === "object"
+        ? annotation.anchor.objectId
+        : undefined);
+    const content = visioTextContent(
+      resolveAnnotationText(document, annotation, logicalNets),
+      {
+        fontSizeInches: inchesFromUnits(
+          annotationFontSize(annotation, profile) * (annotation.sizeScale ?? 1),
+        ),
+        color: resolveAnnotationTextColor(
+          annotation,
+          ownerId ? instanceById.get(ownerId) : undefined,
+          profile.foreground,
+        ),
+      },
+      detail,
+    );
+    caveats.push(...content.caveats);
+
+    // The box is placed by its middle, which a rotation about the anchor moves
+    // exactly as it moves the middle of the axis-aligned bounds. So the pin is
+    // the centre of `bounds` and the box itself keeps its unrotated size.
+    const box = presentation.unrotatedBounds;
+    // Document rotation turns clockwise in a y-down space; the page turns
+    // counterclockwise in a y-up one, so the same drawing is the negative.
+    const radians =
+      ((((-annotation.rotation % 360) + 360) % 360) * Math.PI) / 180;
+    const pin = frame.point({
+      x: presentation.bounds.x + presentation.bounds.width / 2,
+      y: presentation.bounds.y + presentation.bounds.height / 2,
+    });
+    const owner = ownerId ? instancesById.get(ownerId) : undefined;
+    return textShape({
+      id: shapeId,
+      pin,
+      ...(owner
+        ? {
+            follows: {
+              sheetId: owner.shapeId,
+              offset: {
+                x: pin.x - owner.placement.pin.x,
+                y: pin.y - owner.placement.pin.y,
+              },
+            },
+          }
+        : {}),
+      widthInches: inchesFromUnits(box.width),
+      heightInches: inchesFromUnits(box.height),
+      angleRadians: radians,
+      alignment: annotation.alignment,
+      content,
+      propertySection: shapeDataSection([
+        {
+          name: "IcmAnnotationId",
+          label: "icm:annotationId",
+          value: annotation.id,
+        },
+      ]),
+    });
+  });
+
   const masters: VisioMaster[] = [...symbolMasters.values()].map(
     (symbolMaster) => symbolMaster.master,
   );
@@ -488,6 +669,8 @@ export function buildVisioPage(
       )
       .join("") +
     wireShapes.join("") +
+    // Text goes on last so a label paints over the wire it sits beside.
+    textShapes.join("") +
     `</Shapes>` +
     (connects.length === 0 ? "" : `<Connects>${connects.join("")}</Connects>`);
 
@@ -504,6 +687,7 @@ export function buildVisioPage(
       instanceShapes: instanceShapes.length,
       nodeShapes: nodeShapes.length,
       wireShapes: wireShapes.length,
+      textShapes: textShapes.length,
       glue: connects.length,
     },
   };

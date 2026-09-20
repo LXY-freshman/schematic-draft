@@ -9,6 +9,7 @@ export * from "./path-data.js";
 export * from "./shape-data.js";
 export * from "./stencil.js";
 export * from "./symbol-master.js";
+export * from "./text.js";
 export * from "./units.js";
 export * from "./wire.js";
 export * from "./xml.js";

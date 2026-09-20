@@ -109,6 +109,18 @@ try {
                         $wire.CellsU('EndX').ResultIU, $wire.CellsU('EndY').ResultIU)
                 }
                 $shift = 0.5
+                # A label is held by a formula rather than by a Connect, so the
+                # followers have to be found by reading the formula. Visio
+                # resolves the `Sheet.31!PinX` the file was written with to the
+                # shape's own name — `ota_5t.31!PinX` — so the name is what the
+                # formula has to be matched against.
+                $reference = [regex]::Escape("$($target.NameU)!")
+                $labels = @()
+                foreach ($shape in $page.Shapes) {
+                    if ($shape.OneD -ne 0 -or $shape.Master) { continue }
+                    if ($shape.CellsU('PinX').Formula -notmatch $reference) { continue }
+                    $labels += , @($shape, $shape.CellsU('PinX').ResultIU)
+                }
                 $target.CellsU('PinX').ResultIU = $target.CellsU('PinX').ResultIU + $shift
                 $moved = 0
                 foreach ($connect in $held) {
@@ -125,6 +137,17 @@ try {
                 }
                 Write-Output ("glue test: moved shape {0} '{1}' by {2} in; {3} of {4} glued ends followed" -f `
                         $target.ID, $target.NameU, $shift, $moved, $held.Count)
+                $followed = 0
+                foreach ($label in $labels) {
+                    $now = $label[0].CellsU('PinX').ResultIU
+                    if ([math]::Abs(($now - $label[1]) - $shift) -lt 0.001) { $followed++ }
+                    else {
+                        Write-Output ("  label MISSED: shape {0} moved {1:n4} in, expected {2:n4}" -f `
+                                $label[0].ID, ($now - $label[1]), $shift)
+                    }
+                }
+                Write-Output ("label test: {0} of {1} labels of that shape followed" -f `
+                        $followed, $labels.Count)
             }
         }
     }

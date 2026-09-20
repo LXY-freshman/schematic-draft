@@ -32,6 +32,15 @@ export interface AnnotationPresentation {
   readonly rotation: Rotation;
   readonly alignment: "start" | "middle" | "end";
   readonly bounds: DerivedRect;
+  /**
+   * The same box before `rotation` is applied — the text's own frame.
+   *
+   * `bounds` is the axis-aligned box the rotated text occupies, which is what a
+   * hit test or a marquee needs. An exporter that can rotate a box itself needs
+   * the box being rotated instead, and cannot recover it from `bounds`: a
+   * 45-degree rotation leaves the two indistinguishable.
+   */
+  readonly unrotatedBounds: DerivedRect;
 }
 
 /**
@@ -146,6 +155,7 @@ export function resolveAnnotationPresentation(
     rotation: annotation.rotation,
     alignment: annotation.alignment,
     bounds,
+    unrotatedBounds,
   };
 }
 
@@ -177,7 +187,8 @@ function rotatedAnnotationBounds(
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 
-function annotationFontSize(
+/** The type size an annotation of this kind is set in, before `sizeScale`. */
+export function annotationFontSize(
   annotation: Annotation,
   profile: SchematicStyleProfile,
 ): number {
