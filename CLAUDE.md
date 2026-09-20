@@ -19,8 +19,8 @@ hosted simulation service. **The fork does not merge from upstream.** Deleting a
 hosted feature is the correct answer; adding a degraded offline imitation of one
 is not. [Product architecture](docs/overall-product-plan.md) owns the boundary.
 
-- pnpm workspace: `apps/*` and `packages/*` (13 projects: `@icm/desktop`,
-  `@icm/editor`, and 11 `@icm/*` libraries). The private root package
+- pnpm workspace: `apps/*` and `packages/*` (14 projects: `@icm/desktop`,
+  `@icm/editor`, and 12 `@icm/*` libraries). The private root package
   `schematic-draft` carries the product version; [CHANGELOG.md](CHANGELOG.md)
   records user-facing changes.
 - Node >= 24, pnpm >= 11.16 (`packageManager: pnpm@11.16.0`), ESM only. Pinned
@@ -140,8 +140,8 @@ Summary:
   export goldens, legacy and redline Projects, SPICE baselines and vendor decks,
   production-smoke report.
 - `scripts/` — symbol/component generators, golden and smoke checks, the
-  performance baseline, the Markdown link checker, and `sync-to-windows.sh`,
-  with `*.test.mjs` beside them.
+  performance baseline, the Markdown link checker, `sync-to-windows.sh`, and the
+  Windows-only `visio-open-check.ps1`, with `*.test.mjs` beside them.
 - `docs/` — product plan, ADRs, specs, user guides, roadmap, testing.
 
 ### Package layering
@@ -179,6 +179,9 @@ on math-typesetting) is the root every domain package shares. Roughly bottom-up:
   and formula layout.
 - `@icm/exporters` — SVG/PNG/PDF artifacts; browser entries (`./browser`,
   `./browser-raster`, `./browser-pdf`) plus Node-only `./node` (resvg, pdf-lib).
+- `@icm/visio` — `.vsdx` packages for editing a schematic in Visio. A sibling
+  projection of `render-svg`, not a consumer of it: Visio needs shapes, pins and
+  connectors, which a flat SVG scene no longer carries.
 - `apps/editor` — the React/SVG editor the shell loads. It is a plain bundle:
   no service worker, no web app manifest, nothing that assumes a server.
 - `apps/desktop` — the Electron shell: privileged `app://schematic-draft`

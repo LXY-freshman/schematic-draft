@@ -28,7 +28,8 @@
       "@icm/netlist": ["./packages/netlist/src/index.ts"],
       "@icm/render-svg": ["./packages/render-svg/src/index.ts"],
       "@icm/spice": ["./packages/spice/src/index.ts"],
-      "@icm/symbols": ["./packages/symbols/src/index.ts"]
+      "@icm/symbols": ["./packages/symbols/src/index.ts"],
+      "@icm/visio": ["./packages/visio/src/index.ts"]
     },
     "types": ["node", "vitest/globals"]
   },

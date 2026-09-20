@@ -142,7 +142,7 @@ warrants), and commit. There is no CI, no PR gate, and no deployment — see
 - `fixtures/`: Project, SPICE, export, and visual-reference test inputs and
   goldens.
 - `scripts/`: symbol and component generators, golden checks, the production
-  smoke check, and the Windows sync helper.
+  smoke check, the Windows sync helper, and the Visio open check.
 - `docs/`: current architecture, user guides, normative contracts, ADRs, and
   remaining work.
 
