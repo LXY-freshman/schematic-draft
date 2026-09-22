@@ -169,8 +169,29 @@ export interface WireShape {
   readonly points: readonly PagePoint[];
   readonly begin: WireGlue | undefined;
   readonly end: WireGlue | undefined;
+  /** Hops to bake into the geometry, in the order they occur along the wire. */
+  readonly jumps?: readonly WireJump[];
   /** Shape Data rows, already serialized by `shapeDataSection`. */
   readonly propertySection: string;
+}
+
+/**
+ * One hop over a crossing, in page points.
+ *
+ * Visio has no line-jump of its own, so a hop has to be part of the wire's
+ * drawn path. `through` is a point *on* the arc rather than a direction or a
+ * sweep flag, which is what lets the same shape survive the page frame's
+ * y-flip without a second handedness rule.
+ */
+export interface WireJump {
+  /** Index of the point the hopped segment leaves, matching `points`. */
+  readonly segmentIndex: number;
+  /** Where the wire leaves the straight path. */
+  readonly from: PagePoint;
+  /** The top of the hop. */
+  readonly through: PagePoint;
+  /** Where the wire rejoins it. */
+  readonly to: PagePoint;
 }
 
 function endpointCells(
@@ -191,7 +212,8 @@ function endpointCells(
  * The geometry rows are absolute coordinates in a local frame whose origin is
  * the begin point, which is why every bend is written as an offset from it. The
  * last row carries `Width`/`Height` formulas so the far end of the line follows
- * the far end of the shape.
+ * the far end of the shape. A hop is interior to a segment by construction, so
+ * it never becomes that last row and never takes the formulas away from it.
  */
 export function wireShape(wire: WireShape): string {
   const [begin, ...rest] = wire.points;
@@ -203,20 +225,36 @@ export function wireShape(wire: WireShape): string {
   }
   const width = last.x - begin.x;
   const height = last.y - begin.y;
-  const rows = [
+  const localX = (point: PagePoint): string =>
+    formatVisioNumber(point.x - begin.x);
+  const localY = (point: PagePoint): string =>
+    formatVisioNumber(point.y - begin.y);
+  const rows: string[] = [
     `<Row T="MoveTo" IX="1"><Cell N="X" V="0"/><Cell N="Y" V="0"/></Row>`,
-    ...rest.map((point, index) => {
-      const x = point.x - begin.x;
-      const y = point.y - begin.y;
-      const isLast = index === rest.length - 1;
-      return (
-        `<Row T="LineTo" IX="${index + 2}">` +
-        `<Cell N="X" V="${formatVisioNumber(x)}"${isLast ? ' F="Width*1"' : ""}/>` +
-        `<Cell N="Y" V="${formatVisioNumber(y)}"${isLast ? ' F="Height*1"' : ""}/>` +
-        `</Row>`
-      );
-    }),
   ];
+  const lineTo = (point: PagePoint, tracksTheFarEnd: boolean): void => {
+    rows.push(
+      `<Row T="LineTo" IX="${rows.length + 1}">` +
+        `<Cell N="X" V="${localX(point)}"${tracksTheFarEnd ? ' F="Width*1"' : ""}/>` +
+        `<Cell N="Y" V="${localY(point)}"${tracksTheFarEnd ? ' F="Height*1"' : ""}/>` +
+        `</Row>`,
+    );
+  };
+  rest.forEach((point, index) => {
+    for (const jump of wire.jumps ?? []) {
+      if (jump.segmentIndex !== index) continue;
+      lineTo(jump.from, false);
+      // A, B is a point the arc passes through; C and D make it circular.
+      rows.push(
+        `<Row T="EllipticalArcTo" IX="${rows.length + 1}">` +
+          `<Cell N="X" V="${localX(jump.to)}"/><Cell N="Y" V="${localY(jump.to)}"/>` +
+          `<Cell N="A" V="${localX(jump.through)}"/><Cell N="B" V="${localY(jump.through)}"/>` +
+          `<Cell N="C" V="0"/><Cell N="D" V="1"/>` +
+          `</Row>`,
+      );
+    }
+    lineTo(point, index === rest.length - 1);
+  });
   const trigger = (which: "Beg" | "End", glue: WireGlue | undefined): string =>
     glue
       ? `<Cell N="${which}Trigger" V="2" F="_XFTRIGGER(Sheet.${glue.sheetId}!EventXFMod)"/>`

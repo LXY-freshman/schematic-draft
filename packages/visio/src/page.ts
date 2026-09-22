@@ -16,6 +16,7 @@ import {
   annotationOwningInstanceId,
   contactRequiresJunctionDot,
   deriveDocumentContactEvidence,
+  deriveRouteLineJumps,
   isSchematicAnnotationVisible,
   resolveAnnotationPresentation,
   resolveAnnotationText,
@@ -87,7 +88,7 @@ import {
   wireMaster,
   wireShape,
 } from "./wire.js";
-import type { WireGlue } from "./wire.js";
+import type { WireGlue, WireJump } from "./wire.js";
 import { formatVisioNumber } from "./xml.js";
 
 /**
@@ -642,6 +643,13 @@ export function buildVisioPage(
   };
 
   const connects: string[] = [];
+  // Visio draws no line jumps of its own, so a Route that asked for them has
+  // to carry each hop in its own geometry. The same derivation the canvas and
+  // the SVG scene use answers here, which is what keeps the three drawings of
+  // one Document agreeing about where a wire hops.
+  const lineJumps = deriveRouteLineJumps(document, resolver, {
+    routingGeometry,
+  });
   const wireShapes = routes.map((route) => {
     const shapeId = nextShapeId++;
     const begin = glueFor(
@@ -654,12 +662,21 @@ export function buildVisioPage(
     const documentRoute = document.routes.find(
       (candidate) => candidate.id === route.routeId,
     )!;
+    const jumps: WireJump[] = (lineJumps.get(route.routeId) ?? []).map(
+      (jump) => ({
+        segmentIndex: jump.segmentIndex,
+        from: frame.point(jump.from),
+        through: frame.point(jump.apex),
+        to: frame.point(jump.to),
+      }),
+    );
     return wireShape({
       id: shapeId,
       masterId: wireMasterId,
       points: route.centerline.map((point) => frame.point(point)),
       begin,
       end,
+      ...(jumps.length > 0 ? { jumps } : {}),
       propertySection: shapeDataSection(
         netShapeDataRows(document, documentRoute),
       ),

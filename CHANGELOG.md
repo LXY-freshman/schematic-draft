@@ -19,7 +19,9 @@ hosted features some of them mention are gone.
   drawing you already have keeps its flat crossings. The hop is drawing and
   nothing else: it neither makes nor breaks a connection, two wires on the same
   Net never hop because they really are connected, and junction dots still say
-  what is joined. It shows on the canvas and in SVG, PNG and PDF export alike.
+  what is joined. It shows on the canvas, in SVG, PNG and PDF export, and in a
+  Visio `.vsdx`, where the arc is drawn into the wire because Visio has no line
+  jump of its own.
 
 ### Changed
 
