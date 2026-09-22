@@ -4,6 +4,14 @@ import { describe, expect, it } from "vitest";
 
 import { AnnotationColorProperties } from "./annotation-color-properties";
 
+/** The preset a swatch row renders as chosen, so the shown ink can be read. */
+function pressedPreset(markup: string, ariaLabel: string): boolean {
+  return new RegExp(
+    `aria-label="${ariaLabel}"[^>]*aria-pressed="true"`,
+    "u",
+  ).test(markup);
+}
+
 describe("annotation color properties", () => {
   it("previews an instance label's inherited component ink while Auto", () => {
     const document = createEmptyDocument("cell", "Cell");
@@ -30,11 +38,17 @@ describe("annotation color properties", () => {
     );
 
     expect(markup).toContain('aria-label="Text properties"');
-    expect(markup).toContain("Annotation property code");
-    expect(markup).toContain("auto");
-    expect(markup).toContain("placement");
-    expect(markup).toContain("appearance");
-    expect(markup).toContain("content");
+    expect(markup).toContain(
+      '<output aria-label="Text color hex value">Automatic</output>',
+    );
+    // Auto shows the ink the label would draw with, not an empty swatch.
+    expect(pressedPreset(markup, "Use Red for text")).toBe(true);
+    expect(markup).toContain("Attached to the object it labels");
+    expect(markup).toContain('aria-label="Annotation text alignment"');
+
+    // The JSON is the escape hatch below the form, closed until asked for.
+    expect(markup).toContain('aria-label="Text property code"');
+    expect(markup).not.toContain("Copy JSON");
   });
 
   it("shows the annotation-owned override instead of inherited ink", () => {
@@ -57,7 +71,12 @@ describe("annotation color properties", () => {
       />,
     );
 
-    expect(markup).toContain("[37, 99, 235]");
-    expect(markup).toContain("Copy JSON");
+    expect(markup).toContain(
+      '<output aria-label="Text color hex value">#2563eb</output>',
+    );
+    expect(pressedPreset(markup, "Use Blue for text")).toBe(true);
+    expect(pressedPreset(markup, "Use Red for text")).toBe(false);
+    // A free anchor is editable in the form; an attached one is not.
+    expect(markup).toContain('aria-label="Annotation X position"');
   });
 });

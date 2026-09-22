@@ -263,6 +263,36 @@ drawing only: it never changes Net membership, Junctions, or netlist output.
 trailing the code. A MOS bulk route keeps its instance-owned surface described
 above and does not reach this form.
 
+## Annotation and drawing properties
+
+Annotations and drafting objects present the same two surfaces as a component
+and a Route: a form, with the strict JSON collapsed beneath it under **Code
+(JSON)**. Both surfaces edit one annotation property value and commit through
+one apply function, so neither can express an edit the other cannot.
+
+Field availability is value presence, not object kind: the parser rejects a
+field the object does not have and requires one it does, and the form draws one
+control per field the value carries. A polarity mark therefore offers no text
+alignment, weight, or italic control, an arrow offers no fill, and a shape with
+no width, height, or radius has no **Size** section at all. The sections are
+**Placement** (position and rotation), **Appearance** (the object's own ink —
+text, border, or stroke — plus fill, line style, stroke width, arrow shape and
+endpoint styles, text size, weight, italic, and alignment), **Size**, and
+**Display** (layer, visibility, and lock).
+
+A free anchor is editable as X and Y; an object anchor is not offered as a
+second place to move from, because it follows what it labels. A locked
+annotation disables every control except the lock itself, which matches the
+parser: the only edit it accepts while locked is the unlocking one. Where the
+panel already owns a field as a button — a drawing's stacking and lock — the
+form draws no second control for it. Text content is authored on the canvas,
+not in the panel; the form says so and the code section still carries the rich
+text runs.
+
+Rotation offers the common angles as a menu and keeps an authored off-menu
+angle selectable rather than snapping it to the nearest preset. Curve tangents
+have canvas handles and stay in the code section.
+
 ## Formula-capable behavioral blocks
 
 Integrator (`1/s`), Unit Delay (`z^-1`), and Discrete-Time Integrator

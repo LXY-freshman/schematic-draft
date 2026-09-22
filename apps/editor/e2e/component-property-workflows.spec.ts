@@ -917,7 +917,10 @@ test("Properties keeps component and Annotation text colors independent", async 
     JSON.parse(await readComponentPropertyCode(page)).appearance.color,
   ).toBe("auto");
   await properties.getByRole("button", { name: "Edit text color" }).click();
+  // The form carries a swatch row too, so the popover's row is addressed
+  // through the dialog it belongs to.
   await page
+    .getByRole("dialog", { name: "Text color settings" })
     .getByRole("button", { name: "Use Blue for text", exact: true })
     .click();
   await expect(label).toHaveAttribute("fill", "#2563eb");

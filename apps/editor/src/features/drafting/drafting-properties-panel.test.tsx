@@ -58,6 +58,16 @@ function polarityMark(
   };
 }
 
+/** The option a select renders as chosen, so a projection can be asserted. */
+function selectedOption(markup: string, ariaLabel: string): string | null {
+  const select = new RegExp(
+    `<select[^>]*aria-label="${ariaLabel}"[^>]*>(.*?)</select>`,
+    "su",
+  ).exec(markup);
+  if (!select) return null;
+  return /<option value="([^"]*)" selected=""/u.exec(select[1]!)?.[1] ?? "";
+}
+
 describe("fixed polarity mark properties", () => {
   it.each(["positive", "negative"] as const)(
     "labels the %s sign as a mark rather than editable text",
@@ -65,23 +75,25 @@ describe("fixed polarity mark properties", () => {
       const markup = render(polarityMark(polarity));
 
       expect(markup).toContain("Polarity mark");
-      expect(markup).toContain("Annotation property code");
-      expect(markup).not.toContain(">Text<");
-      expect(markup).not.toContain("Text color");
+      expect(markup).toContain('aria-label="Drawing property code"');
+      // A mark carries no words, so it offers none of the text controls.
+      expect(markup).not.toContain('aria-label="Annotation text alignment"');
+      expect(markup).not.toContain('aria-label="Annotation text weight"');
+      expect(markup).not.toContain('aria-label="Annotation italic"');
     },
   );
 });
 
 describe("independent arrow endpoint styles", () => {
-  it("exposes arrow appearance and geometry as editable code", () => {
+  it("offers arrow shape and both endpoints as controls", () => {
     const markup = render(arrow());
-    expect(markup).toContain("arrowShape");
-    expect(markup).toContain("startStyle");
-    expect(markup).toContain("endStyle");
+    expect(selectedOption(markup, "Annotation arrow shape")).toBe("line");
+    expect(markup).toContain('aria-label="Annotation start style"');
+    expect(markup).toContain('aria-label="Annotation end style"');
     expect(markup).not.toContain("arrowStyle");
-    expect(markup).toContain("rotation");
-    expect(markup).not.toContain("bearing");
-    expect(markup).toContain("tangentAngles");
+    expect(markup).toContain('aria-label="Annotation rotation"');
+    // Curve tangents stay in the JSON; the canvas handles own them.
+    expect(markup).not.toContain("tangentAngles");
     expect(markup).not.toContain('aria-label="Drawing bearing"');
   });
   it.each(["Arrow style", "New arrow style"])(
@@ -123,14 +135,16 @@ describe("independent arrow endpoint styles", () => {
       [{ arrowHead: "open", arrowHeadAt: "start" }, "open-arrow", "none"],
     ] as const) {
       const markup = render(arrow(style));
-      expect(markup).toContain(`&quot;startStyle&quot;: &quot;${start}&quot;`);
-      expect(markup).toContain(`&quot;endStyle&quot;: &quot;${end}&quot;`);
+      expect(selectedOption(markup, "Annotation start style")).toBe(start);
+      expect(selectedOption(markup, "Annotation end style")).toBe(end);
     }
   });
   it("shows geometric width instead of curve controls for an outline", () => {
     const object = { ...arrow(), outline: { width: 30 } } as DraftingObject;
     const markup = render(object);
-    expect(markup).toContain("width");
+    expect(selectedOption(markup, "Annotation arrow shape")).toBe("outline");
+    expect(markup).toContain('aria-label="Annotation width"');
+    expect(markup).toContain('value="30"');
     expect(markup).not.toContain("tangentAngles");
   });
 });
@@ -151,10 +165,13 @@ describe("closed-shape paint and layer", () => {
 
   it("offers independent border/fill paint and front/back actions", () => {
     const markup = render(rectangle);
-    expect(markup).toContain("color");
-    expect(markup).toContain("fillColor");
+    expect(markup).toContain("<legend>Border</legend>");
+    expect(markup).toContain("<legend>Fill</legend>");
     expect(markup).toContain(">Bring to front</button>");
     expect(markup).toContain(">Send to back</button>");
+    // Stacking and the lock stay buttons; the form draws no second control.
+    expect(markup).not.toContain('aria-label="Annotation layer"');
+    expect(markup).not.toContain('aria-label="Annotation lock"');
     expect(markup).not.toContain("zIndex");
     expect(markup).toContain("Front is above the circuit");
     expect(markup).not.toContain('type="color"');

@@ -16,6 +16,7 @@ import {
   downloadBytes,
   editComponentPropertyCode,
   editDocumentStyleCode,
+  openComponentPropertyCode,
   placeText,
   projectFileBytes,
   readComponentPropertyCode,
@@ -382,12 +383,15 @@ test("drafting text owns an independent color override with Auto inheritance", a
   await hit.click({ force: true });
   await page.keyboard.press("q");
   const properties = page.getByTestId("drafting-properties");
-  await expect(page.getByLabel("Editable Canvas property code")).toBeVisible();
+  await expect(await openComponentPropertyCode(page)).toBeVisible();
   expect(
     JSON.parse(await readComponentPropertyCode(page)).appearance.color,
   ).toBe("auto");
   await properties.getByRole("button", { name: "Edit text color" }).click();
+  // The form has a swatch row of its own, so the popover's row is addressed
+  // through the dialog it belongs to.
   await page
+    .getByRole("dialog", { name: "Text color settings" })
     .getByRole("button", { name: "Use Blue for text", exact: true })
     .click();
   await expect(text).toHaveAttribute("fill", "#2563eb");
@@ -1969,7 +1973,10 @@ test("Properties sets precise size, stroke width, and color per shape", async ({
     code.appearance.strokeScale = 2.5;
   });
   await properties.getByRole("button", { name: "Edit border color" }).click();
-  await page.getByRole("button", { name: "Use Red for border" }).click();
+  await page
+    .getByRole("dialog", { name: "Border color settings" })
+    .getByRole("button", { name: "Use Red for border" })
+    .click();
   await expect(rectangle).toHaveAttribute("stroke", "#dc2626");
   const rectangleStroke = Number(await rectangle.getAttribute("stroke-width"));
 
@@ -2018,10 +2025,96 @@ test("Properties sets precise size, stroke width, and color per shape", async ({
   });
   if (!resizedEdge) throw new Error("resized rectangle is not measurable");
   await page.mouse.click(resizedEdge.x, resizedEdge.y);
-  await properties.getByRole("button", { name: "Edit border color" }).click();
-  await page.getByRole("button", { name: "Reset border color" }).click();
+  // The form's own Auto button reaches the same override the popover set.
+  await properties.getByRole("button", { name: "Reset border" }).click();
   const stroke = await rectangle.getAttribute("stroke");
   expect(stroke).not.toBe("#dc2626");
+});
+
+test("the drawing form edits size, rotation and ink with the JSON agreeing", async ({
+  page,
+}) => {
+  await page.goto("/editor");
+  await awaitEditorReady(page);
+  await clickDrawTool(page, "rectangle");
+  await clickCreate(page, { x: 220, y: 220 }, { x: 380, y: 320 });
+  const rectangle = page.locator('[data-kind="draft-rectangle"]');
+  await expect(rectangle).toHaveCount(1);
+  const measure = () =>
+    rectangle.evaluate((element) => {
+      const polygon = element as SVGPolygonElement;
+      const points = Array.from({ length: 4 }, (_, index) =>
+        polygon.points.getItem(index),
+      );
+      const xs = points.map((point) => point.x);
+      const ys = points.map((point) => point.y);
+      return {
+        width: Math.round(Math.max(...xs) - Math.min(...xs)),
+        height: Math.round(Math.max(...ys) - Math.min(...ys)),
+      };
+    });
+  const edge = await page
+    .getByTestId(/^drafting-hit-rectangle-/)
+    .evaluate((element) => {
+      const polygon = element as SVGPolygonElement;
+      const first = polygon.points.getItem(0);
+      const second = polygon.points.getItem(1);
+      const midpoint = new DOMPoint(
+        (first.x + second.x) / 2,
+        (first.y + second.y) / 2,
+      ).matrixTransform(polygon.getScreenCTM()!);
+      return { x: midpoint.x, y: midpoint.y };
+    });
+  await page.mouse.click(edge.x, edge.y);
+  await page.keyboard.press("q");
+  const properties = page.getByTestId("drafting-properties");
+  await expect(properties).toBeVisible();
+
+  // Nothing below opens the JSON: the form is the default way in.
+  for (const [field, value] of [
+    ["Annotation width", "120"],
+    ["Annotation height", "48"],
+  ] as const) {
+    await properties.getByLabel(field, { exact: true }).fill(value);
+    await properties.getByLabel(field, { exact: true }).press("Enter");
+  }
+  await expect(measure()).resolves.toEqual({ width: 120, height: 48 });
+
+  await properties
+    .getByRole("combobox", { name: "Annotation rotation", exact: true })
+    .selectOption("45");
+  await properties
+    .getByRole("combobox", { name: "Annotation line style", exact: true })
+    .selectOption("dashed");
+  await properties
+    .getByRole("button", { name: "Use Green for border", exact: true })
+    .click();
+  await expect(rectangle).toHaveAttribute("stroke", "#059669");
+  await expect(rectangle).toHaveAttribute("stroke-dasharray", "6 4");
+  // A rotated square measures wider than its sides across the bounding box.
+  await expect(measure()).resolves.not.toEqual({ width: 120, height: 48 });
+
+  // The collapsed JSON is the same value, not a second copy of it.
+  expect(JSON.parse(await readComponentPropertyCode(page))).toMatchObject({
+    placement: { rotation: 45 },
+    geometry: { width: 120, height: 48 },
+    appearance: { lineStyle: "dashed", color: [5, 150, 105] },
+  });
+
+  // And an edit made in the JSON comes back to the form's controls.
+  await editComponentPropertyCode(page, (code) => {
+    code.placement.rotation = 0;
+    code.geometry.width = 64;
+  });
+  await expect(
+    properties.getByRole("combobox", {
+      name: "Annotation rotation",
+      exact: true,
+    }),
+  ).toHaveValue("0");
+  await expect(
+    properties.getByLabel("Annotation width", { exact: true }),
+  ).toHaveValue("64");
 });
 
 test("annotation grid pitch frees drawings from the device grid", async ({
@@ -2543,7 +2636,7 @@ for (const kind of ["rectangle", "circle"] as const) {
         .getByRole("menuitem", { name: "Properties (Q)", exact: true })
         .click();
     else await page.keyboard.press("q");
-    const editor = page.getByLabel("Editable Canvas property code");
+    const editor = await openComponentPropertyCode(page);
     await expect(editor).toBeVisible();
     const shape = page.locator(
       `[data-kind="draft-${kind}"][data-object-id="shape"]`,
@@ -2759,6 +2852,9 @@ test("annotation dropdowns use typed values and disable locked or incompatible c
   );
   await page.getByTestId("drafting-hit-note").click();
   await page.keyboard.press("q");
+  // These dropdowns are the code editor's inline widgets, so the JSON section
+  // has to be open before they exist.
+  await openComponentPropertyCode(page);
   const weight = page.getByRole("combobox", {
     name: "Text weight options",
     exact: true,
@@ -2796,6 +2892,7 @@ test("annotation dropdowns use typed values and disable locked or incompatible c
   await expect(weight).toHaveValue("bold");
 
   await page.getByTestId("drafting-hit-curve").click({ force: true });
+  await openComponentPropertyCode(page);
   const startStyle = page.getByRole("combobox", {
     name: "Start style options",
     exact: true,
@@ -2871,6 +2968,7 @@ for (const shape of ["line", "outline"] as const) {
     });
     await page.mouse.click(edge.x, edge.y);
     await page.keyboard.press("q");
+    await openComponentPropertyCode(page);
     const start = page.getByRole("combobox", {
       name: "Start style options",
       exact: true,
@@ -2972,6 +3070,7 @@ for (const shape of ["line", "outline"] as const) {
     await expect(hit).toHaveClass(/selected/u);
     if (!(await page.getByTestId("drafting-properties").isVisible()))
       await page.keyboard.press("q");
+    await openComponentPropertyCode(page);
     await expect(start).toHaveValue("dot");
     await expect(end).toHaveValue("large-arrow");
     await page.screenshot({
