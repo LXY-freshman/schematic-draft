@@ -19,11 +19,8 @@
       <Cell N="LockHeight" V="1"/>
       <Cell N="LockCalcWH" V="1"/>
       <Cell N="NoAlignBox" V="1"/>
-      <Cell N="DynFeedback" V="2"/>
       <Cell N="GlueType" V="2"/>
-      <Cell N="ObjType" V="2"/>
-      <Cell N="NoLiveDynamics" V="1"/>
-      <Cell N="ShapeSplittable" V="1"/>
+      <Cell N="ObjType" V="1"/>
       <Cell N="LineWeight" V="0.02" U="PT"/>
       <Cell N="LineColor" V="0"/>
       <Cell N="LinePattern" V="1"/>

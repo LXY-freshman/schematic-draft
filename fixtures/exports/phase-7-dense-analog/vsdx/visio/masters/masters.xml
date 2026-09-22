@@ -76,7 +76,7 @@
     </PageSheet>
     <Rel r:id="rId4"/>
   </Master>
-  <Master ID="5" NameU="Wire" IsCustomNameU="1" Name="Wire" IsCustomName="1" Prompt="Schematic wire" IconSize="1" AlignName="2" MatchByName="0" IconUpdate="1" UniqueID="{85AEC3F9-F78E-4FEE-858E-681786D97644}" BaseID="{781A39DF-B6E3-49A8-9657-37916D3909E2}" PatternFlags="0" Hidden="0" MasterType="541">
+  <Master ID="5" NameU="Wire" IsCustomNameU="1" Name="Wire" IsCustomName="1" Prompt="Schematic wire" IconSize="1" AlignName="2" MatchByName="0" IconUpdate="1" UniqueID="{85AEC3F9-F78E-4FEE-858E-681786D97644}" BaseID="{781A39DF-B6E3-49A8-9657-37916D3909E2}" PatternFlags="0" Hidden="0" MasterType="2">
     <PageSheet LineStyle="0" FillStyle="0" TextStyle="0">
       <Cell N="PageWidth" V="0.125"/>
       <Cell N="PageHeight" V="0.125"/>

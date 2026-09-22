@@ -25,9 +25,11 @@ param(
     # Report each page shape's placement, geometry rows and Shape Data rows —
     # the numbers the export computed, read back through Visio's own parser.
     [switch]$ShapeDetail,
-    # Move one glued instance and check its connectors follow. This is the only
-    # way to tell a recorded `<Connect>` from a live glue: a connector that is
-    # merely drawn between two pins stays put when the pin moves.
+    # Move one glued instance and check its wires follow. This is the only way
+    # to tell a recorded `<Connect>` from a live glue: a line that is merely
+    # drawn between two pins stays put when the pin moves. It also checks that
+    # the wires kept the path they were given, which is the other half of the
+    # contract — a glued end must follow without Visio re-routing the run.
     [switch]$GlueTest
 )
 
@@ -38,6 +40,26 @@ $full = (Resolve-Path -LiteralPath $Path).Path
 $visSectionConnectionPts = 7
 $visSectionFirstComponent = 10
 $visSectionProp = 243
+
+# A shape's geometry as formulas rather than results. The last vertex of a wire
+# is written `Width*1`, so its result is meant to move with the endpoints while
+# its formula stays put; every other vertex is a literal offset from the begin
+# point. Re-routing rewrites these rows, so the string is a fingerprint of the
+# path the export drew.
+function Read-GeometryRows($shape) {
+    $parts = @()
+    for ($s = 0; $s -lt $shape.GeometryCount; $s++) {
+        $section = $visSectionFirstComponent + $s
+        # Row 0 holds NoFill/NoLine/NoShow; the vertices start at row 1.
+        for ($row = 1; $row -lt $shape.RowCount($section); $row++) {
+            $type = $shape.RowType($section, $row)
+            $x = $shape.CellsSRC($section, $row, 0).Formula
+            $y = $shape.CellsSRC($section, $row, 1).Formula
+            $parts += "$type($x,$y)"
+        }
+    }
+    return ($parts -join ' ')
+}
 
 $visio = New-Object -ComObject Visio.InvisibleApp
 # IDNO: answer every dialog rather than blocking on one. A package Visio wants
@@ -102,11 +124,13 @@ try {
             else {
                 $held = @($page.Connects | Where-Object { $_.ToSheet.ID -eq $target.ID })
                 $before = @{}
+                $bends = @{}
                 foreach ($connect in $held) {
                     $wire = $connect.FromSheet
                     $before[$connect.FromCell] = @(
                         $wire.CellsU('BeginX').ResultIU, $wire.CellsU('BeginY').ResultIU,
                         $wire.CellsU('EndX').ResultIU, $wire.CellsU('EndY').ResultIU)
+                    $bends[$wire.ID] = Read-GeometryRows $wire
                 }
                 $shift = 0.5
                 # A label is held by a formula rather than by a Connect, so the
@@ -138,6 +162,24 @@ try {
                 }
                 Write-Output ("glue test: moved shape {0} '{1}' by {2} in; {3} of {4} glued ends followed" -f `
                         $target.ID, $target.NameU, $shift, $moved, $held.Count)
+                # A glued end following is only half the claim. A wire is a
+                # drawn line segment, so Visio must not have touched the path
+                # itself: every bend stays where the schematic put it, in the
+                # wire's own frame. A dynamic connector would have recomputed
+                # the whole run and changed both the row count and the bends.
+                $kept = 0
+                foreach ($connect in $held) {
+                    $wire = $connect.FromSheet
+                    $was = $bends[$wire.ID]
+                    $now = Read-GeometryRows $wire
+                    if ($was -eq $now) { $kept++ }
+                    else {
+                        Write-Output ("  path REROUTED: wire {0} was [{1}], now [{2}]" -f `
+                                $wire.ID, $was, $now)
+                    }
+                }
+                Write-Output ("path test: {0} of {1} wires kept the path they were given" -f `
+                        $kept, $held.Count)
                 $followed = 0
                 foreach ($label in $labels) {
                     $now = $label[0].CellsU('PinX').ResultIU

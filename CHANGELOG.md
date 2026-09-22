@@ -10,6 +10,17 @@ hosted features some of them mention are gone.
 
 ## Unreleased
 
+### Changed
+
+- **Wires in an exported `.vsdx` are line segments, not connectors.** They used
+  to be Visio's own dynamic connectors, which treat the path as theirs to
+  recompute: nudging anything on the page made Visio rearrange the wiring into
+  a route of its own invention. A wire is now a drawn line that Visio is told
+  not to re-route, so the bends stay exactly where you put them. Both ends are
+  still glued to their pins, so dragging a transistor still drags its wires
+  along. The trade is that dragging one end of a wire by itself moves only that
+  end, leaving the last stretch diagonal until you straighten it.
+
 ### Fixed
 
 - **Closing the window with unsaved changes now asks.** It used to do nothing

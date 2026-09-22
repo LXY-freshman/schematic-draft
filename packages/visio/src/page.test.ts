@@ -229,6 +229,20 @@ describe("buildVisioPage", () => {
     }
   });
 
+  it("draws a wire as a line segment Visio may not re-route", () => {
+    const wire = built.masters.find((master) => master.name === "Wire")!;
+    // ObjType 1 is "explicitly not routable". Omitting the cell is not the
+    // same thing: Visio then decides for itself, and a one-dimensional shape
+    // glued at both ends is exactly what it decides is a connector — which is
+    // free to throw away the path the schematic drew and compute its own.
+    expect(wire.shapes).toContain('<Cell N="ObjType" V="1"/>');
+    expect(wire.shapes).not.toContain("NoLiveDynamics");
+    expect(wire.shapes).not.toContain("ShapeSplittable");
+    // Gluing survives: that is a property of the one-dimensional shape, and it
+    // is the whole reason a wire end follows its pin.
+    expect(wire.shapes).toContain('<Cell N="GlueType" V="2"/>');
+  });
+
   it("glues both ends of every wire", () => {
     const connects = [...built.body.matchAll(/<Connect [^>]*>/g)].map(
       (match) => match[0],
