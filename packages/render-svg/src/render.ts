@@ -11,6 +11,7 @@ import {
 import {
   contactRequiresJunctionDot,
   deriveDocumentContactEvidence,
+  deriveRouteLineJumps,
   fractionGeometry,
   fractionPartScale,
   deriveMosBulkRouteFamily,
@@ -34,11 +35,13 @@ import {
 } from "@icm/derived";
 import { flattenRichText } from "@icm/model";
 import type {
+  Crossing,
   EndpointJoin,
   DocumentContactEvidence,
   ResolvedDocumentLogicalNets,
   ResolvedDocumentRoutingGeometry,
   ResolvedDraftingGeometry,
+  RouteLineJump,
   SchematicStyleProfile,
 } from "@icm/derived";
 import type {
@@ -90,6 +93,11 @@ export interface SvgRenderOptions {
   routingGeometry?: ResolvedDocumentRoutingGeometry;
   /** Contact evidence paired with `routingGeometry`; never persisted. */
   contactEvidence?: DocumentContactEvidence;
+  /**
+   * Crossings paired with `routingGeometry`. Only Routes that asked for line
+   * jumps read them, so an unmarked Document never pays to derive them.
+   */
+  crossings?: readonly Crossing[];
 }
 
 export interface SvgScene {
@@ -262,6 +270,41 @@ function escapeXml(value: string): string {
 
 function pointList(points: ReadonlyArray<{ x: number; y: number }>): string {
   return points.map((point) => `${point.x},${point.y}`).join(" ");
+}
+
+/** Path numbers carry the repository's six-decimal presentation precision. */
+function pathNumber(value: number): string {
+  return String(Number(value.toFixed(6)));
+}
+
+/**
+ * The same centerline as a path, with an arc where each line jump sits.
+ *
+ * Every vertex the polyline would have drawn is still drawn; a hop only
+ * replaces the little stretch of straight line it stands on, so the Route keeps
+ * its length, its ends and its connectivity.
+ */
+function routePathData(
+  centerline: ReadonlyArray<{ x: number; y: number }>,
+  jumps: readonly RouteLineJump[],
+): string {
+  const first = centerline[0]!;
+  const parts = [`M ${pathNumber(first.x)} ${pathNumber(first.y)}`];
+  for (let index = 1; index < centerline.length; index += 1) {
+    const vertex = centerline[index]!;
+    for (const jump of jumps.filter(
+      (candidate) => candidate.segmentIndex === index - 1,
+    )) {
+      parts.push(
+        `L ${pathNumber(jump.from.x)} ${pathNumber(jump.from.y)}`,
+        `A ${pathNumber(jump.radius)} ${pathNumber(jump.radius)} 0 0 ${
+          jump.clockwise ? 1 : 0
+        } ${pathNumber(jump.to.x)} ${pathNumber(jump.to.y)}`,
+      );
+    }
+    parts.push(`L ${pathNumber(vertex.x)} ${pathNumber(vertex.y)}`);
+  }
+  return parts.join(" ");
 }
 
 function renderRouteDirectionArrow(
@@ -1088,6 +1131,12 @@ export function buildSvgScene(
       junctionBridgeColors.set(junctionId, [...colors][0]!);
   }
 
+  // Empty, and free, unless some Route asked to hop.
+  const lineJumps = deriveRouteLineJumps(document, resolver, {
+    routingGeometry,
+    ...(options.crossings ? { crossings: options.crossings } : {}),
+  });
+
   const routes = [...document.routes]
     .filter((route) => included(route.id))
     .sort((left, right) => left.id.localeCompare(right.id, "en"))
@@ -1130,7 +1179,15 @@ export function buildSvgScene(
         strokeColor,
         profile,
       );
-      return `<polyline data-object-id="${escapeXml(route.id)}" data-net-id="${escapeXml(route.netId)}"${presentationAttribute} points="${pointList(geometry.centerline)}" fill="none" stroke="${escapeXml(strokeColor)}" stroke-width="${strokeWidth}" stroke-linecap="${profile.lineCap}" stroke-linejoin="${profile.lineJoin}"${dash}${profileMiterAttribute(profile)}/>${directionArrow}${terminalBridges}`;
+      const jumps = lineJumps.get(route.id) ?? [];
+      // The two branches repeat their stroke attributes on purpose: the
+      // polyline is written exactly as it was before line jumps existed, so a
+      // Document that asks for none is rendered byte for byte as before.
+      const shape =
+        jumps.length > 0
+          ? `<path data-object-id="${escapeXml(route.id)}" data-net-id="${escapeXml(route.netId)}"${presentationAttribute} data-route-line-jumps="${jumps.length}" d="${routePathData(geometry.centerline, jumps)}" fill="none" stroke="${escapeXml(strokeColor)}" stroke-width="${strokeWidth}" stroke-linecap="${profile.lineCap}" stroke-linejoin="${profile.lineJoin}"${dash}${profileMiterAttribute(profile)}/>`
+          : `<polyline data-object-id="${escapeXml(route.id)}" data-net-id="${escapeXml(route.netId)}"${presentationAttribute} points="${pointList(geometry.centerline)}" fill="none" stroke="${escapeXml(strokeColor)}" stroke-width="${strokeWidth}" stroke-linecap="${profile.lineCap}" stroke-linejoin="${profile.lineJoin}"${dash}${profileMiterAttribute(profile)}/>`;
+      return `${shape}${directionArrow}${terminalBridges}`;
     })
     .join("");
   const junctionBridges = renderJunctionMiterBridges(

@@ -15,6 +15,9 @@ legs end at stable, dot-free bends; the final leg ends at the other endpoint.
 Each leg owns its mode and stable `legId`, so geometry and behavior cannot
 drift as parallel arrays. Junctions are explicit branch/route anchors. A
 perpendicular geometric crossing does not create electrical contact by itself.
+Drawing a line jump over such a crossing does not change that in either
+direction: the arc is a stroke, it states nothing, and the two conductors are
+exactly as connected with it as without it.
 Collinear same-Net overlap is never canonical persisted geometry: the Edit
 Engine unions the covered conductor, materializes true branch vertices, and
 removes redundant degree-two Junctions. An unowned ordinary-Wire Junction is
@@ -380,6 +383,34 @@ This rule applies equally to hollow/filled Ports and every other terminal kind;
 a persistent Junction object is not a prerequisite for a pin-on-Route dot.
 The conductor normalizer also unions self-overlap within a single Route, not
 only overlap between separately authored Routes.
+
+## Line jumps
+
+A Route may carry `styleOverride.lineJump`. It asks that conductor to hop over
+the ones it merely crosses, and it asks nothing else: the flag changes no Net
+membership, no Junction, no netlist output, and no derived connectivity. A
+crossing drawn with an arc is the same crossing it was when drawn flat.
+
+Which conductor of a pair hops is decided per crossing, and the same Document
+always produces the same answer:
+
+- The Route carrying the flag hops. If neither carries it, the crossing is
+  drawn flat.
+- If both carry it, the more horizontal segment hops. Two equally horizontal
+  segments are settled by Route id, so exactly one of the pair hops.
+- A collinear overlap never hops — there is nothing to hop over, and such
+  geometry is normalized away by the Edit Engine in any case.
+- A crossing between two Routes of the same Net never hops. Those conductors
+  are connected wherever they touch, and an arc there would draw the opposite
+  of the truth.
+- A hop must fit strictly inside its segment, clear of both ends, and two hops
+  on one segment must not run into each other. A crossing that cannot be drawn
+  this way is drawn flat rather than distorted.
+
+The rule is derived once, in `@icm/derived`, because the formal SVG scene and
+the Visio export both need the same answer and must not drift apart. A Document
+in which no Route asks for jumps derives none and renders byte for byte as it
+did before the flag existed.
 
 ## Transaction invariants
 

@@ -134,6 +134,10 @@ The following are distinct reviewed presentations and must not be conflated:
 | Unconnected device pin, bend, or crossing | No automatic dot            | Unconfirmed geometry has no node semantics |
 | Route joined to a visible device pin      | Dot if branch rule requires | Committed contact, not visual overlap      |
 
+A crossing a Wire hops over with a [line jump](connectivity-and-routing.md#line-jumps)
+keeps that same row: the arc is a drawing choice about a crossing, never a node
+marker, and it is not a substitute for the dot a confirmed branch requires.
+
 Both `port` and `port-filled` are reviewed palette symbols and ordinary
 single-pin Instances. `port-filled` is manual-only and has no automatic SPICE
 mapping. Hollow versus filled is explicit product intent, not a style-profile

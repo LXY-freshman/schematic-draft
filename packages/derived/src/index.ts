@@ -28,6 +28,7 @@ export * from "./project-search.js";
 export * from "./project-instance-index.js";
 export * from "./resolved-route-geometry.js";
 export * from "./route-query.js";
+export * from "./route-line-jump.js";
 export * from "./route-angle.js";
 export * from "./routing-components.js";
 export * from "./routing-affected-closure.js";

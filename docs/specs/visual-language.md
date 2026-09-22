@@ -51,6 +51,15 @@ tokens rather than text glyphs or editor overlays.
 Formal SVG has stable groups for routes, Junctions, symbols, and annotations.
 The editor creates its grid and interaction overlay outside the formal group.
 
+A Route that asks for [line jumps](connectivity-and-routing.md#line-jumps) is
+drawn as one path rather than one polyline, with a semicircular arc of radius 4
+Document units — smaller than a grid step, larger than the Wire stroke —
+replacing the short stretch of line at each crossing it hops. The hop is part
+of the same Route object, with the same id, Net, colour, stroke and dash; a
+horizontal conductor hops upward and a vertical one to its right, whichever way
+each was drawn. Its geometry is not connectivity, and the arc never stands in
+for a node marker.
+
 Annotations are semantic `instance-label`, `instance-value`, `net-label`,
 `power-label`, and `route-marker` objects. Current
 annotations rotate the arrow independently so their text stays upright.
