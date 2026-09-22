@@ -39,7 +39,7 @@ export function applyRouteStyleOverrideEdit(
       ? undefined
       : RouteStyleOverrideSchema.parse(edit.styleOverride);
   const next =
-    parsed?.color || parsed?.arrow || parsed?.lineStyle
+    parsed?.color || parsed?.arrow || parsed?.lineStyle || parsed?.lineJump
       ? structuredClone(parsed)
       : undefined;
   if (

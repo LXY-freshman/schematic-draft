@@ -1,6 +1,6 @@
 # Project File Compatibility
 
-The current Project schema version is `57`. It retains schematic-only
+The current Project schema version is `58`. It retains schematic-only
 hierarchy integrity, a Project structural revision, stable formal Cell ports,
 and definition-level Cell symbol presentation. It also has one typed Instance
 netlist authority, formal Cell parameters, and Project-local external
@@ -124,3 +124,10 @@ Schema 57 makes a locally authored VDD Power Rail an explicit formal Cell Pin.
 Opening a schema-56 Project attaches a stable Cell terminal to each local
 Rail's existing visible label without changing its physical Net or geometry.
 Explicitly Global Rails remain global declarations without Cell Pins.
+
+Schema 58 adds the optional per-Wire `styleOverride.lineJump` flag, which asks
+that Wire to hop over the conductors it crosses. It is a drawing request only:
+it never connects or disconnects anything, and it changes no netlist output.
+The schema 57 upgrade preserves all existing Route data and changes only the
+version stamp, so a Project opened from an older file draws exactly the
+crossings it drew before.

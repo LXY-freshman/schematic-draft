@@ -104,7 +104,7 @@ definition. Clear Drawing, Reset Cell Placement, and Reset Cell Body retain
 their distinct scopes, show an exact impact preview, and remain undoable.
 
 Hierarchy presentation is saved as definition-level size and pin-placement
-intent in current Project schema 57. Schema-24 through schema-56 projects open
+intent in current Project schema 58. Schema-24 through schema-57 projects open
 through the chained upgrade; schema-23 and older files remain unsupported. The
 block uses a closed polygon body and the shared Razavi rich-text renderer for
 pin and Cell names; it is compatible with that visual grammar rather than a
