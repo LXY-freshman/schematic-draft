@@ -15,6 +15,12 @@ export interface BeforeUnloadTarget {
  * Install the browser-owned leave prompt. This deliberately does not save,
  * flush recovery, or manipulate history: those are separate lifecycle
  * responsibilities and unload is not a reliable asynchronous work boundary.
+ *
+ * This is the browser's guard only. Electron reads the same
+ * `preventDefault()` as a silent refusal to close rather than a prompt, so in
+ * the desktop shell the question is asked by the main process instead — see
+ * `apps/desktop/src/close-guard.ts` and the bridge it reads,
+ * `../features/editor-shell/shell-close-bridge.ts`.
  */
 export interface InstalledUnsavedWorkGuard {
   /** Allow one application-controlled unload, then resume normal protection. */

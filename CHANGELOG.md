@@ -8,6 +8,19 @@ Entries at and below `0.9.2` are inherited from
 this application was forked from. They describe the shared editing core; the
 hosted features some of them mention are gone.
 
+## Unreleased
+
+### Fixed
+
+- **Closing the window with unsaved changes now asks.** It used to do nothing
+  at all: the editor's browser-style leave guard reads as a silent refusal in
+  the desktop shell, so the X, `Alt+F4` and **File → Exit** were simply
+  ignored. Closing a Project that has unsaved work now offers **Save**,
+  **Don't Save** or **Cancel** in a Windows dialog that names the file Save
+  would write. Save runs the ordinary Save command — a Project that has never
+  been saved is asked where to go — and a save that is cancelled or fails
+  leaves the window open with the work still in it.
+
 ## 1.1.0 — Visio export (2026-09-20)
 
 ### Export a drawing you can keep editing

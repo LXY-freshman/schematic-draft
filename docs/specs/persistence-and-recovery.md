@@ -98,6 +98,25 @@ The application does not synthesize history entries, customize the
 host-owned warning, or depend on unload-time asynchronous storage as its
 only protection.
 
+`beforeunload` is the browser's guard. A host that reads the same
+`preventDefault()` as a silent refusal rather than a prompt — Electron does —
+must ask the question itself, and the desktop shell does: closing a window
+that holds unsaved work offers **Save**, **Don't Save**, or **Cancel** in a
+native dialog, naming the file Save would write or saying it will ask when
+there is no binding. Save runs the editor's own Save command, so a Project
+with no binding is asked where to go. The shell contract is:
+
+- The editor answers one question — dirty, Project name, bound path — and
+  performs one command, its own Save. Every other decision about the close is
+  the shell's.
+- An unanswerable editor closes the window. A guard that cannot read the
+  editor must never be able to trap someone in a window that refuses to shut;
+  the recovery copy is the backstop for that case.
+- A cancelled save keeps the window without reporting a fault; a failed save
+  keeps the window and says why. Neither discards anything.
+- The window's remembered geometry is written before the window is destroyed,
+  because destroying it is what bypasses the renderer's own `beforeunload`.
+
 Opening or replacing a Project stages and validates the complete candidate —
 read bytes, JSON/schema validation, approved-symbol validation, Project
 preparation — before the live Project changes. Invalid input leaves the
@@ -126,4 +145,8 @@ Required validation covers in-place overwrite versus prompted save, binding
 after Save As, cancelled and failed writes, canonical import/export stability,
 exact schema-version rejection, corrupt recovery, unsupported-schema retention,
 envelope/Project identity mismatch, retention ordering, and quota and storage
-failure mapping.
+failure mapping. The shell close guard is covered by its own decision table
+(clean, unreadable, and each of the three answers crossed with a saved,
+cancelled, and failed write) and, because no unit test drives a real window, by
+`scripts/close-guard-window-check.mjs` closing and quitting a dirty window in a
+real Electron shell.

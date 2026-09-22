@@ -57,6 +57,10 @@ Schematic Draft\
   - `File → Open Project…` / `Save As…` 走 Windows 原生对话框，默认从 `Projects\` 开始；
   - `File → Save`（`Ctrl+S`）直接覆盖当前打开的那个文件，不再弹窗；菜单里会显示要写入的完整路径；
   - 新建的工程还没有文件，第一次 `Save` 会问一次位置，之后就记住了；
+  - **关窗口时有没保存的改动会先问**：`X`、`Alt+F4`、`File → Exit` 都一样，弹一个
+    Windows 原生对话框，三个按钮 —— `Save` 存好再关（没有文件的会先问位置），
+    `Don't Save` 丢掉这次的改动直接关，`Cancel` 什么都不做。存盘被取消或者失败时窗口不会关，
+    东西还在编辑器里；
   - 文件是纯 JSON，可以直接备份、拷贝、用 Git 管理；
   - 存到 `Projects\` 之外也完全可以，对话框去哪儿都行 —— 只是那样迁移就得自己再拷一份。
 - **导出的 SVG/PDF/PNG/netlist**：另存为对话框默认也从 `Projects\` 开始。

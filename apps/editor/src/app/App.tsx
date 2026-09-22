@@ -112,6 +112,7 @@ import {
   type SpiceImportReport,
 } from "../features/editor-shell/editor-file-commands";
 import { EditorStatusbar } from "../features/editor-shell/editor-statusbar";
+import { useShellCloseBridge } from "../features/editor-shell/shell-close-bridge";
 import { documentSettingsCodeValue } from "../features/editor-shell/document-settings-code";
 import { normalizedStyleOverrides } from "../features/editor-shell/style-knobs";
 import { useCellSymbolLayout } from "../features/hierarchy/use-cell-symbol-layout";
@@ -590,6 +591,22 @@ export function App({ project: initialProject }: AppProps) {
     },
   });
   const allowNextBrowserUnload = useUnsavedWorkGuard(hasUnsafeWork());
+  // In the desktop shell the same question is answered by the main process,
+  // which can show a real three-button dialog; the browser guard above only
+  // gets to say "something is unsaved".
+  useShellCloseBridge({
+    unsavedWork: () => ({
+      dirty: hasUnsafeWork(),
+      name: project.name,
+      path: fileBinding?.path ?? null,
+    }),
+    save: async () => {
+      const outcome = await saveProject();
+      return outcome.status === "failed"
+        ? { status: "failed", message: outcome.message }
+        : { status: outcome.status };
+    },
+  });
   const startupReopenAttemptedRef = useRef(false);
   const hasExplicitBootTarget =
     typeof window !== "undefined" &&
