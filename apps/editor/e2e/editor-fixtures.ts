@@ -128,15 +128,14 @@ export async function chooseComponent(
 }
 
 /**
- * The strict JSON is the escape hatch under the component property form, so it
- * starts collapsed. Open it on demand and hand back its editable surface. An
- * Annotation or batch selection has no such disclosure — its code editor is the
- * whole surface — so the collapsed component case is the only one to expand.
+ * The strict JSON is the escape hatch under a property form, so it starts
+ * collapsed in a section named "<kind> property code". Open it on demand and
+ * hand back its editable surface. A batch selection has no such disclosure —
+ * its code editor is the whole surface — so the collapsed cases are the ones to
+ * expand.
  */
 export async function openComponentPropertyCode(page: Page): Promise<Locator> {
-  const disclosure = page.getByRole("group", {
-    name: "Component property code",
-  });
+  const disclosure = page.getByRole("group", { name: /property code$/u });
   if (
     (await disclosure.count()) > 0 &&
     (await disclosure.getAttribute("open")) === null
