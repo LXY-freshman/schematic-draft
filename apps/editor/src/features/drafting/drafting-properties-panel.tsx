@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { DraftingObject, SchematicDocument } from "@icm/model";
 import type { SymbolResolver } from "@icm/symbols";
 import { AnnotationPropertyCodeEditor } from "../properties/annotation-property-code-editor";
+import { AnnotationPropertyForm } from "../properties/annotation-property-form";
 import {
   annotationPropertyAdapter,
   draftingPropertyValue,
@@ -36,19 +37,18 @@ export function DraftingPropertiesPanel({
     [document, resolver, object, grid],
   );
   const closed = object.kind === "rectangle" || object.kind === "circle";
+  const text = object.kind === "text" || object.kind === "callout";
+  const colorLabel = closed ? "Border" : text ? "Text" : "Stroke";
   const adapter = useMemo(
     () =>
       annotationPropertyAdapter(
         (source) => parseDraftingPropertyCode(source, context),
         closed,
-        closed
-          ? "Border"
-          : object.kind === "text" || object.kind === "callout"
-            ? "Text"
-            : "Stroke",
+        colorLabel,
       ),
-    [context, closed],
+    [context, closed, colorLabel],
   );
+  const value = useMemo(() => draftingPropertyValue(context), [context]);
   const format = (next: DraftingObject) =>
     serializeAnnotationPropertyCode(
       draftingPropertyValue({ ...context, object: next }),
@@ -66,14 +66,22 @@ export function DraftingPropertiesPanel({
       aria-label="Drawing properties"
       data-testid="drafting-properties"
     >
-      <AnnotationPropertyCodeEditor
-        baseline={format(object)}
-        adapter={adapter}
+      <AnnotationPropertyForm
+        value={value}
+        colorLabel={colorLabel}
         parse={(source) => parseDraftingPropertyCode(source, context)}
-        format={format}
         onApply={onApply}
         defaultColor={defaultColor}
         title={title}
+        codeAriaLabel="Drawing property code"
+        // Stacking and the lock are buttons beside the sections already.
+        ownedByActions={["stacking.layer", "locked"]}
+        {...(value.content
+          ? {
+              contentHint:
+                "Double-click the drawing on the canvas to edit its words.",
+            }
+          : {})}
         actions={
           <>
             {closed && (
@@ -105,6 +113,17 @@ export function DraftingPropertiesPanel({
               {object.locked ? "Unlock" : "Lock"}
             </button>
           </>
+        }
+        code={
+          <AnnotationPropertyCodeEditor
+            baseline={format(object)}
+            adapter={adapter}
+            parse={(source) => parseDraftingPropertyCode(source, context)}
+            format={format}
+            onApply={onApply}
+            defaultColor={defaultColor}
+            title="JSON"
+          />
         }
       />
     </section>

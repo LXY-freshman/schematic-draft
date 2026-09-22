@@ -17,10 +17,14 @@ hosted features some of them mention are gone.
   punctuation. A component now opens labelled sections — Placement, Identity,
   Parameters, Display, Appearance — showing only the fields that component
   actually has, and a wire opens its Net name and scope above wire color, line
-  style and direction arrow. The JSON is still there, collapsed under
-  **Code (JSON)**, for pasting a whole object at once or reaching **Defaults**
-  and **Copy JSON**; both surfaces edit the same properties through the same
-  checks, so neither can produce something the other rejects.
+  style and direction arrow. Text, arrows and shapes get the same treatment:
+  placement, ink and fill, line style, arrow ends, size, and the visibility and
+  lock switches, with an attached label saying it follows what it labels
+  instead of offering coordinates, and a locked drawing offering nothing but
+  the unlock. The JSON is still there, collapsed under **Code (JSON)**, for
+  pasting a whole object at once or reaching **Defaults** and **Copy JSON**;
+  both surfaces edit the same properties through the same checks, so neither
+  can produce something the other rejects.
 
 - **Wires in an exported `.vsdx` are line segments, not connectors.** They used
   to be Visio's own dynamic connectors, which treat the path as theirs to
