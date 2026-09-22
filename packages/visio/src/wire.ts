@@ -1,16 +1,22 @@
 /**
  * Wires and nodes on the page.
  *
- * A Route becomes a Visio dynamic connector glued to the connection points of
- * the symbols it joins. That is the whole reason this export exists: a glued
- * connector follows the pin when the transistor moves, so the drawing stays a
- * circuit under editing instead of coming apart into loose lines.
+ * A Route becomes a one-dimensional Visio shape — a line segment — whose ends
+ * are glued to the connection points of the symbols it joins. That is the whole
+ * reason this export exists: a glued end follows the pin when the transistor
+ * moves, so the drawing stays a circuit under editing instead of coming apart
+ * into loose lines.
  *
- * Every cell here was taken from the dynamic connector Visio itself ships
- * (`BASICELECTRICAL_DIAGRAM_M.VSTX`, master 23) rather than invented. The
- * connector's frame is defined by its endpoints — `Width` is `EndX-BeginX` and
- * the geometry is expressed in a local frame whose origin is the begin point —
- * so gluing an end moves the frame, and the line follows.
+ * Gluing is a property of a one-dimensional shape, not of a connector, so the
+ * wire is deliberately *not* routable. A routable shape is Visio's dynamic
+ * connector: it treats the path as its own to recompute, and it re-routes the
+ * wire the moment anything moves or is nudged. The path here is the one the
+ * schematic drew, and Visio must leave it alone; the cost is that dragging one
+ * end turns the last segment into a diagonal, which is what a drawn line does.
+ *
+ * The frame is defined by the endpoints — `Width` is `EndX-BeginX` and the
+ * geometry is expressed in a local frame whose origin is the begin point — so
+ * gluing an end moves the frame, and the line follows.
  */
 
 import type { VisioMaster } from "./masters.js";
@@ -30,7 +36,7 @@ const MASTER_SHAPE_ID = 5;
 /** The connector master's own size; every instance overrides it. */
 const WIRE_EXTENT_INCHES = 0.125;
 
-/** Which end of a connector a `<Connect>` record glues. */
+/** Which end of a wire a `<Connect>` record glues. */
 export const CONNECT_BEGIN_PART = 9;
 export const CONNECT_END_PART = 12;
 
@@ -38,12 +44,13 @@ export const CONNECT_END_PART = 12;
 export const CONNECTION_POINT_PART = 100;
 
 /**
- * The connector master.
+ * The wire master.
  *
- * `ObjType` 2 marks the shape routable, which is what makes Visio treat it as a
- * connector: it can be glued, it is skipped by layout, and the connector tools
- * in the ribbon act on it. `LockHeight` and `LockCalcWH` stop a user from
- * resizing a wire by its handles — the endpoints own its extent.
+ * `ObjType` 1 marks the shape explicitly non-routable. The cell has to be
+ * written rather than omitted: left unset, Visio decides for itself, and a
+ * one-dimensional shape glued at both ends is exactly what it decides is a
+ * connector. `LockHeight` and `LockCalcWH` stop a user from resizing a wire by
+ * its handles — the endpoints own its extent.
  *
  * The geometry is a plain segment whose far end tracks `Width`/`Height`, so a
  * straight wire needs no geometry of its own and stretches exactly with its
@@ -66,8 +73,8 @@ export function wireMaster(id: number, strokeInches: number): VisioMaster {
     `<Cell N="BeginX" V="0"/><Cell N="BeginY" V="${half}"/>` +
     `<Cell N="EndX" V="${extent}"/><Cell N="EndY" V="${half}"/>` +
     `<Cell N="LockHeight" V="1"/><Cell N="LockCalcWH" V="1"/>` +
-    `<Cell N="NoAlignBox" V="1"/><Cell N="DynFeedback" V="2"/><Cell N="GlueType" V="2"/>` +
-    `<Cell N="ObjType" V="2"/><Cell N="NoLiveDynamics" V="1"/><Cell N="ShapeSplittable" V="1"/>` +
+    `<Cell N="NoAlignBox" V="1"/><Cell N="GlueType" V="2"/>` +
+    `<Cell N="ObjType" V="1"/>` +
     `<Cell N="LineWeight" V="${formatVisioNumber(strokeInches)}" U="PT"/>` +
     `<Cell N="LineColor" V="0"/><Cell N="LinePattern" V="1"/><Cell N="Rounding" V="0"/>` +
     // Visio has no butt cap; square ends the stroke at the endpoint too, and a
@@ -88,7 +95,6 @@ export function wireMaster(id: number, strokeInches: number): VisioMaster {
     id,
     name: WIRE_MASTER_NAME,
     prompt: "Schematic wire",
-    masterType: "connector",
     uniqueId: visioGuid(`${GUID_NAMESPACE}/unique/wire`),
     baseId: visioGuid(`${GUID_NAMESPACE}/base/wire`),
     widthInches: WIRE_EXTENT_INCHES,

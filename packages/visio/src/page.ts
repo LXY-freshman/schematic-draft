@@ -3,8 +3,8 @@
  *
  * This is where the export stops being a drawing and becomes a circuit: each
  * instance is a shape that carries its own connection points, each Route is a
- * connector glued to two of them, and each branch is a node the connectors hold
- * on to. Move a transistor in Visio and its wires follow, because Visio is
+ * line segment glued to two of them, and each branch is a node those segments
+ * hold on to. Move a transistor in Visio and its wires follow, because Visio is
  * reading the same electrical facts the schematic does — not because anything
  * here tried to redraw them.
  *
@@ -283,7 +283,7 @@ interface NodePlan {
  *
  * Two different things want a node shape and they only partly overlap: a
  * Junction a Route ends on needs one whether or not a dot is drawn there, since
- * that is what the connector glues to, and a contact the schematic dots needs
+ * that is what the wire glues to, and a contact the schematic dots needs
  * one whether or not a Junction is persisted there. A node that carries no dot
  * is still on the page, just not filled.
  */

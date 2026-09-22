@@ -273,6 +273,21 @@ layers. PNG uses 3x raster scale. PDF converts the same formal SVG to
 vector paths and text on a page matching the SVG viewBox, so circuit geometry
 stays sharp when enlarged.
 
+The same menu offers **Visio** and **Visio stencil**. These are for editing
+rather than looking: **Visio** writes a `.vsdx` in which every device is a
+Visio shape carrying its reference, parameters and pins, and every wire is a
+line segment whose ends are glued to the pins it joins. Drag a transistor in
+Visio and its wire ends come along; the wires themselves keep exactly the path
+you drew, because Visio is told not to re-route them. The cost of that is worth
+knowing: dragging one end of a wire moves that end only, so the last stretch
+becomes a diagonal until you straighten it. **Visio stencil** writes a `.vssx`
+of the symbol library alone, with no drawing, for building a schematic in Visio
+by hand. Neither file is read back — the `.schdraft` you opened stays the real
+Project, and edits made in Visio stay in Visio. Whatever the package could not
+carry (formulas written as their source, pin names left off a symbol, and so
+on) is counted in the status line as the file is written, rather than left for
+you to discover later.
+
 To reuse only selected content as an image, choose **Edit / Copy selection as
 PNG** or **Edit / Copy selection as SVG**, then paste into another application.
 Attached visible labels travel with their selected objects, but remote objects

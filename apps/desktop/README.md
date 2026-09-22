@@ -63,7 +63,13 @@ Schematic Draft\
     东西还在编辑器里；
   - 文件是纯 JSON，可以直接备份、拷贝、用 Git 管理；
   - 存到 `Projects\` 之外也完全可以，对话框去哪儿都行 —— 只是那样迁移就得自己再拷一份。
-- **导出的 SVG/PDF/PNG/netlist**：另存为对话框默认也从 `Projects\` 开始。
+- **导出的 SVG/PDF/PNG/Visio/netlist**：另存为对话框默认也从 `Projects\` 开始。
+  `File → Export drawing → Visio` 导出的 `.vsdx` 是拿去改的，不是拿去看的：每个器件是
+  一个带引脚、参考号和参数的 Visio 形状，每根导线是一条线段、两端粘在引脚上。在 Visio
+  里拖器件，线端跟着走；线本身保持你画的走法，Visio 不会自作主张重排 —— 代价是直接拖
+  线的某一端时只有那一端动，最后一段会变成斜线，要直角得自己拉回来。旁边的
+  `Visio stencil` 导出的是纯符号库（`.vssx`），不含图纸。两种文件都是单向的，读不回来，
+  硬盘上那个 `.schdraft` 才是正本。
 - **窗口大小、界面偏好、崩溃恢复副本**：`AppData\`。崩溃恢复副本是保险，不是备份 ——
   硬盘上那个 `.schdraft` 才是正本。有副本可用时 `File` 菜单里会多出 `Recover Local Work…`。
 - 菜单 `File → Open Projects Folder` 直接打开 `Projects\`；`Help → About` 显示当前实际使用的路径。
@@ -111,7 +117,7 @@ Schematic Draft\
 ## 与在线版的差异
 
 保留：原理图编辑、层次化设计（Cell / Cell Pin / 导入 Cell）、符号库、
-SPICE 与 Spectre 导入/导出、SVG/PDF/PNG 导出、公式排版、撤销/恢复、崩溃恢复。
+SPICE 与 Spectre 导入/导出、SVG/PDF/PNG 与 Visio 导出、公式排版、撤销/恢复、崩溃恢复。
 
 改掉：Cloud Projects → 真正的文件打开/保存（`Save` 原地覆盖，只有 `Save As…` 弹窗）。
 
