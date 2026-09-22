@@ -98,6 +98,26 @@ describe("RoutePropertyForm", () => {
     expect(markup).not.toContain('aria-label="Loading Canvas property code"');
   });
 
+  it("shows the line-jump box unticked, and ticked once the wire asks to hop", () => {
+    const { document, route, netLabel } = routeFixture("OUT");
+    const render = () =>
+      renderToStaticMarkup(
+        <RoutePropertyForm
+          document={document}
+          route={route}
+          netLabel={netLabel}
+          defaultColor="#000000"
+          onApply={vi.fn(() => ({ ok: true }))}
+        />,
+      );
+    const flat = render();
+    expect(flat).toContain("Hop over crossings");
+    expect(flat).not.toContain('type="checkbox" checked=""');
+
+    route.styleOverride = { ...route.styleOverride, lineJump: true };
+    expect(render()).toContain('type="checkbox" checked=""');
+  });
+
   it("offers no scope until the wire claims a Net name", () => {
     const { document, route } = routeFixture(null);
     const markup = renderToStaticMarkup(

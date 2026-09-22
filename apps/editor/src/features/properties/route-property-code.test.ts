@@ -72,6 +72,7 @@ describe("Route property code", () => {
         color: "auto",
         lineStyle: "solid",
         directionArrow: "none",
+        lineJump: false,
       },
     });
     expect(serializeRoutePropertyCode(value)).toContain('"name": ""');
@@ -90,7 +91,23 @@ describe("Route property code", () => {
         color: "#123456",
         lineStyle: "dashed",
         directionArrow: "middle",
+        lineJump: false,
       },
+    });
+  });
+
+  it("carries the line-jump flag both ways", () => {
+    const { document, route, netLabel } = fixture();
+    expect(
+      routePropertyCodeValue(document, route, netLabel).appearance.lineJump,
+    ).toBe(false);
+    route.styleOverride = { lineJump: true };
+    const value = routePropertyCodeValue(document, route, netLabel);
+    expect(value.appearance.lineJump).toBe(true);
+    const parsed = parseRoutePropertyCode(serializeRoutePropertyCode(value));
+    expect(parsed).toMatchObject({
+      ok: true,
+      value: { appearance: { lineJump: true } },
     });
   });
 
@@ -104,6 +121,7 @@ describe("Route property code", () => {
             color: "auto",
             lineStyle: "solid",
             directionArrow: "none",
+            lineJump: false,
           },
         }),
       ).ok,
@@ -122,6 +140,7 @@ describe("Route property code", () => {
         "appearance.color",
         "appearance.lineStyle",
         "appearance.directionArrow",
+        "appearance.lineJump",
       ]),
     );
     const changes = adapter.changes(source, {

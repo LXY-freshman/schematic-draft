@@ -126,13 +126,20 @@ is defined.
 - Select a wire and press `Q` for the same arrangement: a **Net** section
   holding the Net name this wire claims and — once it has a name — whether that
   name is local to the Cell or global across Cells; an **Appearance** section
-  with wire color, line style (solid, dashed, or dotted), and a direction arrow
-  (none, middle, or end); then **Highlight Net** and **Delete wire**, with
-  **Code (JSON)** collapsed underneath. Naming a wire writes its electrical Net
-  label, and clearing the name removes that label. Styling changes the drawing
-  only: it never changes what is connected to what, nor what the netlist
-  exports. A MOS bulk connection belongs to its transistor and offers only its
-  own delete action instead of this panel.
+  with wire color, line style (solid, dashed, or dotted), a direction arrow
+  (none, middle, or end), and **Hop over crossings**; then **Highlight Net** and
+  **Delete wire**, with **Code (JSON)** collapsed underneath. Naming a wire
+  writes its electrical Net label, and clearing the name removes that label.
+  Styling changes the drawing only: it never changes what is connected to what,
+  nor what the netlist exports. A MOS bulk connection belongs to its transistor
+  and offers only its own delete action instead of this panel.
+- **Hop over crossings** is off for every wire until you tick it, and it is a
+  per-wire choice: tick it on the wire you want to read as passing over, and it
+  draws a small arc wherever it crosses a wire on a different Net. Two wires on
+  the same Net are connected where they meet, so they never hop. The arc is
+  drawing and nothing else — it neither makes nor breaks a connection, and a
+  junction dot still means exactly what it meant before. It travels into SVG,
+  PNG, and PDF export along with the rest of the drawing.
 - For a MOS device, the compact **Bulk** row shows its current Net or
   **Unconnected** beside **Connect**. Click the button to draw from the bulk
   terminal on the canvas. Hover the status for the terminal name and connection

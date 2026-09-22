@@ -10,6 +10,17 @@ hosted features some of them mention are gone.
 
 ## Unreleased
 
+### Added
+
+- **Wires can hop over the wires they cross.** A new **Hop over crossings** box
+  in a wire's Appearance section draws a small arc wherever that wire crosses a
+  wire on a different Net, which is how a schematic says "these two pass, they
+  do not meet". It is a per-wire choice and off until you tick it, so every
+  drawing you already have keeps its flat crossings. The hop is drawing and
+  nothing else: it neither makes nor breaks a connection, two wires on the same
+  Net never hop because they really are connected, and junction dots still say
+  what is joined. It shows on the canvas and in SVG, PNG and PDF export alike.
+
 ### Changed
 
 - **Properties is a form.** Pressing `Q` used to hand you one block of raw JSON

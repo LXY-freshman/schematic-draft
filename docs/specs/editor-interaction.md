@@ -250,8 +250,9 @@ Drawing is disabled for retained-unplaced instances until they are placed.
 Selecting a wire Route presents the same two surfaces as a component: a form
 with a **Net** and an **Appearance** section, and the strict JSON collapsed
 beneath it under **Code (JSON)**. Both edit one Route property value — the Net
-name the wire claims and that name's scope, plus color, line style, and
-direction arrow — and commit through one apply function, so neither surface can
+name the wire claims and that name's scope, plus color, line style,
+direction arrow, and the [line-jump](connectivity-and-routing.md#line-jumps)
+request — and commit through one apply function, so neither surface can
 express an edit the other cannot.
 
 Scope belongs to a name claim, so the form offers it only once the wire claims
