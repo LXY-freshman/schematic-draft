@@ -139,7 +139,7 @@ is defined.
   the same Net are connected where they meet, so they never hop. The arc is
   drawing and nothing else — it neither makes nor breaks a connection, and a
   junction dot still means exactly what it meant before. It travels into SVG,
-  PNG, and PDF export along with the rest of the drawing.
+  PNG, PDF, and Visio export along with the rest of the drawing.
 - For a MOS device, the compact **Bulk** row shows its current Net or
   **Unconnected** beside **Connect**. Click the button to draw from the bulk
   terminal on the canvas. Hover the status for the terminal name and connection
@@ -323,7 +323,11 @@ line segment whose ends are glued to the pins it joins. Drag a transistor in
 Visio and its wire ends come along; the wires themselves keep exactly the path
 you drew, because Visio is told not to re-route them. The cost of that is worth
 knowing: dragging one end of a wire moves that end only, so the last stretch
-becomes a diagonal until you straighten it. **Visio stencil** writes a `.vssx`
+becomes a diagonal until you straighten it. A wire you ticked **Hop over
+crossings** for arrives with its arcs drawn into the line, since Visio has no
+line jump of its own; they sit where the crossings were when the file was
+written and, like the bends beside them, stay there if you move things
+afterwards. **Visio stencil** writes a `.vssx`
 of the symbol library alone, with no drawing, for building a schematic in Visio
 by hand. Neither file is read back — the `.schdraft` you opened stays the real
 Project, and edits made in Visio stay in Visio. Whatever the package could not

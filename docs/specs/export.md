@@ -74,6 +74,15 @@ Promised:
   schematic drew and they stay put for as long as nobody drags them. Glue and
   routing are separate things — an end follows its pin because the shape is
   one-dimensional and glued, not because Visio is routing it.
+- **Line jumps.** Visio draws none of its own, so a Route that asked for
+  [line jumps](connectivity-and-routing.md#line-jumps) carries each hop in its
+  own geometry, as an `EllipticalArcTo` row between the two `LineTo` rows that
+  approach and leave the crossing. The same derivation answers for the canvas,
+  the formal SVG scene and this file, so the three agree about which wire hops
+  and where. A hop is interior to its segment by construction, so the last row
+  keeps the `Width`/`Height` formulas that make the far end follow its glue.
+  The arc is drawing: it neither states nor implies a connection in Visio any
+  more than it does in the schematic.
 - **Shape Data.** Reference designator, symbol name, device parameters, the
   owning Cell, and `icm:instanceId`; net name on a wire.
 - **Grid.** Ten document units are 0.125 in, so pin pitch lands on Visio's
@@ -91,6 +100,11 @@ Not promised, and not a defect when it happens:
   end and nothing else, so the last segment becomes a diagonal. That is what a
   line segment does, and it is the price of Visio never rearranging the run on
   its own; straightening it is the user's move to make.
+- **A hop still over its crossing after the drawing is edited in Visio.** The
+  arc is geometry written at the offset the crossing had when the file was
+  written, like every bend beside it. Move either wire in Visio and the hop
+  stays where it was put; Visio is not recomputing crossings any more than it
+  is recomputing routes.
 - **Formulas.** A math run is written as its source text, a stacked fraction is
   flattened onto one line, and an overbar rule is dropped. The text is editable;
   the typesetting is not reproduced.
