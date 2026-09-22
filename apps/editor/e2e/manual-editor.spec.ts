@@ -2756,7 +2756,11 @@ test("applies Route name, scope, and appearance from one JSON edit", async ({
   await openSelectionShelf(page);
 
   const properties = page.getByRole("complementary", { name: "Properties" });
-  await expect(properties.getByLabel("Annotation property code")).toBeVisible();
+  // The form is the Route surface; its JSON sits collapsed underneath.
+  await expect(properties.getByLabel("Net name")).toHaveValue("");
+  await expect(
+    properties.getByRole("group", { name: "Route property code" }),
+  ).not.toHaveAttribute("open", "");
   await expect(properties.getByLabel("Electrical Net label")).toHaveCount(0);
   expect(JSON.parse(await readComponentPropertyCode(page))).toEqual({
     net: { name: "", scope: "local" },
@@ -2803,6 +2807,66 @@ test("applies Route name, scope, and appearance from one JSON edit", async ({
       directionArrow: "none",
     },
   });
+});
+
+test("names and restyles a wire from the Route form, and the JSON agrees", async ({
+  page,
+}) => {
+  await page.goto("/editor");
+  await placeComponent(page, "resistor", { x: 280, y: 180 });
+  await placeComponent(page, "resistor", { x: 480, y: 180 });
+  await clickDrawTool(page, "wire");
+  await page.getByTestId("terminal-R1-2").click();
+  await page.getByTestId("terminal-R2-1").click();
+  await page.keyboard.press("Escape");
+  await clickRoute(page, "route-ui-1", 0.5, 0);
+  await openSelectionShelf(page);
+
+  const properties = page.getByRole("complementary", { name: "Properties" });
+  const conductor = page.locator(
+    '[data-layer="routes"] polyline[data-object-id="route-ui-1"]',
+  );
+  // An unnamed wire claims no Net, so it has no scope to choose yet.
+  await expect(properties.getByLabel("Net scope")).toHaveCount(0);
+  await properties.getByLabel("Net name").fill("SIGNAL");
+  await properties.getByLabel("Net name").press("Enter");
+  await expect(
+    page.getByTestId("annotation-hit-net-label-route-ui-1"),
+  ).toHaveCount(1);
+  await properties.getByLabel("Net scope").selectOption("global");
+
+  await properties.getByLabel("Wire line style").selectOption("dotted");
+  await expect(conductor).toHaveAttribute("stroke-dasharray", "2 3");
+  await properties
+    .getByRole("button", { name: "Use Red for wire color" })
+    .click();
+  await expect(conductor).toHaveAttribute("stroke", "#dc2626");
+  await properties.getByLabel("Wire direction arrow").selectOption("end");
+  await expect(
+    page.locator('[data-layer="routes"] [data-role="route-direction-arrow"]'),
+  ).toHaveAttribute("data-arrow-position", "end");
+
+  expect(JSON.parse(await readComponentPropertyCode(page))).toEqual({
+    net: { name: "SIGNAL", scope: "global" },
+    appearance: {
+      color: [220, 38, 38],
+      lineStyle: "dotted",
+      directionArrow: "end",
+    },
+  });
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8"));
+  expect(saved.documents[0].routes[0].styleOverride).toEqual({
+    color: "#dc2626",
+    lineStyle: "dotted",
+    arrow: "end",
+  });
+  expect(saved.documents[0].connectivityEvidence).toContainEqual(
+    expect.objectContaining({
+      kind: "name-claim",
+      name: "SIGNAL",
+      scope: "global",
+    }),
+  );
 });
 
 test("edits instance, electrical Net, and free text with bounded label handles", async ({

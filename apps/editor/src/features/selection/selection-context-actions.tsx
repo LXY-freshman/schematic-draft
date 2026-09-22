@@ -5,7 +5,7 @@ import {
   GroupPropertyCodeEditor,
   type GroupPropertyCodeEditorProps,
 } from "../properties/group-property-code-editor";
-import { RoutePropertyCodeEditor } from "../properties/route-property-code-editor";
+import { RoutePropertyForm } from "../properties/route-property-form";
 import type { RoutePropertyCodeValue } from "../properties/route-property-code";
 import { ToolIcon } from "../editor-shell/tool-icon";
 
@@ -164,8 +164,11 @@ export function RouteActionsSection({
     );
   }
   return (
-    <section className="context-actions" aria-label="Route actions">
-      <RoutePropertyCodeEditor
+    <section
+      className="context-actions route-properties"
+      aria-label="Route actions"
+    >
+      <RoutePropertyForm
         key={route.id}
         document={document}
         route={route}

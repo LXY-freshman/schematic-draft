@@ -123,6 +123,16 @@ is defined.
   and saved JSON. JSON expands completely; scroll the panel rather than a nested
   text area. Escape leaves the editor without discarding incomplete text. Drag
   the panel's left edge to set a comfortable width.
+- Select a wire and press `Q` for the same arrangement: a **Net** section
+  holding the Net name this wire claims and — once it has a name — whether that
+  name is local to the Cell or global across Cells; an **Appearance** section
+  with wire color, line style (solid, dashed, or dotted), and a direction arrow
+  (none, middle, or end); then **Highlight Net** and **Delete wire**, with
+  **Code (JSON)** collapsed underneath. Naming a wire writes its electrical Net
+  label, and clearing the name removes that label. Styling changes the drawing
+  only: it never changes what is connected to what, nor what the netlist
+  exports. A MOS bulk connection belongs to its transistor and offers only its
+  own delete action instead of this panel.
 - For a MOS device, the compact **Bulk** row shows its current Net or
   **Unconnected** beside **Connect**. Click the button to draw from the bulk
   terminal on the canvas. Hover the status for the terminal name and connection
@@ -167,7 +177,9 @@ is defined.
 ## Editing multiple components
 
 Select components together with Shift-click or a selection rectangle, then
-press `Q`. Properties shows one editable JSON block. Shared colors and values
+press `Q`. Properties shows one editable JSON block instead of the per-object
+forms: a batch is a set of shared values, not one object's properties. Shared
+colors and values
 are displayed; differences appear as `""`. Color compares the actual document
 ink, so inherited black and explicitly assigned black show the same RGB value.
 Set `appearance.color` through its swatch, RGB, or hex to recolor all
