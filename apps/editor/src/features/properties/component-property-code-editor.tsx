@@ -7,74 +7,33 @@ import {
   useState,
 } from "react";
 
-import type { SchematicDocument } from "@icm/model";
-
 import {
   formatComponentPropertyCode,
   parseComponentPropertyCode,
   serializeComponentPropertyCode,
   defaultComponentPropertyCode,
-  type ComponentPropertyCodeContext,
-  type ComponentPropertyCodeValue,
 } from "./component-property-code";
+import {
+  useComponentPropertyCodeContext,
+  type ComponentPropertySurfaceProps,
+} from "./component-property-surface";
 
-type Instance = SchematicDocument["instances"][number];
 const PropertyJsonEditor = lazy(
   () => import("./component-property-json-editor"),
 );
 
-export interface ComponentPropertyCodeEditorProps {
-  instance: Instance;
-  displayName?: string | null;
-  revision: number;
-  referenceVisible: boolean | null;
-  valueVisible: boolean | null;
-  parameterVisibility?: Record<string, boolean>;
-  connection?: "cell-pin" | "global" | null;
-  netName?: string | null;
-  defaultForeground?: string;
-  details?: ComponentPropertyCodeContext["details"];
-  onApply: (
-    value: ComponentPropertyCodeValue,
-  ) => { ok: true } | { ok: false; message: string };
+export interface ComponentPropertyCodeEditorProps extends ComponentPropertySurfaceProps {
+  /** Named "JSON" when the form owns the section heading above it. */
+  title?: string;
 }
 
 /** Compact editable JSON for placement, display, and appearance. */
-export function ComponentPropertyCodeEditor({
-  instance,
-  displayName,
-  revision,
-  referenceVisible,
-  valueVisible,
-  parameterVisibility,
-  connection,
-  netName,
-  defaultForeground = "#000000",
-  details,
-  onApply,
-}: ComponentPropertyCodeEditorProps) {
-  const context = useMemo<ComponentPropertyCodeContext>(
-    () => ({
-      instance,
-      ...(displayName !== undefined ? { displayName } : {}),
-      referenceVisible,
-      valueVisible,
-      ...(parameterVisibility ? { parameterVisibility } : {}),
-      ...(connection !== undefined ? { connection } : {}),
-      ...(netName !== undefined ? { netName } : {}),
-      ...(details ? { details } : {}),
-    }),
-    [
-      instance,
-      displayName,
-      referenceVisible,
-      valueVisible,
-      parameterVisibility,
-      connection,
-      netName,
-      details,
-    ],
-  );
+export function ComponentPropertyCodeEditor(
+  props: ComponentPropertyCodeEditorProps,
+) {
+  const { title = "Properties", ...surface } = props;
+  const { revision, defaultForeground = "#000000", onApply } = surface;
+  const context = useComponentPropertyCodeContext(surface);
   const baseline = useMemo(
     () => formatComponentPropertyCode(context),
     [context, revision],
@@ -141,7 +100,7 @@ export function ComponentPropertyCodeEditor({
       data-testid="component-property-code-editor"
     >
       <header>
-        <strong>Properties</strong>
+        <strong>{title}</strong>
         <div className="component-property-header-actions">
           <button
             type="button"

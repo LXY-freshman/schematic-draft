@@ -12,6 +12,16 @@ hosted features some of them mention are gone.
 
 ### Changed
 
+- **Component Properties is a form.** Pressing `Q` on a component used to hand
+  you one block of raw JSON and nothing else, so changing a rotation or a
+  resistor value meant editing punctuation. Properties now opens labelled
+  sections — Placement, Identity, Parameters, Display, Appearance — showing
+  only the fields that component actually has. The JSON is still there,
+  collapsed under **Code (JSON)**, for pasting a whole component at once or
+  reaching **Defaults** and **Copy JSON**; both surfaces edit the same
+  properties through the same checks, so neither can produce something the
+  other rejects.
+
 - **Wires in an exported `.vsdx` are line segments, not connectors.** They used
   to be Visio's own dynamic connectors, which treat the path as theirs to
   recompute: nudging anything on the page made Visio rearrange the wiring into
