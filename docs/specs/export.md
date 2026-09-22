@@ -13,9 +13,9 @@ diagnostics.
 
 Every export starts from one validated `SchematicDocument` and one symbol
 resolver. The picture formats then go through the formal SVG scene; the Visio
-formats do not, because a flat scene has no shapes, pins or connectors left to
-glue. Editor overlays, hit targets, selections, flightlines, and diagnostics are
-never part of a formal artifact.
+formats do not, because a flat scene has no shapes, pins or glue targets left
+to join. Editor overlays, hit targets, selections, flightlines, and diagnostics
+are never part of a formal artifact.
 
 | Format | Derivation                                  | Media type                         |
 | ------ | ------------------------------------------- | ---------------------------------- |
@@ -63,12 +63,17 @@ bytes from the same Document.
 Promised:
 
 - **Topology.** One shape per placed Instance, backed by a master keyed by
-  symbol and variant; one one-dimensional connector shape per Route; one shape
+  symbol and variant; one one-dimensional line shape per Route; one shape
   per visible Junction. Shape counts equal object counts.
 - **Glue.** A wire end that lands on a pin is glued to that pin's connection
   point, through a `PAR(PNT(…))` formula and a matching `<Connect>` record.
   Moving a device in Visio moves the wire ends with it. Every `<Connect>` names
   a connection row that exists.
+- **The path.** A wire is a drawn line segment, explicitly marked non-routable,
+  so Visio never recomputes the run it was given: the bends are the ones the
+  schematic drew and they stay put for as long as nobody drags them. Glue and
+  routing are separate things — an end follows its pin because the shape is
+  one-dimensional and glued, not because Visio is routing it.
 - **Shape Data.** Reference designator, symbol name, device parameters, the
   owning Cell, and `icm:instanceId`; net name on a wire.
 - **Grid.** Ten document units are 0.125 in, so pin pitch lands on Visio's
@@ -82,8 +87,10 @@ Not promised, and not a defect when it happens:
 - **Text metrics.** Visio measures, wraps and substitutes fonts itself, so a
   label sits a fraction of a character from where the schematic put it. Its
   position relative to the device is still right.
-- **Bend points after a re-route.** The connector opens with the schematic's own
-  geometry; once Visio re-routes it, the path is Visio's.
+- **Right angles after a device moves.** Dragging one end of a wire drags that
+  end and nothing else, so the last segment becomes a diagonal. That is what a
+  line segment does, and it is the price of Visio never rearranging the run on
+  its own; straightening it is the user's move to make.
 - **Formulas.** A math run is written as its source text, a stacked fraction is
   flattened onto one line, and an overbar rule is dropped. The text is editable;
   the typesetting is not reproduced.
@@ -123,8 +130,11 @@ is stated when the file is written rather than discovered in Visio.
   and records the page size, the master count, the shape and glue counts, and
   the caveats by kind;
 - open the file in Visio itself and read back page, shape, connect and master
-  counts. Only that proves Visio accepts the package; only a person dragging a
-  device proves the drawing is worth editing.
+  counts, then move a glued device and check that its wire ends followed and
+  that none of their paths were rewritten — `scripts/visio-open-check.ps1` with
+  `-GlueTest`. Only opening it proves Visio accepts the package, and only the
+  move separates a recorded `<Connect>` from a live glue, or a drawn segment
+  from a connector Visio feels free to re-route.
 
 ## Delivery
 
