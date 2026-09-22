@@ -148,7 +148,9 @@ is stated when the file is written rather than discovered in Visio.
   that none of their paths were rewritten — `scripts/visio-open-check.ps1` with
   `-GlueTest`. Only opening it proves Visio accepts the package, and only the
   move separates a recorded `<Connect>` from a live glue, or a drawn segment
-  from a connector Visio feels free to re-route.
+  from a connector Visio feels free to re-route. A path is compared cell by
+  cell, so a hop Visio flattened or shifted reads as a rewritten path rather
+  than an unchanged one.
 
 ## Delivery
 

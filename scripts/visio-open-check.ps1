@@ -46,6 +46,10 @@ $visSectionProp = 243
 # its formula stays put; every other vertex is a literal offset from the begin
 # point. Re-routing rewrites these rows, so the string is a fingerprint of the
 # path the export drew.
+#
+# Every cell of a row is read, not just X and Y: a line jump is an
+# `EllipticalArcTo` whose A/B cells carry the point the arc passes through, and
+# reading two cells would call a flattened hop an unchanged path.
 function Read-GeometryRows($shape) {
     $parts = @()
     for ($s = 0; $s -lt $shape.GeometryCount; $s++) {
@@ -53,9 +57,11 @@ function Read-GeometryRows($shape) {
         # Row 0 holds NoFill/NoLine/NoShow; the vertices start at row 1.
         for ($row = 1; $row -lt $shape.RowCount($section); $row++) {
             $type = $shape.RowType($section, $row)
-            $x = $shape.CellsSRC($section, $row, 0).Formula
-            $y = $shape.CellsSRC($section, $row, 1).Formula
-            $parts += "$type($x,$y)"
+            $cells = @()
+            for ($c = 0; $c -lt $shape.RowsCellCount($section, $row); $c++) {
+                $cells += $shape.CellsSRC($section, $row, $c).Formula
+            }
+            $parts += "$type($($cells -join ','))"
         }
     }
     return ($parts -join ' ')
