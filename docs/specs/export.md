@@ -39,6 +39,16 @@ delegate script placement to `baseline-shift` or percentage `font-size`, whose
 support is inconsistent in Office-class SVG importers. This keeps searchable,
 editable SVG text while making its geometry portable beyond browser engines.
 
+Typography is carried by SVG presentation attributes — `font-style`,
+`font-weight`, `text-decoration`, `fill` — and never by a `style` attribute.
+The scene body is the same markup the editor mounts inside the desktop shell,
+where a Content Security Policy drops parsed `style` attributes and cannot
+admit them by nonce; a dropped declaration would render an italic variable
+upright and silently erase the overbar that distinguishes an active-low signal
+from its complement. Presentation attributes are also the form Office-class
+importers understand best. Nothing in the scene is styled by a stylesheet, so
+their lower precedence changes no result.
+
 The browser PDF converter still operates on a temporary SVG clone. It
 materializes text decorations as vector strokes and defensively expands any
 legacy relative text constructs before conversion. This compatibility pass

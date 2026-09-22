@@ -68,8 +68,11 @@ function addRelativePosition(
 }
 
 function materializeTextDecorations(svg: SVGSVGElement): void {
+  // The overbar is a presentation attribute rather than a `style`
+  // declaration, so that the shell's `style-src` cannot drop it; see
+  // `packages/render-svg/src/rich-text.ts`.
   for (const span of svg.querySelectorAll<SVGTSpanElement>(
-    'tspan[data-text-run="overbar"][style*="text-decoration:overline"]',
+    'tspan[data-text-run="overbar"][text-decoration="overline"]',
   )) {
     const text = span.closest<SVGTextElement>("text");
     if (!text?.parentElement) continue;

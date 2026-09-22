@@ -22,10 +22,10 @@ describe("Razavi schematic typography", () => {
     );
     expect(rendered).not.toContain("baseline-shift");
     expect(rendered).not.toContain('font-size="76%"');
-    expect(rendered).toContain("font-style:italic;font-weight:700");
+    expect(rendered).toContain('font-style="italic" font-weight="700"');
     // Supply designators are the one italic subscript in the house style.
     expect(rendered).toContain(
-      '<tspan data-text-run="span" style="font-style:italic;font-weight:700">DD</tspan>',
+      '<tspan data-text-run="span" font-style="italic" font-weight="700">DD</tspan>',
     );
   });
 
@@ -38,7 +38,7 @@ describe("Razavi schematic typography", () => {
       },
     );
     expect(rendered).toContain(
-      '<tspan data-text-run="span" style="font-style:normal;font-weight:700">in</tspan>',
+      '<tspan data-text-run="span" font-style="normal" font-weight="700">in</tspan>',
     );
   });
 
@@ -51,7 +51,7 @@ describe("Razavi schematic typography", () => {
       },
     );
     expect(rendered).toContain(
-      '<tspan data-text-run="span" style="font-style:italic;font-weight:700">Vin</tspan>',
+      '<tspan data-text-run="span" font-style="italic" font-weight="700">Vin</tspan>',
     );
     expect(rendered).not.toContain('data-text-run="subscript"');
   });

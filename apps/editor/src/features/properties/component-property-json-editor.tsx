@@ -33,6 +33,7 @@ import {
 import { json, jsonParseLinter } from "@codemirror/lang-json";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { linter } from "@codemirror/lint";
+import { styleNonce } from "../../style-nonce";
 import {
   parseComponentPropertyCode,
   type ComponentPropertyCodeContext,
@@ -112,6 +113,9 @@ export default function ComponentPropertyJsonEditor(props: Props) {
       EditorState.create({
         doc: source,
         extensions: [
+          // CodeMirror mounts its theme as an inline stylesheet; the shell's
+          // `style-src` admits it by nonce.
+          EditorView.cspNonce.of(styleNonce()),
           json(),
           indentUnit.of("  "),
           history(),

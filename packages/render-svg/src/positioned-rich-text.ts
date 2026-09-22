@@ -122,11 +122,19 @@ function segmentsWidth(
   );
 }
 
-function styleAttribute(
+/**
+ * Typography as SVG presentation attributes; see the note beside the twin in
+ * `rich-text.ts`. A `style` attribute is dropped under the shell's `style-src`,
+ * taking italic, weight and the overbar with it.
+ */
+function typographyAttributes(
   segment: TextSegment,
   profile: SchematicStyleProfile,
 ): string {
-  return `font-style:${segment.italic ? "italic" : "normal"};font-weight:${segment.bold ? profile.typography.mathWeight : profile.typography.plainWeight}`;
+  const weight = segment.bold
+    ? profile.typography.mathWeight
+    : profile.typography.plainWeight;
+  return ` font-style="${segment.italic ? "italic" : "normal"}" font-weight="${weight}"`;
 }
 
 function renderSegments(
@@ -144,7 +152,7 @@ function renderSegments(
   let output = "";
   for (const segment of segments) {
     const width = segmentWidth(segment, options.fontSize, options.scale);
-    output += `<tspan data-text-run="${options.run}" data-text-advance="${number(width)}" x="${number(x)}" y="${number(options.y)}" text-anchor="start" font-size="${number(options.fontSize * options.scale)}" style="${styleAttribute(segment, options.profile)}">${escapeXml(segment.text)}</tspan>`;
+    output += `<tspan data-text-run="${options.run}" data-text-advance="${number(width)}" x="${number(x)}" y="${number(options.y)}" text-anchor="start" font-size="${number(options.fontSize * options.scale)}"${typographyAttributes(segment, options.profile)}>${escapeXml(segment.text)}</tspan>`;
     x += width;
   }
   return output;

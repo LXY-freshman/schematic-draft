@@ -45,12 +45,18 @@ several others read — `model`, `derived`, `edit-engine` — earns the full uni
 suite, because the interesting failures are in the consumers. Touching symbol
 geometry, rendering, or exporters earns `pnpm verify:goldens`. Touching the
 desktop shell earns a Windows launch, since nothing below the browser can prove
-that the packaged app boots. One of those launches is scripted:
+that the packaged app boots. Two of those launches are scripted:
 `scripts/close-guard-window-check.mjs` drives the real main process through
-Playwright's Electron driver to cover the unsaved-work close guard. It stubs
-only the native modal, and it proves nothing about the rest of the shell — that
-still takes a launch. Run `pnpm setup:e2e` once per machine or Playwright
-version before the first browser run.
+Playwright's Electron driver to cover the unsaved-work close guard, and
+`scripts/shell-style-window-check.mjs` reads the window's own console and
+computed styles to prove the Content Security Policy refuses nothing the shell
+serves itself. Run the second one after touching the policy, the editor
+document, the canvas stylesheet, or the typography the renderer emits: no http
+test sees a policy at all, so a dropped declaration is invisible everywhere
+else. The close-guard check stubs only the native modal, and neither proves
+anything about the rest of the shell — that still takes a launch. Run
+`pnpm setup:e2e` once per machine or Playwright version before the first
+browser run.
 
 The editor's browser workflows have separate owners: `manual-editor.spec.ts`
 retains general integration, `wiring-semantics.spec.ts` owns wire interaction,

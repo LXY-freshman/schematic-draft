@@ -32,9 +32,10 @@ import {
 } from "./project-files.js";
 
 const INDEX_HTML = [
-  "<!doctype html><title>Schematic Draft</title>",
+  "<!doctype html><html><head><title>Schematic Draft</title>",
   "<script>console.log('theme')</script>",
   '<script type="module" src="/assets/index.js"></script>',
+  "</head><body></body></html>",
 ].join("\n");
 
 /** A stub for the native dialogs: the answers a person would have given. */
@@ -116,6 +117,36 @@ describe("desktop app protocol", () => {
     expect((await request("/app.js", { method: "POST" })).status).toBe(405);
     expect((await request("/api/auth/me")).status).toBe(404);
     expect((await handle(new Request("app://elsewhere/"))).status).toBe(404);
+  });
+
+  it("admits the editor's own inline stylesheets by a per-load nonce", async () => {
+    const { request } = await shell();
+
+    const read = async (path: string) => {
+      const response = await request(path);
+      const html = await response.text();
+      const policy = response.headers.get("content-security-policy") ?? "";
+      const nonce = /'nonce-([^']+)'/u.exec(policy)?.[1] ?? "";
+      return { html, policy, nonce };
+    };
+
+    const first = await read("/");
+    expect(first.nonce).not.toBe("");
+    expect(first.policy).toContain(`style-src 'self' 'nonce-${first.nonce}'`);
+    expect(first.policy).not.toContain("unsafe-inline");
+    // The editor finds the nonce by name; `apps/editor/src/style-nonce.ts`
+    // reads the same element.
+    expect(first.html).toContain(
+      `<meta name="csp-nonce" content="${first.nonce}" />`,
+    );
+
+    // A licence for one document load, not a shared secret: the next load
+    // gets a different one, and assets never carry it at all.
+    const second = await read("/editor");
+    expect(second.nonce).not.toBe(first.nonce);
+    expect(
+      (await request("/app.js")).headers.get("content-security-policy"),
+    ).toContain("style-src 'self';");
   });
 
   it("opens a Project file the person picks", async () => {

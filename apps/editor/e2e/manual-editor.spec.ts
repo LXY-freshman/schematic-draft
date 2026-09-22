@@ -880,7 +880,7 @@ test("P shortcut starts Cell Pin placement", async ({ page }) => {
   await expect(page.getByTestId("hit-P1")).toBeVisible();
   await expect(
     page.locator(
-      '[data-object-id="instance-label-P1"] [style*="font-style:italic;font-weight:700"]',
+      '[data-object-id="instance-label-P1"] [font-style="italic"][font-weight="700"]',
     ),
   ).toBeVisible();
   await page.keyboard.press("Escape");

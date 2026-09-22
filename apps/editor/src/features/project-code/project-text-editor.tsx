@@ -29,6 +29,7 @@ import { json } from "@codemirror/lang-json";
 import { searchKeymap } from "@codemirror/search";
 
 import { spiceCodeLanguage } from "./code-spice-language";
+import { styleNonce } from "../../style-nonce";
 
 export type ProjectTextLanguage = "json" | "netlist";
 
@@ -60,6 +61,9 @@ export default function ProjectTextEditor(props: Props) {
       state: EditorState.create({
         doc: read().value,
         extensions: [
+          // CodeMirror mounts its theme as an inline stylesheet; the shell's
+          // `style-src` admits it by nonce.
+          EditorView.cspNonce.of(styleNonce()),
           lineNumbers(),
           highlightActiveLineGutter(),
           drawSelection(),

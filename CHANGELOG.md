@@ -50,6 +50,16 @@ hosted features some of them mention are gone.
 
 ### Fixed
 
+- **Schematic text in the Windows app renders the way it is drawn.** The
+  installed application applied a security policy that silently discarded the
+  styling the canvas asked for, so signal names came out upright instead of
+  italic, bold and plain text were the same weight, and — worst of it — the bar
+  over an active-low signal was simply absent, leaving `Q` and its complement
+  identical on screen and in anything exported from that window. The same
+  policy was throwing away the code panel's layout and the schematic font's
+  round period. All of it now renders as intended; the policy still refuses
+  everything it was meant to refuse. Browser use was never affected.
+
 - **Closing the window with unsaved changes now asks.** It used to do nothing
   at all: the editor's browser-style leave guard reads as a silent refusal in
   the desktop shell, so the X, `Alt+F4` and **File → Exit** were simply
