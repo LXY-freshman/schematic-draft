@@ -1284,8 +1284,6 @@ export function App({ project: initialProject }: AppProps) {
   const {
     referenceLabelVisibilityEdits,
     valueVisibilityEdits,
-    updateSelectedModelTarget,
-    updateSelectedReference,
     deleteSelectedAnnotation,
   } = createSelectionPropertyCommands({
     project,
@@ -4423,6 +4421,20 @@ export function App({ project: initialProject }: AppProps) {
                           selectedSupplyMarker && !selectedFormalTerminal
                             ? (selectedPortLogicalName ?? "")
                             : null,
+                        targetDescription:
+                          selectedInstance.netlist &&
+                          !(
+                            selectedInstance.netlist.binding?.kind ===
+                              "model" ||
+                            selectedDevice?.targetPolicy === "required-model" ||
+                            selectedReviewedExternalBinding
+                          )
+                            ? componentTargetDescription(
+                                selectedInstance,
+                                selectedHierarchyCell?.netlist?.name,
+                                selectedExternalSubcircuit?.name,
+                              )
+                            : null,
                         onApply: (value: ComponentPropertyCodeValue) => {
                           try {
                             const edits: SchematicEdit[] =
@@ -4686,23 +4698,7 @@ export function App({ project: initialProject }: AppProps) {
                           }
                         : null,
                       identity: {
-                        instance: selectedInstance,
                         sourceCode: selectedComponentSourceCode!,
-                        revision: document.revision,
-                        targetDescription:
-                          selectedInstance.netlist &&
-                          !(
-                            selectedInstance.netlist.binding?.kind ===
-                              "model" ||
-                            selectedDevice?.targetPolicy === "required-model" ||
-                            selectedReviewedExternalBinding
-                          )
-                            ? componentTargetDescription(
-                                selectedInstance,
-                                selectedHierarchyCell?.netlist?.name,
-                                selectedExternalSubcircuit?.name,
-                              )
-                            : null,
                         capacitorPlateRows: selectedCapacitorPlateRows,
                         propertyTerminal:
                           selectedInstance && selectedPropertyOnlyTerminal
@@ -4739,41 +4735,31 @@ export function App({ project: initialProject }: AppProps) {
                                 },
                               }
                             : null,
-                        modelTarget:
-                          selectedInstance.netlist &&
-                          (selectedInstance.netlist.binding?.kind === "model" ||
-                            selectedDevice?.targetPolicy === "required-model" ||
-                            reviewedExternalModelSuggestions(
-                              selectedPropertyDevice?.symbolId ?? "",
-                            ).length > 0 ||
-                            selectedReviewedExternalBinding)
-                            ? {
-                                defaultValue:
-                                  selectedInstance.netlist.binding?.kind ===
-                                  "model"
-                                    ? selectedInstance.netlist.binding.name
-                                    : selectedReviewedExternalBinding
-                                      ? (selectedExternalSubcircuit?.name ?? "")
-                                      : "",
-                                suggestions: reviewedExternalModelSuggestions(
-                                  selectedPropertyDevice?.symbolId ?? "",
-                                ),
-                                externalSubcircuit: Boolean(
-                                  selectedReviewedExternalBinding,
-                                ),
-                              }
-                            : null,
-                        onReferenceChange: updateSelectedReference,
-                        ...(selectedInstanceLabel && selectedInstance.placement
-                          ? {
-                              onEditAnnotation: () =>
-                                beginAnnotationTextEditing(
-                                  selectedInstanceLabel,
-                                ),
-                            }
-                          : {}),
-                        onModelTargetChange: updateSelectedModelTarget,
                       },
+                      modelTarget:
+                        selectedInstance.netlist &&
+                        (selectedInstance.netlist.binding?.kind === "model" ||
+                          selectedDevice?.targetPolicy === "required-model" ||
+                          reviewedExternalModelSuggestions(
+                            selectedPropertyDevice?.symbolId ?? "",
+                          ).length > 0 ||
+                          selectedReviewedExternalBinding)
+                          ? {
+                              defaultValue:
+                                selectedInstance.netlist.binding?.kind ===
+                                "model"
+                                  ? selectedInstance.netlist.binding.name
+                                  : selectedReviewedExternalBinding
+                                    ? (selectedExternalSubcircuit?.name ?? "")
+                                    : "",
+                              suggestions: reviewedExternalModelSuggestions(
+                                selectedPropertyDevice?.symbolId ?? "",
+                              ),
+                              externalSubcircuit: Boolean(
+                                selectedReviewedExternalBinding,
+                              ),
+                            }
+                          : null,
                       signalFlow: Boolean(selectedSignalFlowPresentation),
                       parameters:
                         propertyParametersForInstance(selectedInstance),

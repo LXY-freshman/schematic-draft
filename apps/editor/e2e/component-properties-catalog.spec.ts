@@ -22,7 +22,7 @@ const componentSymbolIds = [
 ];
 
 for (const symbolId of componentSymbolIds) {
-  test(`${symbolId} uses the text-first component Properties surface`, async ({
+  test(`${symbolId} uses the form-first component Properties surface`, async ({
     page,
   }) => {
     await page.goto("/editor");
@@ -44,16 +44,20 @@ for (const symbolId of componentSymbolIds) {
       name: "Component properties",
     });
     await expect(properties).toBeVisible();
+    // Every component opens on typed controls; the JSON waits, collapsed.
+    await expect(properties.locator(":scope > *").first()).toHaveAttribute(
+      "aria-label",
+      "Component placement",
+    );
     await expect(
       properties.getByLabel("Editable Canvas property code"),
-    ).toBeVisible();
+    ).toBeHidden();
     if (symbolId === "vdd-port") {
       await expectComponentCodeField(page, "connection", "cell-pin");
     }
-    await expect(properties.locator(":scope > *")).toHaveCount(1);
-    await expect(properties.locator(":scope > :only-child")).toHaveAttribute(
+    await expect(properties.locator(":scope > *").last()).toHaveAttribute(
       "aria-label",
-      "Canvas property code",
+      "Component property code",
     );
   });
 }

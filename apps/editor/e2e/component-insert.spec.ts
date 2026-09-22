@@ -8,6 +8,7 @@ import {
   editComponentPropertyCode,
   editDocumentStyleCode,
   expectComponentCodeField,
+  openComponentPropertyCode,
   projectFileBytes,
   readComponentPropertyCode,
   readDocumentStyleCode,
@@ -1422,23 +1423,26 @@ test("carries a default and manual Value through placement and Q property editin
     "aria-expanded",
     "true",
   );
-  await expect(page.getByLabel("Component geometry")).toHaveCount(0);
-  const propertyCode = page.getByLabel("Editable Canvas property code");
-  await expect(propertyCode).toContainText(/"coordinate": \[/u);
-  await expect(propertyCode).toContainText(/"rotation": 0/u);
-  await expect(propertyCode).toContainText(/"mirror": "none"/u);
+  await expect(page.getByLabel("Component geometry")).toBeVisible();
+  await expect(page.getByLabel("Component rotation")).toHaveValue("0");
+  await expect(page.getByLabel("Component mirror")).toHaveValue("none");
   await expect(page.locator(".selection-overview")).toHaveCount(0);
   await expect(page.getByTestId("selection-shelf")).toContainText(
     "R1 · resistor",
   );
-  await expect(page.getByLabel("Component display toggles")).toHaveCount(0);
-  await expect(propertyCode).toContainText(/"visualAnnotation": true/u);
-  await expect(propertyCode).toContainText(/"value": false/u);
+  await expect(page.getByLabel("Component display toggles")).toBeVisible();
   await expect(page.getByText("Actions", { exact: true })).toHaveCount(0);
   // Opening focuses the shelf header, never the first field: Q stays a pure
   // toggle and editing starts only when the user clicks an input.
   await expect(page.getByTestId("selection-shelf")).toBeFocused();
-  await expect(propertyCode).not.toBeFocused();
+  await expect(page.getByLabel("Component X position")).not.toBeFocused();
+  // The collapsed JSON carries the same placement and display facts.
+  const propertyCode = await openComponentPropertyCode(page);
+  await expect(propertyCode).toContainText(/"coordinate": \[/u);
+  await expect(propertyCode).toContainText(/"rotation": 0/u);
+  await expect(propertyCode).toContainText(/"mirror": "none"/u);
+  await expect(propertyCode).toContainText(/"visualAnnotation": true/u);
+  await expect(propertyCode).toContainText(/"value": false/u);
   // Quick placement seeds the ordinary resistor value from its device default.
   await expectComponentCodeField(page, "parameters.value", "1k");
   await page.getByTestId("selection-shelf").focus();
@@ -1462,16 +1466,18 @@ test("carries a default and manual Value through placement and Q property editin
   ).toHaveCount(0);
   await clickCommand(page, "Edit", "Undo");
   await expectComponentCodeField(page, "parameters.value", "1k");
-  // Electrical renaming and the shared visual editor are distinct actions;
-  // there is no second, plain-text Label field or heavyweight Identity card.
-  await expect(page.getByText("Identity", { exact: true })).toHaveCount(0);
+  // Electrical renaming and the shared visual editor are distinct fields of
+  // one Identity section; there is no second, heavyweight Identity card.
+  const identity = page.getByRole("group", { name: "Component identity" });
+  await expect(identity.getByLabel("Netlist name")).toHaveValue("R1");
+  await expect(identity.getByLabel("Display name")).toHaveValue("R1");
   await expect(page.getByLabel("Component controls")).toHaveCount(0);
   const componentCode = page.locator(
     '[aria-label="Component properties"] > :last-child',
   );
   await expect(componentCode).toHaveAttribute(
     "aria-label",
-    "Canvas property code",
+    "Component property code",
   );
   await expectComponentCodeField(page, "displayName", "R1");
   await expectComponentCodeField(page, "netlistName", "R1");
@@ -1670,6 +1676,9 @@ test("edits independent input and output swaps with undo, named connections and 
   });
   await page.getByTestId("hit-X1").click();
   await openSelectionShelf(page);
+  // The swap switches under test are the JSON editor's inline controls, which
+  // now live behind the form's collapsed Code disclosure.
+  await openComponentPropertyCode(page);
   const inputs = page.getByRole("switch", { name: "Swap the + and - inputs" });
   const outputs = page.getByRole("switch", {
     name: "Swap the + and - outputs",
@@ -1737,6 +1746,7 @@ test("edits independent input and output swaps with undo, named connections and 
   });
   await page.getByTestId("hit-X1").click();
   await openSelectionShelf(page);
+  await openComponentPropertyCode(page);
   await expect(inputs).toHaveAttribute("aria-checked", "true");
   await expect(outputs).toHaveAttribute("aria-checked", "true");
   await expectComponentCodeField(page, "appearance.internalMark", "G");
@@ -2440,11 +2450,11 @@ test("double-clicking a placed device reveals Properties without entering typing
     "aria-expanded",
     "true",
   );
-  const propertyValue = page.getByLabel("Editable Canvas property code");
-  await expect(propertyValue).toBeVisible();
+  const netlistName = page.getByLabel("Netlist name");
+  await expect(netlistName).toBeVisible();
   await expect(canvas).toBeFocused();
-  await propertyValue.click();
-  await expect(propertyValue).toBeFocused();
+  await netlistName.click();
+  await expect(netlistName).toBeFocused();
 });
 
 test("Library rail folds the sidebar; Insert opens the catalog", async ({

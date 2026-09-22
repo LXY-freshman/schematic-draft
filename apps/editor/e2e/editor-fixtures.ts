@@ -127,12 +127,32 @@ export async function chooseComponent(
   await dialog.getByTestId(`insert-component-${symbolId}`).click();
 }
 
+/**
+ * The strict JSON is the escape hatch under the component property form, so it
+ * starts collapsed. Open it on demand and hand back its editable surface. An
+ * Annotation or batch selection has no such disclosure — its code editor is the
+ * whole surface — so the collapsed component case is the only one to expand.
+ */
+export async function openComponentPropertyCode(page: Page): Promise<Locator> {
+  const disclosure = page.getByRole("group", {
+    name: "Component property code",
+  });
+  if (
+    (await disclosure.count()) > 0 &&
+    (await disclosure.getAttribute("open")) === null
+  )
+    await disclosure.locator("summary").click();
+  const input = page.getByLabel("Editable Canvas property code");
+  await expect(input).toBeVisible();
+  return input;
+}
+
 /** Edit the selected component's strict JSON; valid changes update live. */
 export async function editComponentPropertyCode(
   page: Page,
   update: (value: Record<string, any>) => void,
 ): Promise<void> {
-  const input = page.getByLabel("Editable Canvas property code");
+  const input = await openComponentPropertyCode(page);
   const value = JSON.parse(await readComponentPropertyCode(page)) as Record<
     string,
     any
@@ -143,7 +163,7 @@ export async function editComponentPropertyCode(
 
 /** Read rendered JSON lines only; the inline controls/help are not source text. */
 export async function readComponentPropertyCode(page: Page): Promise<string> {
-  await expect(page.getByLabel("Editable Canvas property code")).toBeVisible();
+  await openComponentPropertyCode(page);
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.getByRole("button", { name: "Copy JSON", exact: true }).click();
   await expect(

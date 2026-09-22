@@ -62,10 +62,12 @@ removes electrical memberships, NoConnects, owned labels, layout references,
 and the Instance in one transaction. The formal-terminal and caller projection
 is appended only by the Project transaction.
 
-## Component property code
+## Component properties
 
 Selecting a component and opening **Properties** presents its instance
-properties together as strict, editable JSON. For example, a resistor:
+properties as a form. The same properties are also available as strict,
+editable JSON in a **Code (JSON)** section collapsed beneath that form. For
+example, a resistor:
 
 ```json
 {
@@ -87,6 +89,23 @@ properties together as strict, editable JSON. For example, a resistor:
   "netlistTarget": ""
 }
 ```
+
+The form is the default surface and the code is an equivalent escape hatch:
+both edit one property-code value and commit through one apply function, so
+neither can reach a state the other cannot express. Changing a form control
+serializes the whole value, re-parses it with the same strict parser, and hands
+the result to the same planner; a rejected value reports its message and leaves
+the Document unchanged exactly as rejected JSON does. No second validation or
+mutation path exists.
+
+Sections follow the value rather than the Symbol catalog: a field is offered
+only when the selection carries it, so a schematic-only block has no Parameters
+and no Display section instead of dead controls. The order is Placement,
+Identity, Parameters, Display, Appearance, then Code (JSON). Placement,
+Identity, Parameters, and Display open by default; Appearance and the code are
+collapsed, and the code editor mounts only once its section is opened. Text
+fields commit on blur — Enter blurs, Escape restores the last accepted value —
+while selects, switches, and color presets commit immediately.
 
 `displayName` is the visual instance annotation and can differ from the
 electrical `netlistName` used by netlist export;
@@ -166,8 +185,8 @@ editor without applying legacy form drafts or discarding incomplete text.
 the draft is invalid or rejected, without changing the circuit.
 **Defaults** loads known parameter, orientation, color, and formula defaults
 immediately and remains undoable; it preserves coordinates, netlist name, model
-target, display flags, and unknown overrides. Defaults sits in the Properties
-header with Copy and conditional Discard; there is no Apply button.
+target, display flags, and unknown overrides. Defaults sits in the code
+editor's header with Copy and conditional Discard; there is no Apply button.
 **Copy JSON** copies
 the complete raw draft from the copy icon at the editor's
 top right, including unapplied whitespace and invalid drafts. The text area
@@ -176,9 +195,10 @@ Instance identity stays in the dock
 header rather than being repeated around the code. Switching components cannot carry
 an old draft or its local history into a new selection.
 
-The old component placement, display, and appearance button grids are not
-mounted in the composed Properties dock. Parameters, Netlist Overrides,
-Actions, and Netlist Target no longer have duplicate forms below the JSON.
+The form replaces the old component placement, display, and appearance button
+grids rather than joining them: only one surface for each field is mounted in
+the composed Properties dock, and Parameters, Netlist Overrides, Actions, and
+Netlist Target have no duplicate forms below the code.
 Specialized electrical terminal and Cell interface/layout controls retain
 their distinct connectivity/definition ownership. The left edge of
 Properties is draggable and keyboard-adjustable in both docked and compact

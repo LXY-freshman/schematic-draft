@@ -5,7 +5,7 @@ import { DocumentSettingsSection } from "../features/editor-shell/document-setti
 import { PlacementTrayPanel } from "../features/component-insert/placement-tray-panel";
 import { CellSymbolLayoutProperties } from "../features/properties/component-structure-properties";
 import { ComponentIdentityProperties } from "../features/properties/component-identity-properties";
-import { ComponentPropertyCodeEditor } from "../features/properties/component-property-code-editor";
+import { ComponentPropertyForm } from "../features/properties/component-property-form";
 import { AnnotationColorProperties } from "../features/properties/annotation-color-properties";
 import { NetNameProperties } from "../features/properties/net-name-properties";
 import { DraftingPropertiesPanel } from "../features/drafting/drafting-properties-panel";
@@ -24,12 +24,18 @@ import {
 } from "../features/selection/selection-inspector-details";
 
 interface ComponentPropertiesModel {
-  code: ComponentProps<typeof ComponentPropertyCodeEditor>;
+  code: ComponentProps<typeof ComponentPropertyForm>;
   cellSymbolLayout: ComponentProps<typeof CellSymbolLayoutProperties> | null;
   identity: ComponentProps<typeof ComponentIdentityProperties>;
+  /** Null when this component's netlist target is not user-selectable. */
+  modelTarget: {
+    defaultValue: string;
+    suggestions: readonly string[];
+    externalSubcircuit: boolean;
+  } | null;
   signalFlow: boolean;
   parameters: NonNullable<
-    ComponentProps<typeof ComponentPropertyCodeEditor>["details"]
+    ComponentProps<typeof ComponentPropertyForm>["details"]
   >["parameters"];
 }
 
@@ -124,26 +130,30 @@ export function EditorPropertiesDock({
                 className="property-section component-properties"
                 aria-label="Component properties"
               >
-                <ComponentPropertyCodeEditor
-                  key={component.code.instance.id}
-                  {...component.code}
-                  details={{
-                    parameters: component.parameters,
-                    ...(component.identity.modelTarget
-                      ? { modelTarget: component.identity.modelTarget }
-                      : {}),
-                    signalFlow: component.signalFlow,
-                  }}
-                />
+                {/* Electrical terminals and Cell layout are their own
+                    authoring surfaces, so they sit above the property form
+                    and its collapsed code rather than below the escape
+                    hatch. */}
                 {component.cellSymbolLayout ? (
                   <CellSymbolLayoutProperties {...component.cellSymbolLayout} />
                 ) : null}
                 {component.identity.propertyTerminal ? (
-                  <ComponentIdentityProperties
-                    {...component.identity}
-                    fieldsMovedToCode
-                  />
+                  <ComponentIdentityProperties {...component.identity} />
                 ) : null}
+                <ComponentPropertyForm
+                  key={component.code.instance.id}
+                  {...component.code}
+                  externalSubcircuit={Boolean(
+                    component.modelTarget?.externalSubcircuit,
+                  )}
+                  details={{
+                    parameters: component.parameters,
+                    ...(component.modelTarget
+                      ? { modelTarget: component.modelTarget }
+                      : {}),
+                    signalFlow: component.signalFlow,
+                  }}
+                />
               </section>
             ) : null}
             {!groupProperties.active && annotationText ? (
