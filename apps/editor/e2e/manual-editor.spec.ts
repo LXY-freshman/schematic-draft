@@ -2071,7 +2071,11 @@ test("keeps DMOS bulk hidden until drawing an explicit bulk route", async ({
 
   await page.getByTestId("hit-M1").click();
   await openSelectionShelf(page);
-  await page.getByRole("button", { name: "Edit line color" }).click();
+  // Line colour is a form control now: the collapsed Appearance section holds
+  // the presets directly, with no popover in between.
+  await page
+    .locator('details[aria-label="Component appearance"] > summary')
+    .click();
   await page.getByRole("button", { name: "Use Red for line" }).click();
   await page.getByTestId("draw-bulk-connection").click();
 

@@ -9,6 +9,7 @@ import {
   downloadBytes,
   editComponentPropertyCode,
   expectComponentCodeField,
+  openComponentPropertyCode,
   projectFileBytes,
   readComponentPropertyCode,
   setComponentCodeField,
@@ -27,11 +28,11 @@ test("property inspection and remounts keep canvas keyboard ownership", async ({
   await placeComponent(page, "resistor", { x: 550, y: 320 });
   const canvas = page.getByTestId("schematic-canvas");
   await page.getByTestId("hit-R1").dblclick();
-  const code = page.getByLabel("Editable Canvas property code");
-  await expect(code).toBeVisible();
+  const netlistName = page.getByLabel("Netlist name");
+  await expect(netlistName).toHaveValue("R1");
   await expect(canvas).toBeFocused();
   await page.getByTestId("hit-R2").click();
-  await expect(code).toContainText("R2");
+  await expect(netlistName).toHaveValue("R2");
   await expect(canvas).toBeFocused();
   await page.keyboard.press("r");
   await expectComponentCodeField(page, "placement.rotation", 90);
@@ -41,7 +42,7 @@ test("property inspection and remounts keep canvas keyboard ownership", async ({
   await page.keyboard.press("ControlOrMeta+z");
   await expect(page.getByTestId("hit-R2")).toHaveCount(1);
   await page.getByTestId("hit-R1").click();
-  await expect(code).toContainText("R1");
+  await expect(netlistName).toHaveValue("R1");
   await expect(canvas).toBeFocused();
 });
 
@@ -51,7 +52,7 @@ test("explicit property typing keeps Delete local and returns shortcuts to canva
   await page.goto("/editor");
   await placeComponent(page, "resistor", { x: 350, y: 220 });
   await page.getByTestId("hit-R1").dblclick();
-  const code = page.getByLabel("Editable Canvas property code");
+  const code = await openComponentPropertyCode(page);
   await code.click();
   await expect(code).toBeFocused();
   await page.keyboard.press("ControlOrMeta+Home");
@@ -83,6 +84,7 @@ test("live JSON properties update controls immediately and round-trip raw parame
   await expect(panel.getByRole("button", { name: "Apply code" })).toHaveCount(
     0,
   );
+  await openComponentPropertyCode(page);
   await expect(panel.locator(".cm-property-unit")).toHaveCount(2);
   await expect(panel.getByLabel("Target netlist options")).toBeVisible();
   await editComponentPropertyCode(page, (code) => {
@@ -93,7 +95,10 @@ test("live JSON properties update controls immediately and round-trip raw parame
     String(Number(revision) + 1),
   );
   await panel.getByRole("button", { name: "Edit line color" }).click();
-  await page.getByRole("button", { name: "Use Red for line" }).click();
+  await page
+    .getByRole("dialog", { name: "Line color settings" })
+    .getByRole("button", { name: "Use Red for line" })
+    .click();
   await expect(page.getByTestId("revision")).toHaveText(
     String(Number(revision) + 2),
   );
@@ -157,7 +162,7 @@ test("live Defaults are undoable and invalid drafts never change the canvas", as
   );
   await clickCommand(page, "Edit", "Undo");
   await expectComponentCodeField(page, "parameters.w", "7u");
-  const code = page.getByLabel("Editable Canvas property code");
+  const code = await openComponentPropertyCode(page);
   const invalid = JSON.parse(await readComponentPropertyCode(page));
   const lastValidRevision = await page.getByTestId("revision").textContent();
   invalid.appearance.color = [256, 0, 0];
@@ -230,7 +235,7 @@ for (const platform of ["native", "Win32", "Linux x86_64"])
     await page.goto("/editor");
     await placeComponent(page, "nmos", { x: 360, y: 220 });
     await openSelectionShelf(page);
-    const code = page.getByLabel("Editable Canvas property code");
+    const code = await openComponentPropertyCode(page);
     await editComponentPropertyCode(page, (value) => {
       value.display.value = true;
     });
@@ -300,7 +305,7 @@ for (const width of [300, 540]) {
     await placeComponent(page, "pmos", { x: 360, y: 220 });
     await openSelectionShelf(page);
     const editor = page.getByTestId("component-property-code-editor");
-    const code = page.getByLabel("Editable Canvas property code");
+    const code = await openComponentPropertyCode(page);
     const target = editor.getByLabel("Target netlist options");
     await target.selectOption("sky130_fd_pr__pfet_01v8");
     await expectComponentCodeField(
@@ -460,8 +465,11 @@ for (const width of [300, 540]) {
     }
     await color.click();
 
+    // The form's Appearance section carries the same swatches, so name the
+    // inline popover explicitly instead of matching either one.
+    const popover = page.getByRole("dialog", { name: "Line color settings" });
     expect(
-      await page
+      await popover
         .getByLabel("Line presets")
         .getByRole("button")
         .evaluateAll((buttons) =>
@@ -475,29 +483,29 @@ for (const width of [300, 540]) {
       "Use Blue for line",
     ]);
     await expect(
-      page.getByRole("button", { name: "Use Light gray for line" }),
+      popover.getByRole("button", { name: "Use Light gray for line" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Use Blue for line" }),
+      popover.getByRole("button", { name: "Use Blue for line" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Use Black for line" }),
+      popover.getByRole("button", { name: "Use Black for line" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Reset line", exact: true }),
+      popover.getByRole("button", { name: "Reset line", exact: true }),
     ).toHaveCount(0);
-    await page.getByRole("button", { name: "Use Black for line" }).click();
+    await popover.getByRole("button", { name: "Use Black for line" }).click();
     await expectComponentCodeField(page, "appearance.color", [0, 0, 0]);
 
     await color.click();
-    await page
+    await popover
       .getByRole("button", { name: "Use Red for line", exact: true })
       .click();
     await expectComponentCodeField(page, "appearance.color", [220, 38, 38]);
 
     await color.click();
-    await expect(page.getByLabel("Line RGB")).toHaveValue("[220,38,38]");
-    await page.getByLabel("Line RGB").fill("[12,38,38]");
+    await expect(popover.getByLabel("Line RGB")).toHaveValue("[220,38,38]");
+    await popover.getByLabel("Line RGB").fill("[12,38,38]");
     await expectComponentCodeField(page, "appearance.color", [12, 38, 38]);
   });
 }
@@ -511,13 +519,15 @@ test("a black-box part exposes its generated Reference", async ({ page }) => {
   await openSelectionShelf(page);
   const properties = page.getByRole("complementary", { name: "Properties" });
   await expect(properties).toContainText("voltage-amplifier");
-  const code = properties.getByLabel("Editable Canvas property code");
+  await expect(properties.getByLabel("Netlist name")).toHaveValue("X1");
+  await expect(properties.getByLabel("Display name")).toHaveValue("X1");
+  const code = await openComponentPropertyCode(page);
   await expect(code).toContainText(/"visualAnnotation": true/u);
   await expect(code).toContainText(/"displayName": "X1"/u);
   await expect(code).toContainText(/"netlistName": "X1"/u);
 });
 
-test("Q opens a text-first Properties editor with one-click exact draft copy", async ({
+test("Q toggles Properties and its JSON escape hatch copies the exact draft", async ({
   page,
 }) => {
   await page.goto("/editor");
@@ -526,12 +536,13 @@ test("Q opens a text-first Properties editor with one-click exact draft copy", a
   if ((await shelf.getAttribute("aria-expanded")) === "true")
     await shelf.click();
   await page.keyboard.press("q");
-  const code = page.getByLabel("Editable Canvas property code");
-  await expect(code).toBeVisible();
+  const placement = page.getByLabel("Component placement");
+  await expect(placement).toBeVisible();
   await page.keyboard.press("q");
-  await expect(code).not.toBeVisible();
+  await expect(placement).not.toBeVisible();
   await page.keyboard.press("q");
-  await expect(code).toBeVisible();
+  await expect(placement).toBeVisible();
+  const code = await openComponentPropertyCode(page);
   const draft = JSON.parse(await readComponentPropertyCode(page));
   draft.parameters.w = "EV";
   const raw = JSON.stringify(draft, null, 2) + "\n\n";
@@ -574,7 +585,7 @@ test("Q opens a text-first Properties editor with one-click exact draft copy", a
   await expectComponentCodeField(page, "parameters.w", "1u");
 });
 
-test("Properties offers no dead Reference controls for a schematic-only block", async ({
+test("Properties offers no dead Reference or display controls for a schematic-only block", async ({
   page,
 }) => {
   await page.goto("/editor");
@@ -591,22 +602,27 @@ test("Properties offers no dead Reference controls for a schematic-only block", 
   // offers neither a Reference field nor display keys that could never
   // change the drawing. Its Canvas property code still owns placement/style.
   await page.locator('[data-canvas-hit-kind="instance"]').first().click();
-  await expect(
-    properties.getByLabel("Editable Canvas property code"),
-  ).toBeVisible();
+  await expect(properties.getByLabel("Component placement")).toBeVisible();
   await expect(referenceField).toHaveCount(0);
   await expect(parametersCard).toHaveCount(0);
   await expect(
-    properties.getByLabel("Editable Canvas property code"),
-  ).not.toContainText(/"display"/u);
-  await expect(
-    properties.locator('details[aria-label="Component appearance"]'),
+    properties.getByRole("group", { name: "Component display", exact: true }),
   ).toHaveCount(0);
+  await expect(
+    properties.getByLabel("Editable Canvas property code"),
+  ).toBeHidden();
+  await expect(await openComponentPropertyCode(page)).not.toContainText(
+    /"display"/u,
+  );
 
-  // An ordinary device exposes both in the single code editor, not forms.
+  // An ordinary device carries the same facts as typed controls.
   await page.getByTestId("hit-R1").click();
   await expect(referenceField).toHaveCount(0);
   await expect(parametersCard).toHaveCount(0);
+  await expect(properties.getByLabel("Netlist name")).toHaveValue("R1");
+  await expect(
+    properties.getByRole("group", { name: "Component display", exact: true }),
+  ).toBeVisible();
   await expectComponentCodeField(page, "netlistName", "R1");
   await expect(
     properties.getByLabel("Editable Canvas property code"),
@@ -624,14 +640,14 @@ test("resizes Properties and applies component presentation as editable code", a
   const resize = page.getByTestId("properties-resize-handle");
   const code = properties.getByLabel("Editable Canvas property code");
   await expect(resize).toBeVisible();
-  await expect(code).toBeVisible();
-  await expect(properties.getByLabel("Component geometry")).toHaveCount(0);
+  await expect(properties.getByLabel("Component geometry")).toBeVisible();
   await expect(
     properties.locator('details[aria-label="Component appearance"]'),
-  ).toHaveCount(0);
-  await expect(properties.getByLabel("Component display toggles")).toHaveCount(
-    0,
-  );
+  ).toHaveCount(1);
+  await expect(
+    properties.getByLabel("Component display toggles"),
+  ).toBeVisible();
+  await expect(code).toBeHidden();
 
   const beforeWidth = (await properties.boundingBox())!.width;
   const resizeBox = await resize.boundingBox();
@@ -712,7 +728,7 @@ test("Properties toggles reference label visibility for one or many components",
   await page.getByTestId("hit-R1").click();
   await openSelectionShelf(page);
   const properties = page.getByRole("complementary", { name: "Properties" });
-  for (const sectionName of ["Parameters", "Netlist overrides", "Actions"]) {
+  for (const sectionName of ["Netlist overrides", "Actions"]) {
     await expect(
       properties.getByText(sectionName, { exact: true }),
     ).toHaveCount(0);
@@ -720,28 +736,38 @@ test("Properties toggles reference label visibility for one or many components",
   const componentProperties = properties.getByRole("region", {
     name: "Component properties",
   });
-  await expect(
-    componentProperties.locator(":scope > .property-disclosure"),
-  ).toHaveCount(0);
+  expect(
+    await componentProperties
+      .locator(":scope > .property-disclosure")
+      .evaluateAll((sections) =>
+        sections.map((section) => section.getAttribute("aria-label")),
+      ),
+  ).toEqual([
+    "Component placement",
+    "Component identity",
+    "Component parameters",
+    "Component display",
+    "Component appearance",
+    "Component property code",
+  ]);
   await expect(
     componentProperties.locator(":scope > :last-child"),
-  ).toHaveAttribute("aria-label", "Canvas property code");
+  ).toHaveAttribute("aria-label", "Component property code");
   await expect(
     componentProperties.locator(
       ':scope > details[aria-label="Component appearance"]',
     ),
-  ).toHaveCount(0);
+  ).toHaveCount(1);
   await expect(
     componentProperties.getByText("Built-in primitive: resistor", {
       exact: true,
     }),
   ).toHaveCount(0);
-  await expect(
-    componentProperties.getByText("Netlist target", { exact: true }),
-  ).toHaveCount(0);
+  // The Model the JSON used to hide is a plain select now, and a freshly
+  // placed resistor sits on no model at all.
   await expect(
     componentProperties.getByLabel("Component model target"),
-  ).toHaveCount(0);
+  ).toHaveValue("");
   await expectComponentCodeField(page, "netlistTarget", "");
   await editComponentPropertyCode(page, (value) => {
     value.display.visualAnnotation = false;
@@ -940,7 +966,7 @@ test("Properties keeps component and Annotation text colors independent", async 
   expect(savedLabel).not.toHaveProperty("textColor");
 });
 
-test("keeps fixed and variable capacitor Properties on the shared code surface", async ({
+test("keeps fixed and variable capacitor Properties on the shared form surface", async ({
   page,
 }) => {
   await page.goto("/editor");
@@ -955,8 +981,13 @@ test("keeps fixed and variable capacitor Properties on the shared code surface",
   });
   await expect(
     componentProperties.getByLabel("Editable Canvas property code"),
-  ).toBeVisible();
-  await expect(componentProperties.locator(":scope > *")).toHaveCount(1);
+  ).toBeHidden();
+  await expect(
+    componentProperties.locator(":scope > *").first(),
+  ).toHaveAttribute("aria-label", "Component placement");
+  await expect(
+    componentProperties.locator(":scope > *").last(),
+  ).toHaveAttribute("aria-label", "Component property code");
   await expect(
     properties.getByRole("group", { name: "Capacitor plate terminals" }),
   ).toHaveCount(0);
@@ -965,8 +996,13 @@ test("keeps fixed and variable capacitor Properties on the shared code surface",
   await expect(properties).toContainText("C2 · variable-capacitor");
   await expect(
     componentProperties.getByLabel("Editable Canvas property code"),
-  ).toBeVisible();
-  await expect(componentProperties.locator(":scope > *")).toHaveCount(1);
+  ).toBeHidden();
+  await expect(
+    componentProperties.locator(":scope > *").first(),
+  ).toHaveAttribute("aria-label", "Component placement");
+  await expect(
+    componentProperties.locator(":scope > *").last(),
+  ).toHaveAttribute("aria-label", "Component property code");
   await expect(
     properties.getByRole("group", { name: "Capacitor plate terminals" }),
   ).toHaveCount(0);
@@ -1339,12 +1375,23 @@ test("edits the transconductance trapezoid from gm to -gmL", async ({
   const formalScene = page.locator('[data-layer="formal"]');
   const frame = formalScene.locator('[data-role="signal-flow-frame"]');
 
-  await expect(properties.getByText("Identity", { exact: true })).toHaveCount(
-    0,
-  );
+  // A signal-flow block carries no device parameters and nothing to show or
+  // hide, so the form offers neither section — only its name and its drawing.
+  expect(
+    await componentProperties
+      .locator(":scope > .property-disclosure")
+      .evaluateAll((sections) =>
+        sections.map((section) => section.getAttribute("aria-label")),
+      ),
+  ).toEqual([
+    "Component placement",
+    "Component identity",
+    "Component appearance",
+    "Component property code",
+  ]);
   await expect(
     componentProperties.locator(":scope > :last-child"),
-  ).toHaveAttribute("aria-label", "Canvas property code");
+  ).toHaveAttribute("aria-label", "Component property code");
   await expectComponentCodeField(page, "signalFlow", {});
   await expect(frame).toHaveCount(1);
   await expect(frame).toHaveAttribute(
@@ -1450,6 +1497,7 @@ test("selects a reviewed SKY130 MOS through the inline Target netlist field", as
   await expect(
     properties.getByRole("button", { name: "Need help?", exact: true }),
   ).toHaveCount(0);
+  await openComponentPropertyCode(page);
   await properties
     .getByLabel("Target netlist options")
     .selectOption("sky130_fd_pr__nfet_01v8");
@@ -1631,11 +1679,9 @@ for (const symbol of ["xfmr", "tcoil"] as const) {
     const formalLabels = page.locator(
       '[data-layer="formal"] [data-kind="instance-value"]',
     );
-    const kToggle = page.getByRole("switch", {
-      name: "Toggle K visibility",
-      exact: true,
-    });
-    await expect(kToggle).toHaveAttribute("aria-checked", "false");
+    // The form's Display section owns the per-parameter switches now.
+    const kToggle = page.getByRole("checkbox", { name: "K", exact: true });
+    await expect(kToggle).not.toBeChecked();
     await kToggle.click();
     await expect(formalLabels).toHaveCount(1);
     await expect(formalLabels).toContainText("K = 1");
@@ -1686,13 +1732,10 @@ for (const symbol of ["xfmr", "tcoil"] as const) {
     });
     await page.getByTestId(`hit-${instanceId}`).click();
     await openSelectionShelf(page);
-    await expect(kToggle).toHaveAttribute("aria-checked", "true");
+    await expect(kToggle).toBeChecked();
     await expect(formalLabels).toHaveCount(2);
     await page
-      .getByRole("switch", {
-        name: `Toggle ${windingLabel} visibility`,
-        exact: true,
-      })
+      .getByRole("checkbox", { name: windingLabel, exact: true })
       .click();
     await expect(formalLabels).toHaveCount(1);
     await expect(formalLabels).toContainText("K = 0.83");

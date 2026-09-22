@@ -1,18 +1,14 @@
 // The property model needs syntax ranges, not CodeMirror's editor runtime.
 // Use the same underlying grammar without pulling view/state into App startup.
 import { parser } from "@lezer/json";
-import { magneticDisplayParameters } from "@icm/derived";
 import { reflectOrientation } from "@icm/model";
-import { componentDetailFields } from "./component-property-details";
 import {
   parseComponentPropertyCode,
   formatComponentPropertyCode,
   type ComponentPropertyCodeContext,
 } from "./component-property-code";
-import {
-  CANVAS_PROPERTY_FIELDS,
-  type CanvasPropertyField,
-} from "./component-property-fields";
+import { componentPropertyFields } from "./component-property-field-list";
+import { type CanvasPropertyField } from "./component-property-fields";
 
 type JsonNode = ReturnType<typeof parser.parse>["topNode"];
 export interface PropertyCodeSpan {
@@ -29,23 +25,8 @@ export function propertyCodeSpans(
   customFields?: readonly CanvasPropertyField[],
 ): PropertyCodeSpan[] {
   const spans: PropertyCodeSpan[] = [];
-  const fields: readonly CanvasPropertyField[] = customFields ?? [
-    ...CANVAS_PROPERTY_FIELDS,
-    ...(context
-      ? magneticDisplayParameters(context.instance.symbolId).map(
-          (parameter) => ({
-            path: `display.parameters.${parameter.name}`,
-            label: parameter.label,
-            kind: "boolean" as const,
-            description: "",
-            help: `Show ${parameter.label} on the canvas`,
-          }),
-        )
-      : []),
-    ...(context
-      ? componentDetailFields(context.instance, context.details)
-      : []),
-  ];
+  const fields: readonly CanvasPropertyField[] =
+    customFields ?? componentPropertyFields(context);
   function visit(object: JsonNode, prefix: string) {
     for (let node = object.firstChild; node; node = node.nextSibling) {
       if (node.name !== "Property") continue;

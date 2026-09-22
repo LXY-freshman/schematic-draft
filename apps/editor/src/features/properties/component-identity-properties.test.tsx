@@ -25,115 +25,90 @@ describe("component identity properties", () => {
     expect(componentTargetDescription(instance)).toBeNull();
   });
 
-  it("renders editable controls without an Identity card and ends with raw component code", () => {
+  it("names the bound target a component cannot choose from a model list", () => {
     const document = createEmptyDocument("cell", "Cell");
     const instance: (typeof document.instances)[number] = {
-      id: "M1",
-      symbolId: "nmos",
+      id: "X1",
+      symbolId: "adder",
       placement: null,
-      reference: "M1",
-      netlist: { parameters: {} },
+      netlist: {
+        parameters: {},
+        binding: { kind: "subcircuit", childDocumentId: "cell" },
+      },
     };
-    const markup = renderToStaticMarkup(
-      <ComponentIdentityProperties
-        instance={instance}
-        revision={0}
-        targetDescription={null}
-        capacitorPlateRows={null}
-        modelTarget={{
-          defaultValue: "sky130_fd_pr__nfet_01v8",
-          suggestions: ["sky130_fd_pr__nfet_01v8"],
-          externalSubcircuit: false,
-        }}
-        sourceCode={{
-          code: "M1 drain gate source bulk sky130_fd_pr__nfet_01v8 W=1u L=150n",
-          exact: true,
-          note: null,
-        }}
-        onReferenceChange={vi.fn()}
-        onEditAnnotation={vi.fn()}
-        onModelTargetChange={vi.fn()}
-      />,
-    );
-    expect(markup).not.toContain('aria-label="Supply name"');
-    expect(markup).not.toContain("Identity");
-    expect(markup).not.toContain("<details");
-    expect(markup).not.toContain("Cell");
-    expect(markup).toContain('<option value="">None</option>');
-    expect(markup).toContain("sky130_fd_pr__nfet_01v8");
-    expect(markup).toContain("Custom…");
-    expect(markup).not.toContain("datalist");
-    expect(markup).toMatch(
-      /<div class="component-source-code"[^>]*><code>M1 drain gate source bulk sky130_fd_pr__nfet_01v8 W=1u L=150n<\/code><\/div>$/u,
+    expect(componentTargetDescription(instance, "summing_stage")).toBe(
+      "Internal Cell: summing_stage",
     );
   });
 
-  it("offers no Reference field when the object has no authored Reference", () => {
-    const document = createEmptyDocument("cell", "Cell");
-    const instance: (typeof document.instances)[number] = {
-      id: "X2",
-      symbolId: "adder",
-      placement: null,
-    };
+  it("shows the electrical terminals and the SPICE line, and nothing editable", () => {
     const markup = renderToStaticMarkup(
       <ComponentIdentityProperties
-        instance={instance}
-        revision={1}
-        targetDescription={null}
+        capacitorPlateRows={[
+          {
+            role: "capacitor-top-plate",
+            label: "Top plate",
+            pinName: "p",
+            sourceNodePosition: 0,
+            netId: "n1",
+            netName: "out",
+          },
+          {
+            role: "capacitor-bottom-plate",
+            label: "Bottom plate",
+            pinName: "n",
+            sourceNodePosition: 1,
+            netId: null,
+            netName: null,
+          },
+        ]}
+        sourceCode={{ code: "C1 out 0 1p", exact: true, note: null }}
+      />,
+    );
+    expect(markup).toContain('aria-label="Top plate terminal"');
+    expect(markup).toContain("Pin p · out");
+    expect(markup).toContain("Pin n · Unconnected");
+    // Placement, identity, parameters and appearance belong to the form now.
+    expect(markup).not.toContain('aria-label="Netlist Reference"');
+    expect(markup).not.toContain('aria-label="Component model target"');
+    expect(markup).not.toContain("Edit annotation");
+    expect(markup).toMatch(
+      /<div class="component-source-code"[^>]*><code>C1 out 0 1p<\/code><\/div>$/u,
+    );
+  });
+
+  it("offers the property-only terminal its Nets and marks a template SPICE line", () => {
+    const onChange = vi.fn();
+    const markup = renderToStaticMarkup(
+      <ComponentIdentityProperties
         capacitorPlateRows={null}
-        modelTarget={null}
+        propertyTerminal={{
+          label: "Substrate Net",
+          pinName: "b",
+          netId: "n2",
+          options: [
+            { netId: "n2", label: "VSS" },
+            { netId: "n3", label: "VDD" },
+          ],
+          onChange,
+        }}
         sourceCode={{
           code: "X2 <in> <out> <subcircuit-model>",
           exact: false,
           note: "Subcircuit template — choose a concrete model before export.",
         }}
-        onReferenceChange={vi.fn()}
-        onEditAnnotation={vi.fn()}
-        onModelTargetChange={vi.fn()}
       />,
     );
+    expect(markup).toContain('aria-label="Substrate Net"');
+    expect(markup).toContain('<option value="">Unconnected</option>');
+    expect(markup).toContain("Property-only terminal · no canvas pin or wire");
+    expect(markup).toContain('data-exact="false"');
     expect(markup).toContain(
       "<code>X2 &lt;in&gt; &lt;out&gt; &lt;subcircuit-model&gt;</code>",
     );
-    expect(markup).not.toContain("Identity");
-    expect(markup).not.toContain("Cell");
-    expect(markup).not.toContain('aria-label="Netlist Reference"');
-    // A retained Instance has nowhere to stand a label yet.
-    expect(markup).not.toContain('aria-label="Component label"');
-  });
-
-  it("offers one rich-editor action beside the Netlist Reference", () => {
-    const document = createEmptyDocument("cell", "Cell");
-    const instance: (typeof document.instances)[number] = {
-      id: "R1",
-      symbolId: "resistor",
-      placement: {
-        position: { x: 100, y: 100 },
-        rotation: 0,
-        mirror: "none",
-      },
-      reference: "R1",
-      netlist: {
-        parameters: {},
-        binding: { kind: "primitive", deviceClass: "resistor" },
-      },
-    };
-    const markup = renderToStaticMarkup(
-      <ComponentIdentityProperties
-        instance={instance}
-        revision={2}
-        targetDescription={null}
-        capacitorPlateRows={null}
-        modelTarget={null}
-        sourceCode={{ code: "R1 net1 net2 10k", exact: true, note: null }}
-        onReferenceChange={vi.fn()}
-        onEditAnnotation={vi.fn()}
-        onModelTargetChange={vi.fn()}
-      />,
+    expect(markup).toContain(
+      "Subcircuit template — choose a concrete model before export.",
     );
-    expect(markup).toContain('aria-label="Netlist Reference"');
-    expect(markup).toContain("Edit annotation");
-    expect(markup).not.toContain('aria-label="Component label"');
-    expect(markup).toContain('value="R1"');
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

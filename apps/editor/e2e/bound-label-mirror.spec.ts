@@ -9,6 +9,7 @@ import { builtInSymbols, InMemorySymbolResolver } from "@icm/symbols";
 import {
   awaitEditorReady,
   downloadBytes,
+  openComponentPropertyCode,
   projectFileBytes,
 } from "./editor-fixtures";
 
@@ -130,6 +131,7 @@ test("Properties mirror buttons carry the live MOS name and fraction value, with
   await page.getByTestId("hit-M1").click();
   await page.keyboard.press("q");
   await expect(page.getByTestId("selection-shelf")).toBeVisible();
+  await openComponentPropertyCode(page);
   const editor = page.getByTestId("component-property-code-editor");
   await editor.getByRole("button", { name: "Mirror top to bottom" }).click();
   checkReflected(labels, (await savedDocument(page)).annotations, "y", 240);

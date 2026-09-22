@@ -77,46 +77,52 @@ is defined.
   the pin connects and a junction dot appears; crossing another wire's
   interior remains unconnected. The contextual **Delete wire** action removes
   that electrical branch, not only its drawing, and can split its Net.
-- Select a component and press `Q` to open **Properties**. Its editable
-  JSON keeps raw parameters (W/L/NF/M and additional
-  netlist overrides), the independent visual `displayName`, `netlistName`, and
-  target netlist together with position as `"coordinate": [x, y]`, plus 45-degree-step
-  rotation, mirror, supported Visual annotation/Value visibility, and line color.
-  Placement, appearance, and display stay at the top. The code area is ordinary
-  selectable raw JSON. Press Enter to confirm without inserting a line break;
-  use Shift+Enter when you want a new JSON line. `displayName` changes only the
-  drawing label, while `netlistName` is the exported electrical instance name;
-  `display.visualAnnotation` only controls the drawing label. Declared parameter
-  units appear beside their JSON values without becoming data, and
-  `netlistTarget` has a compact inline selector. Type values directly, use the
-  small switches after `display.visualAnnotation` and
-  `display.value` to toggle label visibility, click the buttons after
-  `placement.rotation` and `placement.mirror` to rotate clockwise, mirror
-  left/right, or mirror top/bottom. Mirror is written as `"horizontal"`,
-  `"vertical"`, or `"both"` and never changes the rotation value. Use the color button after
-  `appearance.color` for light gray, red, green, blue, black, and one RGB
-  tuple input such as `[220,38,38]`.
-  Differential-input blocks expose `appearance.inputsSwapped`; fully
-  differential amplifiers also expose `appearance.outputsSwapped`. Edit these
-  booleans or use their inline switches to exchange the +/− positions
-  independently. Connections follow their named pins, and internal marks stay
-  intact. **Defaults** resets both swaps to `false`.
-  These controls are visual only and are absent from selected, copied, and
-  saved JSON. Fixed colors display as
-  `[R, G, B]` (0–255); hex input also works. Type `"auto"` directly to inherit
-  document ink. Components expose no `background` or `fillColor`; those belong
-  only to drawable shapes that can contain paint.
-  Valid edits update the drawing immediately; invalid or rejected edits keep
-  the last accepted drawing. Undo restores prior edits. Parameter values are strings: type unit suffixes
-  yourself; `EV` remains `EV`, and `2u` is not changed to `2um`.
-  The Properties header contains **Defaults**, **Copy JSON**, and **Discard draft**
-  when text is invalid or rejected. Defaults restores known defaults immediately
-  without moving, renaming or rebinding the component. Copy JSON copies
-  the whole draft. Compatible drawing
-  variants and formula overrides are in the same editor, with no duplicate
-  Parameters/Actions/Netlist Target forms. Drag the panel's left edge to set a
-  comfortable width. JSON expands completely; scroll the panel rather than a
-  nested text area. Escape leaves the editor without discarding incomplete text.
+- Select a component and press `Q` to open **Properties**. It opens as a form
+  holding the sections that component actually has: **Placement** (position as
+  X and Y, 45-degree-step rotation, and an independent mirror), **Identity**
+  (`netlistName`, `displayName`, the compatible drawing variant, and — for a
+  supply marker — its connection and Net name), **Parameters** (one row per
+  declared parameter, plus the target netlist Model where the device takes
+  one), **Display** (the Visual annotation, Value, and per-parameter visibility
+  switches), and **Appearance** (line color, internal mark text, and the
+  differential swap switches). A section appears only when the selection has
+  those fields, so a schematic-only block offers no Parameters and no Display
+  section rather than dead controls. Placement and Identity start open;
+  Appearance starts collapsed.
+  Type in a field and press Enter — or click away — to apply it; Escape puts the
+  previous value back. Selects, switches, and color presets apply on the spot.
+  Valid edits update the drawing immediately; invalid or rejected edits keep the
+  last accepted drawing and say why. Undo restores prior edits.
+  `displayName` changes only the drawing label, while `netlistName` is the
+  exported electrical instance name; the Visual annotation switch likewise only
+  controls the drawing label. Parameter values are strings: type unit suffixes
+  yourself; `EV` remains `EV`, and `2u` is not changed to `2um`. Declared units
+  appear beside their fields without becoming data. Mirror is horizontal,
+  vertical, or both, and never changes the rotation value. Line color offers
+  light gray, red, green, blue, black, and one RGB tuple input such as
+  `[220,38,38]`; **Auto** inherits document ink. Components expose no background
+  or fill color; those belong only to drawable shapes that can contain paint.
+  Differential-input blocks expose **Swap inputs**; fully differential
+  amplifiers also expose **Swap outputs**. They exchange the +/− positions
+  independently, connections follow their named pins, and internal marks stay
+  intact.
+- **Code (JSON)** sits collapsed at the bottom of the same panel. It is the same
+  properties by another route — form and code share one value and one apply
+  path, so an edit in either shows up in the other. Open it to paste a whole
+  component's properties at once, to read the exact spelling of a field, to set
+  a Signal Flow formula override, or to reach **Defaults**, **Copy JSON**, and
+  **Discard draft** (Discard draft appears when the text is invalid or
+  rejected). Defaults restores known defaults immediately without moving,
+  renaming or rebinding the component; Copy JSON copies the whole draft.
+  The code area is ordinary selectable raw JSON: press Enter to confirm without
+  inserting a line break, and Shift+Enter when you want a new JSON line.
+  Position is written as `"coordinate": [x, y]`, mirror as `"horizontal"`,
+  `"vertical"`, or `"both"`, and a fixed color as `[R, G, B]` (0–255) — hex
+  input also works, and `"auto"` inherits document ink. The editor's own inline
+  switches and buttons are drawing aids: they are absent from selected, copied,
+  and saved JSON. JSON expands completely; scroll the panel rather than a nested
+  text area. Escape leaves the editor without discarding incomplete text. Drag
+  the panel's left edge to set a comfortable width.
 - For a MOS device, the compact **Bulk** row shows its current Net or
   **Unconnected** beside **Connect**. Click the button to draw from the bulk
   terminal on the canvas. Hover the status for the terminal name and connection
