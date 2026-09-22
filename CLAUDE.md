@@ -140,7 +140,8 @@ Summary:
   export goldens, legacy and redline Projects, SPICE baselines and vendor decks,
   production-smoke report.
 - `scripts/` — symbol/component generators, golden and smoke checks, the
-  performance baseline, the Markdown link checker, `sync-to-windows.sh`, and the
+  performance baseline, the Markdown link checker, `sync-to-windows.sh`,
+  `close-guard-window-check.mjs` (the only real-Electron-window check), and the
   Windows-only `visio-open-check.ps1`, with `*.test.mjs` beside them.
 - `docs/` — product plan, ADRs, specs, user guides, roadmap, testing.
 

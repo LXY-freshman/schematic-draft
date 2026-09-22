@@ -20,6 +20,22 @@ import {
   createAppProtocolHandler,
 } from "./app-protocol.js";
 import {
+  closeAnswerFromButton,
+  closePrompt,
+  CLOSE_BUTTONS,
+  CLOSE_CANCEL_BUTTON,
+  CLOSE_DEFAULT_BUTTON,
+  decideClose,
+  READ_UNSAVED_WORK_SCRIPT,
+  REQUEST_SAVE_SCRIPT,
+  saveAttempt,
+  saveFailureNotice,
+  unsavedWorkState,
+  type CloseGuardPorts,
+  type SaveAttempt,
+  type UnsavedWorkState,
+} from "./close-guard.js";
+import {
   associationCommands,
   associationTargets,
   claimsExtension,
@@ -472,6 +488,70 @@ function buildMenu(window: BrowserWindow): Menu {
   return Menu.buildFromTemplate(template);
 }
 
+/**
+ * The editor's side of the close guard, over the one channel this shell has:
+ * script evaluated in the page, the same way a double-click is announced.
+ * `executeJavaScript` settles the page's own promise, so a Save that opens a
+ * dialog is simply awaited here.
+ */
+function closeGuardPorts(window: BrowserWindow): CloseGuardPorts {
+  const ask = async (state: UnsavedWorkState) => {
+    const { response } = await dialog.showMessageBox(window, {
+      type: "question",
+      title: PRODUCT_NAME,
+      buttons: [...CLOSE_BUTTONS],
+      defaultId: CLOSE_DEFAULT_BUTTON,
+      cancelId: CLOSE_CANCEL_BUTTON,
+      noLink: true,
+      ...closePrompt(state),
+    });
+    return closeAnswerFromButton(response);
+  };
+  return {
+    readState: async () =>
+      unsavedWorkState(
+        await window.webContents.executeJavaScript(
+          READ_UNSAVED_WORK_SCRIPT,
+          true,
+        ),
+      ),
+    ask,
+    save: async (): Promise<SaveAttempt> =>
+      saveAttempt(
+        await window.webContents.executeJavaScript(REQUEST_SAVE_SCRIPT, true),
+      ),
+    reportFailure: async (message) => {
+      await dialog.showMessageBox(window, {
+        type: "warning",
+        title: PRODUCT_NAME,
+        ...saveFailureNotice(message),
+      });
+    },
+  };
+}
+
+/**
+ * Hold the close until the guard has an answer.
+ *
+ * `destroy()` is what finally shuts the window: it bypasses the renderer's own
+ * `beforeunload`, which would otherwise cancel this close silently. Nothing
+ * else runs on `close` after that, so the remembered size is written here.
+ */
+function guardWindowClose(window: BrowserWindow): void {
+  let approved = false;
+  window.on("close", (event) => {
+    if (approved) return;
+    event.preventDefault();
+    void (async () => {
+      if ((await decideClose(closeGuardPorts(window))) !== "close") return;
+      approved = true;
+      if (window.isDestroyed()) return;
+      await saveWindowState(window);
+      window.destroy();
+    })();
+  });
+}
+
 async function createWindow(): Promise<BrowserWindow> {
   const state = await loadWindowState();
   const window = new BrowserWindow({
@@ -508,7 +588,7 @@ async function createWindow(): Promise<BrowserWindow> {
   window.webContents.on("will-navigate", (event, url) => {
     if (!url.startsWith(`${APP_ORIGIN}/`)) event.preventDefault();
   });
-  window.on("close", () => void saveWindowState(window));
+  guardWindowClose(window);
   window.on("page-title-updated", (event) => event.preventDefault());
 
   await window.loadURL(EDITOR_ROUTE);

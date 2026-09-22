@@ -246,7 +246,12 @@ New, Open, and Revert ask whether to **Save and continue**, **Continue without
 saving**, or **Stay** when the current Project has unsaved changes. The prompt
 names the file Save would write, or says it will ask when there is none.
 Continue without saving means discard: that working copy is removed before the
-action continues. If a newer unsaved recovery copy is found on a later start, a
+action continues. Closing the desktop window with unsaved changes — the title
+bar's X, `Alt+F4`, or **File / Exit** — asks the same question in a Windows
+dialog: **Save**, **Don't Save**, or **Cancel**. Save runs the ordinary Save
+command, so an unbound Project is asked where to go, and a save that is
+cancelled or fails leaves the window open with the work still in it. If a newer
+unsaved recovery copy is found on a later start, a
 small banner offers **Restore**, **Save a copy…**, or **Ignore**. The same
 copies remain available through **File / Recover Local Work…**; recovery never
 silently replaces the current Project. A Project restored from a recovery copy
