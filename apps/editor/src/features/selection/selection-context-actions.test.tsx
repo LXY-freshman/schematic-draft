@@ -150,13 +150,14 @@ describe("selection context actions", () => {
         onDeleteWire={vi.fn()}
       />,
     );
-    expect(markup).toContain('aria-label="Annotation property code"');
-    expect(markup).toContain("Route");
-    expect(markup).toContain("OUT");
-    expect(markup).toContain("directionArrow");
+    expect(markup).toContain('aria-label="Net name"');
+    expect(markup).toContain('value="OUT"');
+    expect(markup).toContain('aria-label="Net scope"');
+    expect(markup).toContain('aria-label="Wire direction arrow"');
+    expect(markup).toContain('value="middle" selected=""');
+    expect(markup).toContain('aria-label="Wire line style"');
+    expect(markup).toContain('aria-label="Route property code"');
     expect(markup).not.toContain('aria-label="Electrical Net label"');
-    expect(markup).not.toContain('aria-label="Wire direction arrow"');
-    expect(markup).not.toContain('aria-label="Wire line style"');
     expect(markup).not.toContain("current arrow");
     expect(markup).toContain("Clear Net highlight (H)");
   });

@@ -245,6 +245,24 @@ delete action, rather than the generic wire color, label, and arrow controls.
 Unresolved bulk is not repeated as a second message.
 Drawing is disabled for retained-unplaced instances until they are placed.
 
+## Route properties
+
+Selecting a wire Route presents the same two surfaces as a component: a form
+with a **Net** and an **Appearance** section, and the strict JSON collapsed
+beneath it under **Code (JSON)**. Both edit one Route property value — the Net
+name the wire claims and that name's scope, plus color, line style, and
+direction arrow — and commit through one apply function, so neither surface can
+express an edit the other cannot.
+
+Scope belongs to a name claim, so the form offers it only once the wire claims
+a name; an unnamed wire says so rather than showing a control with nothing to
+act on. Naming a wire authors or renames its Net label in the same transaction
+as any style it carries, and clearing the name removes that label. Style is
+drawing only: it never changes Net membership, Junctions, or netlist output.
+**Highlight Net** and **Delete wire** stay beside the sections instead of
+trailing the code. A MOS bulk route keeps its instance-owned surface described
+above and does not reach this form.
+
 ## Formula-capable behavioral blocks
 
 Integrator (`1/s`), Unit Delay (`z^-1`), and Discrete-Time Integrator

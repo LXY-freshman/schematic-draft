@@ -42,7 +42,11 @@ export type RoutePropertyCodeValue = z.infer<typeof schema>;
 export type RoutePropertyCodeResult =
   { ok: true; value: RoutePropertyCodeValue } | { ok: false; message: string };
 
-const fields: readonly CanvasPropertyField[] = [
+/**
+ * Every authoring field a Route has. The code editor decorates these paths and
+ * the form draws a control for each, so both surfaces name a field once.
+ */
+export const ROUTE_PROPERTY_FIELDS: readonly CanvasPropertyField[] = [
   {
     path: "appearance.color",
     label: "Wire color",
@@ -153,7 +157,7 @@ export function parseRoutePropertyCode(
 
 export function routePropertyCodeAdapter(): PropertyJsonEditorAdapter {
   const spans = (source: string) =>
-    propertyCodeSpans(source, undefined, fields);
+    propertyCodeSpans(source, undefined, ROUTE_PROPERTY_FIELDS);
   return {
     parse: parseRoutePropertyCode,
     spans,

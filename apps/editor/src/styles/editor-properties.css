@@ -182,6 +182,12 @@
   padding: 0.65rem;
 }
 
+/* The Route form stacks disclosures where its JSON editor used to sit alone. */
+.route-properties {
+  display: grid;
+  gap: 0.55rem;
+}
+
 .property-placement-card .component-mirror-row {
   margin-top: 0;
 }

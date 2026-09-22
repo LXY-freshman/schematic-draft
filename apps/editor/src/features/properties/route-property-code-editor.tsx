@@ -20,13 +20,17 @@ export function RoutePropertyCodeEditor({
   defaultColor,
   onApply,
   actions,
+  title = "Route",
 }: {
   document: SchematicDocument;
   route: Route;
   netLabel: Annotation | null;
   defaultColor: string;
   onApply(value: RoutePropertyCodeValue): { ok: boolean; message?: string };
-  actions: ReactNode;
+  /** Route commands the form keeps beside the sections, not the JSON. */
+  actions?: ReactNode;
+  /** "JSON" when the form owns the section heading above it. */
+  title?: string;
 }) {
   const adapter = useMemo(() => routePropertyCodeAdapter(), []);
   const format = (value: RoutePropertyCodeValue) =>
@@ -40,7 +44,7 @@ export function RoutePropertyCodeEditor({
       onApply={onApply}
       defaultColor={defaultColor}
       actions={actions}
-      title="Route"
+      title={title}
     />
   );
 }
