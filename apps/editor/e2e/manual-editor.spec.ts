@@ -1737,12 +1737,14 @@ test("changes wire line style while preserving color, arrow, export and undo", a
     color: "auto",
     lineStyle: "solid",
     directionArrow: "none",
+    lineJump: false,
   });
   await editComponentPropertyCode(page, (code) => {
     code.appearance = {
       color: [220, 38, 38],
       lineStyle: "dashed",
       directionArrow: "end",
+      lineJump: false,
     };
   });
   await expect(conductor).toHaveAttribute("stroke-dasharray", "6 4");
@@ -2770,6 +2772,7 @@ test("applies Route name, scope, and appearance from one JSON edit", async ({
       color: "auto",
       lineStyle: "solid",
       directionArrow: "none",
+      lineJump: false,
     },
   });
   const revision = Number(await page.getByTestId("revision").textContent());
@@ -2779,6 +2782,7 @@ test("applies Route name, scope, and appearance from one JSON edit", async ({
       color: [220, 38, 38],
       lineStyle: "dotted",
       directionArrow: "end",
+      lineJump: false,
     };
   });
   await expect(page.getByTestId("revision")).toHaveText(String(revision + 1));
@@ -2807,6 +2811,7 @@ test("applies Route name, scope, and appearance from one JSON edit", async ({
       color: "auto",
       lineStyle: "solid",
       directionArrow: "none",
+      lineJump: false,
     },
   });
 });
@@ -2854,6 +2859,7 @@ test("names and restyles a wire from the Route form, and the JSON agrees", async
       color: [220, 38, 38],
       lineStyle: "dotted",
       directionArrow: "end",
+      lineJump: false,
     },
   });
   const saved = JSON.parse((await projectFileBytes(page)).toString("utf8"));
@@ -2869,6 +2875,67 @@ test("names and restyles a wire from the Route form, and the JSON agrees", async
       scope: "global",
     }),
   );
+});
+
+test("hops a marked wire over the wire it crosses, and nothing else", async ({
+  page,
+}) => {
+  await page.goto("/editor");
+  // Two Ports per Net, crossing at (300, 300) with nothing connected there.
+  await page.getByTestId("project-file").setInputFiles({
+    name: "routing-example.icproj.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(createRoutingDemoProject())),
+  });
+  await clickDrawTool(page, "wire");
+  await page.getByTestId("terminal-A-P").click();
+  await page.getByTestId("terminal-B-P").click();
+  await clickDrawTool(page, "wire");
+  await page.getByTestId("terminal-C-P").click();
+  await page.getByTestId("terminal-D-P").click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("crossing-count")).toHaveText("1");
+
+  await clickRoute(page, "route-ui-1", 0.25);
+  await openSelectionShelf(page);
+  const properties = page.getByRole("complementary", { name: "Properties" });
+  const flat = page.locator(
+    '[data-layer="routes"] polyline[data-object-id="route-ui-1"]',
+  );
+  const hopped = page.locator(
+    '[data-layer="routes"] path[data-object-id="route-ui-1"]',
+  );
+  const box = properties.getByRole("checkbox", { name: "Hop over crossings" });
+  await expect(flat).toHaveCount(1);
+  await expect(box).not.toBeChecked();
+
+  await box.check();
+  await expect(hopped).toHaveAttribute("data-route-line-jumps", "1");
+  await expect(flat).toHaveCount(0);
+  // The wire underneath keeps its own drawing, and the crossing stays a
+  // crossing: an arc is not a Junction and does not become one.
+  await expect(
+    page.locator('[data-layer="routes"] polyline[data-object-id="route-ui-2"]'),
+  ).toHaveCount(1);
+  await expect(page.getByTestId("crossing-count")).toHaveText("1");
+  await expect(page.locator('[data-layer="junctions"] circle')).toHaveCount(0);
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8"));
+  expect(
+    saved.documents[0].routes.find(
+      (route: { id: string }) => route.id === "route-ui-1",
+    ).styleOverride,
+  ).toEqual({ lineJump: true });
+
+  // Unticking is a return to the flat polyline, not a second kind of override.
+  await box.uncheck();
+  await expect(flat).toHaveCount(1);
+  await expect(hopped).toHaveCount(0);
+  const cleared = JSON.parse((await projectFileBytes(page)).toString("utf8"));
+  expect(
+    cleared.documents[0].routes.find(
+      (route: { id: string }) => route.id === "route-ui-1",
+    ).styleOverride ?? null,
+  ).toBe(null);
 });
 
 test("edits instance, electrical Net, and free text with bounded label handles", async ({

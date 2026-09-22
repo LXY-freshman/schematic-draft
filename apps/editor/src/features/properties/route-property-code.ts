@@ -35,6 +35,7 @@ const schema = z.strictObject({
     color,
     lineStyle: z.enum(["solid", "dashed", "dotted"]),
     directionArrow: z.enum(["none", "middle", "end"]),
+    lineJump: z.boolean(),
   }),
 });
 
@@ -85,6 +86,13 @@ export const ROUTE_PROPERTY_FIELDS: readonly CanvasPropertyField[] = [
     ],
     description: "",
   },
+  {
+    path: "appearance.lineJump",
+    label: "Hop over crossings",
+    kind: "boolean",
+    description: "",
+    help: "Draw a small arc where this wire crosses another Net's wire. Drawing only: a hop neither makes nor breaks a connection.",
+  },
 ];
 
 function netLabelScope(
@@ -119,6 +127,7 @@ export function routePropertyCodeValue(
         : "auto",
       lineStyle: route.styleOverride?.lineStyle ?? "solid",
       directionArrow: route.styleOverride?.arrow ?? "none",
+      lineJump: route.styleOverride?.lineJump ?? false,
     },
   };
 }

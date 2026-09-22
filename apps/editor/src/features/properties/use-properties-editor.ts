@@ -556,6 +556,9 @@ export function usePropertiesEditor(options: UsePropertiesEditorOptions) {
     else styleOverride.lineStyle = value.appearance.lineStyle;
     if (value.appearance.directionArrow === "none") delete styleOverride.arrow;
     else styleOverride.arrow = value.appearance.directionArrow;
+    // Flat crossings are the default, so an unticked box stores nothing.
+    if (!value.appearance.lineJump) delete styleOverride.lineJump;
+    else styleOverride.lineJump = true;
     const nextStyle =
       Object.keys(styleOverride).length > 0 ? styleOverride : null;
     if (
