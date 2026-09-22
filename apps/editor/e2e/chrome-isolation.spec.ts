@@ -14,7 +14,7 @@ test("keeps editor chrome typography from suppressing SVG italics", async ({
 
   const italicRun = page
     .getByTestId("schematic-canvas")
-    .locator('[data-text-run="span"][style*="font-style:italic"]')
+    .locator('[data-text-run="span"][font-style="italic"]')
     .first();
   await expect(italicRun).toBeVisible();
   await expect(italicRun).toHaveCSS("font-style", "italic");

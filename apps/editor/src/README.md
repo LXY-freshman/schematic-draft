@@ -64,8 +64,9 @@ and Durable Object storage. `src/` and the top-level Worker only mount it.
 
 `main.tsx`, `styles.css`, and `vite-env.d.ts` remain at the source root because
 they are build/runtime entry infrastructure rather than product domains. The
-root also holds `gallery-client.ts`, `gallery.css`, and the static service
-worker test `service-worker-cache.test.ts`.
+root also holds `product.ts` and `style-nonce.ts`: facts about the application
+and the document hosting it, owned by no feature and read across layers that
+may not import each other.
 
 ## Editor Composition Boundaries
 

@@ -57,9 +57,9 @@ describe("current rendering contract", () => {
     );
 
     expect(svg).toContain('data-pin-name="VGS1"');
-    expect(svg).toContain("font-style:italic;font-weight:700");
+    expect(svg).toContain('font-style="italic" font-weight="700"');
     expect(svg).toContain('data-text-run="subscript"');
-    expect(svg).toContain("font-style:normal;font-weight:700");
+    expect(svg).toContain('font-style="normal" font-weight="700"');
     expect(svg).not.toContain("baseline-shift");
     expect(svg).not.toMatch(/font-size="[\d.]+%"/u);
     expect(svg).toContain("svg{font-size:");
@@ -174,7 +174,7 @@ describe("current rendering contract", () => {
       /<text data-pin-name="V_in"[^>]*>.*?<\/text>/u,
     )?.[0];
     expect(pinText).toBeDefined();
-    expect(pinText).not.toContain("font-style:italic");
+    expect(pinText).not.toContain('font-style="italic"');
   });
 
   it("renders an explicit pin display name without changing electrical identity", () => {
@@ -220,10 +220,10 @@ describe("current rendering contract", () => {
 
     expect(svg).toContain('data-pin-name="QBAR"');
     expect(svg).toContain('data-text-run="overbar"');
-    expect(svg).toContain("text-decoration:overline");
+    expect(svg).toContain('text-decoration="overline"');
     expect(svg).toContain(">Q</tspan>");
     expect(svg).not.toContain(">QBAR</text>");
-    expect(svg).toContain("font-style:italic;font-weight:700");
+    expect(svg).toContain('font-style="italic" font-weight="700"');
     expect(svg).toContain('font-size="10.28"');
   });
 
@@ -372,10 +372,10 @@ describe("current rendering contract", () => {
     expect(svg).toContain('data-route-presentation="power-rail"');
     expect(svg).not.toContain('data-role="supply-bar"');
     expect(svg).toContain(
-      'style="font-style:italic;font-weight:700">V<tspan data-text-run="subscript"',
+      'font-style="italic" font-weight="700">V<tspan data-text-run="subscript"',
     );
     expect(svg).toContain(
-      'data-text-run="subscript" dx="0.528455" dy="3.216685" font-size="11.48816px" style="font-style:normal;font-weight:700">DD',
+      'data-text-run="subscript" dx="0.528455" dy="3.216685" font-size="11.48816px" font-style="normal" font-weight="700">DD',
     );
     expect(svg).not.toContain("baseline-shift");
   });

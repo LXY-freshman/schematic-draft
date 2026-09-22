@@ -47,11 +47,11 @@ describe("drafting layer rendering", () => {
       ],
     };
     expect(renderDocumentSvg(document, resolver)).toMatch(
-      /data-kind="draft-text"[^>]*font-weight="bold"[^>]*>G<tspan[^>]*font-weight:700/u,
+      /data-kind="draft-text"[^>]*font-weight="bold"[^>]*>G<tspan[^>]*font-weight="700"/u,
     );
     document.drafting.objects[0]!.styleOverride = { weight: "normal" };
     expect(renderDocumentSvg(document, resolver)).toMatch(
-      /data-kind="draft-text"[^>]*font-weight="normal"[^>]*>G<tspan[^>]*font-weight:400/u,
+      /data-kind="draft-text"[^>]*font-weight="normal"[^>]*>G<tspan[^>]*font-weight="400"/u,
     );
   });
   it("exports a transparent complete outline, without a center shaft or duplicated head", () => {

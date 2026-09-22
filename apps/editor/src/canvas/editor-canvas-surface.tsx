@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import type { ComponentProps, SVGProps } from "react";
 import { schematicRoundPeriodFontFaceCss } from "@icm/derived";
 
+import { styleNonce } from "../style-nonce";
+
 import {
   CanvasGridOverlay,
   CanvasInputPlanes,
@@ -233,7 +235,9 @@ export function EditorCanvasSurface({
         viewBox={viewBox}
         {...eventHandlers}
       >
-        <style>{schematicRoundPeriodFontFaceCss}</style>
+        <style nonce={styleNonce() || undefined}>
+          {schematicRoundPeriodFontFaceCss}
+        </style>
         <CanvasGridOverlay {...grid} />
         <EditorSelectionHalo {...selectionHalo} />
         <g dangerouslySetInnerHTML={sceneInnerHtml} />

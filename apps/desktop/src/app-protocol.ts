@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { extname, isAbsolute, relative, resolve } from "node:path";
 
@@ -68,6 +68,21 @@ function inlineScriptHashes(html: string): string[] {
   return hashes;
 }
 
+/**
+ * The name of the meta element that hands the document's style nonce to the
+ * editor. Kept in step with `apps/editor/src/style-nonce.ts`.
+ */
+export const CSP_NONCE_META_NAME = "csp-nonce";
+
+const NONCE_ANCHOR = "<head>";
+
+function withStyleNonce(html: string, nonce: string): string {
+  return html.replace(
+    NONCE_ANCHOR,
+    `${NONCE_ANCHOR}<meta name="${CSP_NONCE_META_NAME}" content="${nonce}" />`,
+  );
+}
+
 export async function createAppProtocolHandler(
   options: AppProtocolOptions,
 ): Promise<(request: Request) => Promise<Response>> {
@@ -77,22 +92,43 @@ export async function createAppProtocolHandler(
   }
   const indexHtml = await readFile(inside(root, "index.html"), "utf8");
   const scriptSources = ["'self'", ...inlineScriptHashes(indexHtml)].join(" ");
-  const contentSecurityPolicy = [
-    "default-src 'self'",
-    "img-src 'self' blob: data:",
-    "style-src 'self'",
-    "font-src 'self' data:",
-    `script-src ${scriptSources}`,
-    "worker-src 'self' blob:",
-    "connect-src 'self'",
-    "frame-src 'none'",
-    "object-src 'none'",
-    "base-uri 'none'",
-    "form-action 'none'",
-  ].join("; ");
+  if (!indexHtml.includes(NONCE_ANCHOR)) {
+    // Refuse to launch rather than serve a document that cannot carry the
+    // nonce: the editor would come up with its code panels and schematic font
+    // silently unstyled, which is not a failure it can report.
+    throw new Error("The editor document has no <head> to carry a style nonce");
+  }
+
+  /**
+   * Two inline stylesheets are part of the editor rather than accidents of it:
+   * CodeMirror mounts its theme as a `<style>` element the first time a code
+   * view opens, and the canvas carries the round-period `@font-face` whose
+   * metrics the renderer has already measured against. A flat
+   * `style-src 'self'` drops both — the code panels lose their layout and the
+   * period falls back to a different advance — so the document response mints
+   * a nonce and admits exactly what carries it. `'unsafe-inline'` would admit
+   * anything the SVG scene could smuggle past escaping, which is the one
+   * markup path this editor writes by hand.
+   */
+  const contentSecurityPolicy = (styleNonce: string | null): string =>
+    [
+      "default-src 'self'",
+      "img-src 'self' blob: data:",
+      styleNonce
+        ? `style-src 'self' 'nonce-${styleNonce}'`
+        : "style-src 'self'",
+      "font-src 'self' data:",
+      `script-src ${scriptSources}`,
+      "worker-src 'self' blob:",
+      "connect-src 'self'",
+      "frame-src 'none'",
+      "object-src 'none'",
+      "base-uri 'none'",
+      "form-action 'none'",
+    ].join("; ");
 
   const secureHeaders = {
-    "content-security-policy": contentSecurityPolicy,
+    "content-security-policy": contentSecurityPolicy(null),
     "cross-origin-opener-policy": "same-origin",
     "x-content-type-options": "nosniff",
   };
@@ -140,13 +176,26 @@ export async function createAppProtocolHandler(
       }
       const bytes = await readFile(target);
       const immutable = !target.endsWith("index.html");
+      if (!immutable) {
+        // A fresh nonce per document load: it is a licence for this page's
+        // own stylesheets, not a value worth caching or reusing.
+        const styleNonce = randomBytes(16).toString("base64");
+        const html = withStyleNonce(bytes.toString("utf8"), styleNonce);
+        return new Response(request.method === "HEAD" ? null : html, {
+          status: 200,
+          headers: {
+            "content-type": TYPES[".html"] ?? "text/html; charset=utf-8",
+            "cache-control": "no-cache",
+            ...secureHeaders,
+            "content-security-policy": contentSecurityPolicy(styleNonce),
+          },
+        });
+      }
       return new Response(request.method === "HEAD" ? null : bytes, {
         status: 200,
         headers: {
           "content-type": TYPES[extname(target)] ?? "application/octet-stream",
-          "cache-control": immutable
-            ? "public, max-age=31536000, immutable"
-            : "no-cache",
+          "cache-control": "public, max-age=31536000, immutable",
           ...secureHeaders,
         },
       });

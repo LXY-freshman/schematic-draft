@@ -23,8 +23,23 @@ function escapeXml(value: string): string {
     .replaceAll(">", "&gt;");
 }
 
-function styleAttribute(ctx: RenderContext): string {
-  return `font-style:${ctx.italic ? "italic" : "normal"};font-weight:${ctx.bold ? ctx.profile.typography.mathWeight : ctx.profile.typography.plainWeight}`;
+/**
+ * Typography as SVG presentation attributes rather than a `style` attribute.
+ *
+ * The shell's `style-src` drops a parsed `style` attribute wholesale: italic
+ * variable names render upright, weights flatten, and the overbar — the mark
+ * that distinguishes an active-low signal from its complement — goes missing.
+ * A nonce cannot rescue it either; CSP admits stylesheets by nonce, never
+ * attributes. Presentation attributes carry the same declarations, are not
+ * policed at all, and are better understood by the Office-class importers this
+ * SVG is also written for. Nothing in the scene is styled by a stylesheet, so
+ * their lower precedence costs nothing.
+ */
+function typographyAttributes(ctx: RenderContext): string {
+  const weight = ctx.bold
+    ? ctx.profile.typography.mathWeight
+    : ctx.profile.typography.plainWeight;
+  return ` font-style="${ctx.italic ? "italic" : "normal"}" font-weight="${weight}"`;
 }
 
 function number(value: number): string {
@@ -168,8 +183,8 @@ function renderSpan(
       bold: ctx.bold || node.style === "bold",
     };
     const decoration =
-      node.style === "overbar" ? ";text-decoration:overline" : "";
-    return `<tspan data-text-run="${node.style === "overbar" ? "overbar" : "span"}" style="${styleAttribute(childCtx)}${decoration}">${renderRuns(node.children, childCtx, state)}</tspan>`;
+      node.style === "overbar" ? ` text-decoration="overline"` : "";
+    return `<tspan data-text-run="${node.style === "overbar" ? "overbar" : "span"}"${typographyAttributes(childCtx)}${decoration}>${renderRuns(node.children, childCtx, state)}</tspan>`;
   }
 
   const typography = ctx.profile.typography;
@@ -194,5 +209,5 @@ function renderSpan(
     fontSize: scriptFontSize,
     baselineOffset: targetOffset,
   };
-  return `<tspan data-text-run="${node.style}" dx="${number(dx)}" dy="${number(dy)}" font-size="${number(scriptFontSize)}px" style="${styleAttribute(scriptCtx)}">${renderRuns(node.children, scriptCtx, state)}</tspan>`;
+  return `<tspan data-text-run="${node.style}" dx="${number(dx)}" dy="${number(dy)}" font-size="${number(scriptFontSize)}px"${typographyAttributes(scriptCtx)}>${renderRuns(node.children, scriptCtx, state)}</tspan>`;
 }

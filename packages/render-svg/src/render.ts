@@ -170,14 +170,14 @@ function renderStackedFractionAnnotation(
       ? ` textLength="${width}" lengthAdjust="spacingAndGlyphs"`
       : "";
   };
-  const partStyle = `font-style:normal;font-weight:${profile.typography.mathWeight}`;
+  const partTypography = ` font-style="normal" font-weight="${profile.typography.mathWeight}"`;
   // `fill` paints glyphs; `color` supplies currentColor for nested RichText
   // decorations such as CSS overbars inside a fraction part.
   const textColor = options.color
     ? ` fill="${options.color}" color="${options.color}"`
     : "";
   const attributes = options.attributes ? ` ${options.attributes}` : "";
-  return `<g${attributes}><text data-role="fraction-numerator" x="${centerX}" y="${numeratorY}" text-anchor="middle" font-size="${partFont}"${partLength(fraction.numerator)}${textColor} style="${partStyle}">${renderRichTextDocument(fraction.numerator, profile, { defaultBold: true, fontSize: partFont })}</text><line data-role="fraction-bar" x1="${centerX - halfWidth}" y1="${barY}" x2="${centerX + halfWidth}" y2="${barY}" stroke="${options.color ?? profile.foreground}" stroke-width="${profile.strokes.annotation}"/><text data-role="fraction-denominator" x="${centerX}" y="${denominatorY}" text-anchor="middle" font-size="${partFont}"${partLength(fraction.denominator)}${textColor} style="${partStyle}">${renderRichTextDocument(fraction.denominator, profile, { defaultBold: true, fontSize: partFont })}</text></g>`;
+  return `<g${attributes}><text data-role="fraction-numerator" x="${centerX}" y="${numeratorY}" text-anchor="middle" font-size="${partFont}"${partLength(fraction.numerator)}${textColor}${partTypography}>${renderRichTextDocument(fraction.numerator, profile, { defaultBold: true, fontSize: partFont })}</text><line data-role="fraction-bar" x1="${centerX - halfWidth}" y1="${barY}" x2="${centerX + halfWidth}" y2="${barY}" stroke="${options.color ?? profile.foreground}" stroke-width="${profile.strokes.annotation}"/><text data-role="fraction-denominator" x="${centerX}" y="${denominatorY}" text-anchor="middle" font-size="${partFont}"${partLength(fraction.denominator)}${textColor}${partTypography}>${renderRichTextDocument(fraction.denominator, profile, { defaultBold: true, fontSize: partFont })}</text></g>`;
 }
 
 function isPositionableFractionCompanion(run: RichTextRun): boolean {
@@ -814,8 +814,11 @@ export function renderVisiblePinNames(
                   : mathSymbolRuns,
             }
           : { runs: [{ kind: "text" as const, value: displayName }] };
+      // `fill` as a presentation attribute rather than `style`: the shell's
+      // `style-src` drops the latter, which would leave an overridden pin name
+      // painted the default foreground.
       const colorStyle = foregroundOverride
-        ? ` style="fill:${escapeXml(foregroundOverride)}"`
+        ? ` fill="${escapeXml(foregroundOverride)}"`
         : "";
       return `<text data-pin-name="${escapeXml(pin.name)}" x="${x}" y="${y}" text-anchor="${alignment}"${sizeAttribute}${colorStyle}>${renderRichTextDocument(content, profile, { fontSize: schematicTextFontSize("pin-name", profile) })}</text>`;
     })
@@ -1452,7 +1455,7 @@ export function buildSvgScene(
           { x: -polarity.polarityOffsetX, y: polarity.polarityHalfGap },
           rotation,
         );
-        const polarityStyle = `font-style:normal;font-weight:${profile.typography.plainWeight}`;
+        const polarityTypography = ` font-style="normal" font-weight="${profile.typography.plainWeight}"`;
         const formula = renderFormulaDocument(content, profile, {
           x: position.x,
           baselineY: position.y,
@@ -1463,7 +1466,7 @@ export function buildSvgScene(
         const text = formula
           ? formula
           : `<text x="${position.x}" y="${position.y}" text-anchor="${annotation.alignment}"${colorOverride ? ` fill="${colorOverride}"` : ""}${schematicTextSizeAttribute("route-marker", profile, annotation.sizeScale)}>${renderAnnotationText(document, annotation, profile, logicalNets)}</text>`;
-        return `<g ${attributes}><text data-role="polarity-positive" x="${position.x + positiveOffset.x}" y="${position.y + positiveOffset.y + 4}" text-anchor="middle" font-size="${profile.typography.polarityFontSize}" style="${polarityStyle}">+</text><text data-role="polarity-negative" x="${position.x + negativeOffset.x}" y="${position.y + negativeOffset.y + 4}" text-anchor="middle" font-size="${profile.typography.polarityFontSize}" style="${polarityStyle}">−</text>${text}</g>`;
+        return `<g ${attributes}><text data-role="polarity-positive" x="${position.x + positiveOffset.x}" y="${position.y + positiveOffset.y + 4}" text-anchor="middle" font-size="${profile.typography.polarityFontSize}"${polarityTypography}>+</text><text data-role="polarity-negative" x="${position.x + negativeOffset.x}" y="${position.y + negativeOffset.y + 4}" text-anchor="middle" font-size="${profile.typography.polarityFontSize}"${polarityTypography}>−</text>${text}</g>`;
       }
       const emphasis = "";
       const positionedFraction =

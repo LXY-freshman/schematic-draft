@@ -31,8 +31,8 @@ describe("renderRichTextDocument", () => {
       razaviTextbookProfile,
     );
     expect(svg).toContain('data-text-run="span"');
-    expect(svg).toContain("font-style:italic");
-    expect(svg).toContain("font-weight:700");
+    expect(svg).toContain('font-style="italic"');
+    expect(svg).toContain('font-weight="700"');
   });
 
   it("composes nested styles instead of letting an inner style erase its parent", () => {
@@ -54,10 +54,8 @@ describe("renderRichTextDocument", () => {
       },
       razaviTextbookProfile,
     );
-    expect(svg).toContain(
-      'style="font-style:italic;font-weight:700">gm</tspan>',
-    );
-    expect(svg).not.toContain('font-style:normal;font-weight:700">gm');
+    expect(svg).toContain('font-style="italic" font-weight="700">gm</tspan>');
+    expect(svg).not.toContain('font-style="normal" font-weight="700">gm');
   });
 
   it("keeps a plain overbar on the general renderer without spacer text", () => {
@@ -75,7 +73,7 @@ describe("renderRichTextDocument", () => {
     );
 
     expect(svg).toContain('data-text-run="overbar"');
-    expect(svg).toContain("text-decoration:overline");
+    expect(svg).toContain('text-decoration="overline"');
     expect(svg).toContain(">Vout</tspan>");
     expect(svg).not.toContain("&#160;");
     expect(svg).not.toContain("letter-spacing");
@@ -140,7 +138,7 @@ describe("renderRichTextDocument", () => {
       { fontSize: 20 },
     );
     expect(svg).toContain(
-      'data-text-run="subscript" dx="0.6992" dy="4.256" font-size="15.2px" style="font-style:normal;font-weight:700">out</tspan>',
+      'data-text-run="subscript" dx="0.6992" dy="4.256" font-size="15.2px" font-style="normal" font-weight="700">out</tspan>',
     );
   });
 

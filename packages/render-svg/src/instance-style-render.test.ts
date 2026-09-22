@@ -228,7 +228,7 @@ describe("instance style override rendering", () => {
     });
     const svg = renderDocumentSvg(doc, resolver);
     expect(svg).toContain('data-pin-name="D"');
-    expect(svg).toContain('style="fill:#FF0000"');
+    expect(svg).toContain('fill="#FF0000"');
     expect(svg).toContain('stroke="#FF0000"');
   });
 
