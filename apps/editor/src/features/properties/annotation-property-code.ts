@@ -509,12 +509,16 @@ export function parseAnnotationPropertyCode(
   });
 }
 
-export function annotationPropertyAdapter<T>(
-  parseCode: (source: string) => PropertyResult<T>,
-  closed: boolean,
-  colorLabel = closed ? "Border" : "Text",
-): PropertyJsonEditorAdapter {
-  const fields: CanvasPropertyField[] = [
+/**
+ * Every authoring field an annotation or a drawing has. The code editor
+ * decorates these paths and the form draws a labelled control for each, so both
+ * surfaces name a field once. Plain numbers (sizes, scales, curve tangents)
+ * carry no decoration and are not listed here.
+ */
+export function annotationPropertyFields(
+  colorLabel: string,
+): readonly CanvasPropertyField[] {
+  return [
     {
       path: "appearance.color",
       label: colorLabel,
@@ -628,6 +632,14 @@ export function annotationPropertyAdapter<T>(
       ],
     })),
   ];
+}
+
+export function annotationPropertyAdapter<T>(
+  parseCode: (source: string) => PropertyResult<T>,
+  closed: boolean,
+  colorLabel = closed ? "Border" : "Text",
+): PropertyJsonEditorAdapter {
+  const fields = annotationPropertyFields(colorLabel);
   const spans = (source: string) =>
     propertyCodeSpans(source, undefined, fields);
   return {

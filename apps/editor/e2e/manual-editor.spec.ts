@@ -1691,8 +1691,10 @@ test("fills a closed shape and moves it behind or in front of circuit artwork", 
   await expect(
     properties.getByText("Send to back", { exact: true }),
   ).toBeVisible();
-  await properties.getByRole("button", { name: "Edit fill color" }).click();
-  await page.getByRole("button", { name: "Use Blue for fill" }).click();
+  // The form's Fill swatches paint without opening the JSON at all.
+  await properties
+    .getByRole("button", { name: "Use Blue for fill", exact: true })
+    .click();
   await expect(
     page.locator('[data-kind="draft-rectangle"][data-object-id="box"]'),
   ).toHaveAttribute("fill", "#2563eb");

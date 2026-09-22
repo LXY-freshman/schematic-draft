@@ -204,37 +204,55 @@ drawing. Hold `Alt` to suppress snapping. A visual snap aligns coordinates but
 does not create electrical connectivity or make one drawing follow another.
 
 Select any annotation and press `Q`, or use its right-click Properties action,
-to edit its JSON. Placement and appearance come first; text content (including
-rich text runs) follows geometry and stacking. Valid edits update immediately
-as one undoable edit. Invalid or locked edits retain the last accepted drawing;
-**Discard draft** restores the current code. Semantic labels retain their
-electrical text bindings; their code changes presentation only. Values with a
-fixed set of choices have a small dropdown arrow beside the JSON value: line
-style, arrow endpoint styles, layer, text alignment/weight, visibility and locking.
+to open the same kind of form. **Placement** (position as X and Y, and
+rotation) and **Appearance** (color, fill, line style, stroke width, arrow
+shape and endpoint styles, text size, weight, italic, and alignment) come
+first, then **Size** for a shape that has one, then **Display** (layer,
+visibility, and locking). A section holds only the fields the annotation
+actually has, so a polarity mark offers no text controls and an arrow offers no
+fill. A label attached to a component says so instead of offering coordinates —
+drag it on the canvas to move it. A locked annotation disables every control
+except the lock itself, so unlocking is always one click away. Words are edited
+on the canvas: double-click the annotation. Valid edits update the drawing
+immediately as one undoable edit; invalid or rejected edits keep the last
+accepted drawing and say why. Semantic labels retain their electrical text
+bindings; the panel changes presentation only.
+
+**Code (JSON)** sits collapsed underneath, exactly as it does for components
+and wires, and edits the same value by another route: placement and appearance
+first, then geometry, stacking, and text content (including rich text runs).
+Open it to paste a whole annotation at once, to set an angle the rotation menu
+does not offer, or to reach **Copy JSON** and **Discard draft** (Discard draft
+appears when the text is invalid or rejected). Values with a fixed set of
+choices also carry a small dropdown arrow beside the JSON value: line style,
+arrow endpoint styles, layer, text alignment/weight, visibility and locking.
 The menu shows the available choices without repeating the selected value.
 
-For arrows, `appearance.startStyle` and `appearance.endStyle` independently
-choose `small-arrow`, `medium-arrow`, `large-arrow`, `dot`, `none`, or
-`open-arrow`. Each value has its own dropdown. Start and end follow the first
-and last points of the path when it rotates or mirrors. `appearance.arrowShape`
-chooses a line shaft or a straight outline silhouette; existing curves must be
-straightened before switching to outline.
-`appearance.strokeScale` changes stroke weight; an outline's `geometry.width`
-changes its shape without changing weight. `placement.rotation` is a clockwise
-angle in degrees: 0° points right and 90° points down. For a bent line it is the
-direction of the first segment; changing it rotates the whole path. The menu
-offers common 45° angles; rectangles and paths also accept custom angles in
-code, while text uses 45° steps. `geometry.tangentAngles` sets the curve angle
-for each segment.
+For arrows, **Start style** and **End style** (`appearance.startStyle` and
+`appearance.endStyle`) independently choose `small-arrow`, `medium-arrow`,
+`large-arrow`, `dot`, `none`, or `open-arrow`. Start and end follow the first
+and last points of the path when it rotates or mirrors. **Arrow shape**
+(`appearance.arrowShape`) chooses a line shaft or a straight outline
+silhouette; existing curves must be straightened before switching to outline.
+**Stroke width ×** (`appearance.strokeScale`) changes stroke weight; an
+outline's **Width** (`geometry.width`) changes its shape without changing
+weight. **Rotation** (`placement.rotation`) is a clockwise angle in degrees: 0°
+points right and 90° points down. For a bent line it is the direction of the
+first segment; changing it rotates the whole path. The menu offers common 45°
+angles; rectangles and paths also accept custom angles, which the menu keeps
+showing rather than snapping to the nearest preset, while text uses 45° steps.
+`geometry.tangentAngles` sets the curve angle for each segment and stays in the
+code section — the canvas handles are the usual way to curve a path.
 Endpoint, width and rotation handles remain available on the canvas.
 
-Rectangles and circles have independent `appearance.color` (border) and
-`appearance.fillColor`. Click either color swatch for presets or RGB input;
-hex and `[R, G, B]` are also accepted in code. `"auto"` inherits the document
-border color and makes the fill transparent. `stacking.layer` selects
-`"back"` or `"front"` relative to circuit artwork. The numeric drawing order
-is managed internally; **Bring to front** and **Send to back** place a shape
-above or below other drawings. Width, height and radius live in `geometry`.
+Rectangles and circles have independent **Border** (`appearance.color`) and
+**Fill** (`appearance.fillColor`) controls. Click either control's presets or
+open its RGB row; hex and `[R, G, B]` are also accepted in code. **Auto**
+inherits the document border color and makes the fill transparent. A drawing's
+layer (`stacking.layer`) has no dropdown of its own: **Bring to front** and
+**Send to back** place a shape above or below circuit artwork and other
+drawings, and the numeric drawing order is managed internally. **Width**,
+**Height** and **Radius** are the Size section (`geometry`).
 
 Existing head sizes remain intact when loading or restyling old drawings.
 Converting a bent/curved line arrow to an outline is disabled: no bends are
