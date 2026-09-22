@@ -77,6 +77,13 @@ path across the file bridge, and only the main process touches the filesystem.
 A failed or cancelled write leaves the binding and the dirty state exactly as
 they were. Cancelling a dialog is not a failure and is never reported as one.
 
+A file the shell was handed instead — a double-click in Explorer, or a path on
+the command line — is collected once over the same bridge at startup. That is
+the only bridge call the editor makes unprompted, so it is made only where a
+shell can answer it: the shell serves the editor over `app://`, and the editor
+reads that scheme rather than asking and reading the failure. Run in a plain
+browser, nothing can hand the editor a file, and nothing is asked.
+
 The editor session owns the binding, the saved content baseline, and its
 recovery working-copy id. A successful write advances the baseline. If edits
 occurred while the write was in flight, the submitted snapshot is on disk but

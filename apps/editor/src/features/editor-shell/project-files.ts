@@ -34,6 +34,33 @@ export type ProjectFileSaveOutcome =
 
 const ENDPOINT = "/api/file";
 
+declare global {
+  interface Window {
+    __ICM_TEST_FILE_BRIDGE__?: boolean;
+  }
+}
+
+/**
+ * Whether a shell is there to answer the bridge at all.
+ *
+ * The shell serves the editor over `app://`, and nothing else can register
+ * that scheme; every other way of running the editor — the dev server, the
+ * preview server, a browser test — is plain http, where `/api/file/*` is a
+ * static path that does not exist. Asking anyway costs a 404 the browser logs
+ * as a console error, which is why this is checked before a request the editor
+ * makes on its own rather than at the user's word.
+ *
+ * Browser tests that stand a fake main process in front of the bridge say so
+ * with `__ICM_TEST_FILE_BRIDGE__`. Like the crash hooks, the flag is read only
+ * under `import.meta.env.DEV`, so a production build eliminates the check and
+ * the escape hatch cannot be taken in a shipped editor.
+ */
+function fileBridgeIsPresent(): boolean {
+  if (typeof window === "undefined") return false;
+  if (window.location.protocol === "app:") return true;
+  return import.meta.env.DEV && window.__ICM_TEST_FILE_BRIDGE__ === true;
+}
+
 async function post(path: string, body?: unknown): Promise<unknown> {
   const response = await fetch(`${ENDPOINT}${path}`, {
     method: "POST",
@@ -117,9 +144,13 @@ export const PROJECT_OPEN_REQUEST_EVENT = "schematic-draft:open-request";
  * The file the shell was asked to open — a double-click in Explorer, or a path
  * on the command line — taken once, so a later re-check does not reopen it.
  *
- * Null in a plain browser, where nothing can hand the editor a file.
+ * Null in a plain browser, where nothing can hand the editor a file. This is
+ * the one bridge call the editor makes unprompted, on every load, so with no
+ * shell it is not made at all: the answer is already known, and asking would
+ * only leave a 404 in the console of a build that is otherwise clean.
  */
 export async function takeRequestedProjectPath(): Promise<string | null> {
+  if (!fileBridgeIsPresent()) return null;
   try {
     const body = (await post("/pending")) as {
       status?: unknown;

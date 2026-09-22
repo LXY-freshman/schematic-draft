@@ -62,6 +62,12 @@ async function mockFileBridge(page: Page): Promise<FileBridge> {
       ? { status: "failed", message: `${path} could not be read` }
       : { status: "opened", file: { path, name: baseName(path), text } };
   };
+  // The editor only asks for a pending file where a shell can answer, which it
+  // tells by the `app://` scheme it is served over. These specs are http, so
+  // the fake main process says it is there the way a browser test is meant to.
+  await page.addInitScript(() => {
+    window.__ICM_TEST_FILE_BRIDGE__ = true;
+  });
   await page.route("**/api/file/open", (route) =>
     route.fulfill({
       json:
