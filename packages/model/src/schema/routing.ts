@@ -31,6 +31,10 @@ export const RouteStyleOverrideSchema = z.strictObject({
   // Direction follows the authored Route from `start` through its final leg.
   // Omission keeps the conductor unadorned.
   arrow: RouteDirectionArrowSchema.optional(),
+  // Drawing only: hop this Route over the conductors it merely crosses.
+  // A jump arc never creates, removes or implies an electrical connection,
+  // and omission (the default) leaves the crossing drawn flat.
+  lineJump: z.boolean().optional(),
 });
 export const RouteLegTargetSchema = z.discriminatedUnion("kind", [
   z.strictObject({
