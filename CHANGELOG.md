@@ -8,7 +8,7 @@ Entries at and below `0.9.2` are inherited from
 this application was forked from. They describe the shared editing core; the
 hosted features some of them mention are gone.
 
-## Unreleased
+## 1.3.0 — Native to the desktop (2026-09-23)
 
 ### Added
 

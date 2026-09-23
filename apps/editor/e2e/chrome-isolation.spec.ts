@@ -51,7 +51,7 @@ test("carries the version and project resource links inside Help", async ({
 
   const about = page.getByRole("dialog");
   await expect(about).toContainText("About Schematic Draft");
-  await expect(about).toContainText("Version 1.2.0");
+  await expect(about).toContainText("Version 1.3.0");
   // The only outbound links are credit for the upstream project this build
   // forks; nothing here reaches a service the application depends on.
   const repositoryLink = about.getByRole("link", {
