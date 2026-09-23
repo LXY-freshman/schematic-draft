@@ -264,18 +264,50 @@
   gap: 0.45rem;
 }
 
+/* `.property-section label` lays a field out as a muted caption stacked above
+   its control. It is a label selector, so it outranks the shared switch's own
+   rule and took exactly two declarations off it: `display` and `color`. Both
+   are the wrong shape for a checkbox — the box belongs beside its words, and
+   those words are the control itself rather than a caption for it — so both
+   have to be said again here, at a weight that rule cannot reach. Restating
+   `color` is what makes the disabled cue below necessary: it would otherwise
+   survive only on stylesheet order. */
 .selection-panel .display-toggle {
+  display: inline-flex;
   gap: 0.4rem;
   min-height: var(--icm-control-h);
   padding: 0 0.5rem;
   border: 1px solid var(--icm-border);
   border-radius: var(--icm-radius-sm);
   background: var(--icm-surface-muted);
+  color: var(--icm-text);
+}
+
+.selection-panel .display-toggle.disabled {
+  color: var(--icm-text-muted);
 }
 
 .selection-panel .display-toggle:has(input:checked) {
   border-color: rgb(var(--icm-accent-rgb) / 45%);
   background: var(--icm-accent-soft);
+}
+
+/* A toggle standing on its own in a form section is one control on one row,
+   so it takes the frame of the inputs and selects it sits among instead of
+   the compact tinted pill that reads as one of a cluster. The tick is the
+   state, the same way a select's text is its state. */
+.selection-panel .property-disclosure-body > .display-toggle {
+  display: flex;
+  min-height: var(--icm-control-h-lg);
+  padding: 0.45rem 0.55rem;
+  background: var(--icm-surface);
+}
+
+.selection-panel
+  .property-disclosure-body
+  > .display-toggle:has(input:checked) {
+  border-color: var(--icm-border);
+  background: var(--icm-surface);
 }
 
 .component-readonly-fields {
