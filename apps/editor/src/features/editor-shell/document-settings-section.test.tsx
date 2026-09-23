@@ -44,6 +44,7 @@ describe("DocumentSettingsSection", () => {
         document={createEmptyDocument("document-main", "Main")}
         canvas={{
           showGrid: true,
+          majorGridDots: false,
           annotationGrid: 5,
           drawAngle: "free",
           scrollBehavior: "auto",

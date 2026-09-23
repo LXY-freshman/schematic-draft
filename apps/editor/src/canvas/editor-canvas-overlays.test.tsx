@@ -11,10 +11,62 @@ import type { RouteBranch, SchematicDocument } from "@icm/model";
 import { InMemorySymbolResolver, builtInSymbols } from "@icm/symbols";
 
 import {
+  CanvasGridOverlay,
   DiagnosticMarkersOverlay,
   NetHighlightOverlay,
   WireUnderSymbolOverlay,
 } from "./editor-canvas-overlays";
+
+const viewBox = { x: -20, y: -20, width: 400, height: 300 };
+
+describe("CanvasGridOverlay", () => {
+  it("draws the fine grid alone until coarse dots are asked for", () => {
+    const markup = renderToStaticMarkup(
+      <svg>
+        <CanvasGridOverlay visible majorDots={false} viewBox={viewBox} />
+      </svg>,
+    );
+    expect(markup).toContain('data-testid="canvas-grid-dots"');
+    expect(markup).not.toContain("canvas-grid-major-dots");
+    expect(markup).not.toContain('id="grid-major"');
+  });
+
+  it("tiles the coarse dots every seventh fine dot, anchored on the same origin", () => {
+    const markup = renderToStaticMarkup(
+      <svg>
+        <CanvasGridOverlay visible majorDots viewBox={viewBox} />
+      </svg>,
+    );
+    expect(markup).toContain('data-testid="canvas-grid-dots"');
+    expect(markup).toContain('data-testid="canvas-grid-major-dots"');
+    expect(markup).toContain('data-grid-interval="7"');
+    // 7 fine steps of 10 units, in the same user space as the fine pattern, so
+    // a coarse dot always lands on a fine one however far the canvas is panned.
+    expect(markup).toContain('id="grid-major" x="-1.5" y="-1.5" width="70"');
+    expect(markup).toContain('class="canvas-grid-dot-major"');
+  });
+
+  it("offsets each tile by its own radius so a dot is whole, not a quarter", () => {
+    const markup = renderToStaticMarkup(
+      <svg>
+        <CanvasGridOverlay visible majorDots viewBox={viewBox} />
+      </svg>,
+    );
+    // Tile shifted back by r, dot placed at (r, r): the centre still lands on a
+    // multiple of the step, which is where things snap.
+    expect(markup).toContain('id="grid" x="-0.7" y="-0.7" width="10"');
+    expect(markup).toContain('cx="0.7" cy="0.7" r="0.7"');
+    expect(markup).toContain('cx="1.5" cy="1.5" r="1.5"');
+  });
+
+  it("draws nothing at all while the grid is hidden", () => {
+    expect(
+      renderToStaticMarkup(
+        <CanvasGridOverlay visible={false} majorDots viewBox={viewBox} />,
+      ),
+    ).toBe("");
+  });
+});
 
 const finding: Diagnostic = {
   id: "visual:doc:VISUAL_AMBIGUOUS_JUNCTION:J1",

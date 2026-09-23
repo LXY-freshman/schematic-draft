@@ -459,6 +459,9 @@ export function App({ project: initialProject }: AppProps) {
   const cameraRuntime = cameraRuntimeRef.current;
   useEffect(() => () => cameraRuntime.dispose(), [cameraRuntime]);
   const [gridDotsVisible, setGridDotsVisible] = useState(true);
+  // The coarse dots ride on the fine ones rather than replacing them, so they
+  // are a second flag: `gridDotsVisible` alone still answers "is a grid drawn".
+  const [majorGridDots, setMajorGridDots] = useState(false);
   // Annotations and drafting place on their own pitch; the Document grid
   // stays the electrical contract for devices, wires, and junctions.
   const [annotationGrid, setAnnotationGridState] = useState<1 | 5 | 10>(() => {
@@ -4237,6 +4240,7 @@ export function App({ project: initialProject }: AppProps) {
                       document,
                       canvas: {
                         showGrid: gridDotsVisible,
+                        majorGridDots,
                         annotationGrid,
                         drawAngle: drawAngleMode,
                         scrollBehavior: wheelBehavior,
@@ -4244,6 +4248,7 @@ export function App({ project: initialProject }: AppProps) {
                       onApply: (value) => {
                         const current = documentSettingsCodeValue(document, {
                           showGrid: gridDotsVisible,
+                          majorGridDots,
                           annotationGrid,
                           drawAngle: drawAngleMode,
                           scrollBehavior: wheelBehavior,
@@ -4292,6 +4297,8 @@ export function App({ project: initialProject }: AppProps) {
                         }
                         if (value.canvas.showGrid !== gridDotsVisible)
                           setGridDotsVisible(value.canvas.showGrid);
+                        if (value.canvas.majorGridDots !== majorGridDots)
+                          setMajorGridDots(value.canvas.majorGridDots);
                         if (value.canvas.annotationGrid !== annotationGrid)
                           setAnnotationGrid(value.canvas.annotationGrid);
                         if (value.canvas.drawAngle !== drawAngleMode)
@@ -5006,7 +5013,7 @@ export function App({ project: initialProject }: AppProps) {
             .join(" ")}
           viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
           eventHandlers={canvasEventHandlers}
-          grid={{ visible: gridDotsVisible, viewBox }}
+          grid={{ visible: gridDotsVisible, majorDots: majorGridDots, viewBox }}
           sceneInnerHtml={sceneInnerHtml}
           selectionHalo={{
             document,
@@ -5447,9 +5454,21 @@ export function App({ project: initialProject }: AppProps) {
         recoveryLabel={isDirtyWork() ? recoveryStateLabel(recoveryState) : null}
         zoomPercent={zoomPercent}
         gridVisible={gridDotsVisible}
+        gridMajorVisible={majorGridDots}
         onToggleGrid={() => {
-          setGridDotsVisible(!gridDotsVisible);
-          setStatus(gridDotsVisible ? "Grid off" : "Grid on");
+          // Off -> fine -> fine under coarse -> off.
+          if (!gridDotsVisible) {
+            setGridDotsVisible(true);
+            setMajorGridDots(false);
+            setStatus("Grid on");
+          } else if (!majorGridDots) {
+            setMajorGridDots(true);
+            setStatus("Grid on, every 7th dot coarse");
+          } else {
+            setGridDotsVisible(false);
+            setMajorGridDots(false);
+            setStatus("Grid off");
+          }
         }}
         selectionFilterSummary={selectionFilterSummary(selectionFilter)}
         onOpenSelectionFilter={() =>

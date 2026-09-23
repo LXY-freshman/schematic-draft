@@ -5232,7 +5232,7 @@ test("docked Style JSON offers bounded choices, scales fonts, and resets appeara
   await expect(
     settings.getByLabel("Editable document Style code"),
   ).toBeVisible();
-  await expect(settings.locator(".cm-netlist-target-select")).toHaveCount(11);
+  await expect(settings.locator(".cm-netlist-target-select")).toHaveCount(12);
   await expect(settings.getByLabel("Font size options")).toBeVisible();
   await expect(
     settings.getByLabel("Default NMOS bulk Net options"),
@@ -5247,6 +5247,7 @@ test("docked Style JSON offers bounded choices, scales fonts, and resets appeara
   expect(style.bulkDefaults).toEqual({ nmosNet: null, pmosNet: null });
   expect(style.canvas).toEqual({
     showGrid: true,
+    majorGridDots: false,
     annotationGrid: 5,
     drawAngle: "free",
     scrollBehavior: "auto",

@@ -10,6 +10,16 @@ hosted features some of them mention are gone.
 
 ## Unreleased
 
+### Added
+
+- **The background grid can mark every seventh dot.** The status bar's grid
+  button now cycles **Grid Off → Grid On → Grid On · Coarse**. The coarse state
+  keeps the same fine dots and draws every seventh one larger and darker, so
+  the canvas reads as big squares of seven small ones and distance can be
+  judged without measuring. It is a view setting like the grid itself:
+  `canvas.majorGridDots` in Style settings says which state the button is in,
+  and no saved file or export carries either layer.
+
 ### Changed
 
 - **The colour swatches in Properties are MATLAB's default colour order.** The
@@ -26,6 +36,10 @@ hosted features some of them mention are gone.
 
 ### Fixed
 
+- **Every grid dot is a whole dot.** Each dot was centred on the corner of the
+  tile it repeats in, so three quarters of it fell outside and only a quarter
+  was ever drawn — invisible at the fine size, and an obvious wedge at the
+  coarse one. The dots are now drawn whole, in the same places as before.
 - **Highlighting a net no longer cuts across the line jumps on it.** A wire
   ticked **Hop over crossings** is drawn with a small arc at each crossing, but
   the blue highlight was painted as a straight line over the same centerline,

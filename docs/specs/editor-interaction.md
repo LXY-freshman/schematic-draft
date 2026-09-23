@@ -406,10 +406,15 @@ During component or Copy Placement, `R` turns the transient preview by 90 degree
 `Shift+R` mirrors it left/right and `Ctrl/Cmd+R` mirrors it top/bottom. Every
 subsequent committed copy receives the same transient orientation, while the
 source selection remains unchanged. The status bar's grid button, beside the
-zoom controls, shows and hides the background grid dots in one click; it reads
-**Grid On** / **Grid Off** in wide windows and collapses to its icon at
-half-window widths (1100px and below). It is the same editor-local state as
-`canvas.showGrid` in Style settings and changes only the canvas paint. Instance reference labels use the first active Document grid line one interval beyond
+zoom controls, cycles the background grid through three states in that order:
+hidden, the fine dots alone, and the fine dots with every seventh one drawn
+larger and darker so whole squares can be counted by eye. It reads **Grid Off**
+/ **Grid On** / **Grid On · Coarse** in wide windows and collapses to its icon
+at half-window widths (1100px and below); `aria-pressed` is true in both shown
+states and `data-grid-mode` names which one. It is the same editor-local state
+as `canvas.showGrid` and `canvas.majorGridDots` in Style settings and changes
+only the canvas paint — the coarse dots are never drawn while the grid is
+hidden, and no export carries either layer. Instance reference labels use the first active Document grid line one interval beyond
 the drawn symbol ink. The padded interaction envelope never contributes to
 that clearance, and placement uses nearest-grid normalization for calibrated
 finite-decimal ink edges rather than directional outward snapping. A 45-degree

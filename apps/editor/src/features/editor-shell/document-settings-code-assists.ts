@@ -57,6 +57,17 @@ function fields(document: SchematicDocument): readonly CanvasPropertyField[] {
       description: "",
     },
     {
+      path: "canvas.majorGridDots",
+      label: "Coarse grid dots",
+      kind: "choice",
+      options: [
+        { value: true, label: "On" },
+        { value: false, label: "Off" },
+      ],
+      description: "",
+      help: "Mark every 7th dot; nothing is drawn while Canvas grid is Off",
+    },
+    {
       path: "canvas.annotationGrid",
       label: "Annotation grid",
       kind: "choice",

@@ -8,6 +8,8 @@ import { STYLE_KNOBS, styleOverrideDraft } from "./style-knobs";
 
 export interface CanvasPreferenceCodeValue {
   showGrid: boolean;
+  /** Mark every seventh dot of a shown grid. Ignored while showGrid is false. */
+  majorGridDots: boolean;
   annotationGrid: 1 | 5 | 10;
   drawAngle: "free" | "45" | "orthogonal";
   scrollBehavior: "auto" | "zoom" | "pan";
@@ -167,12 +169,20 @@ export function parseDocumentSettingsCode(
     return { ok: false, message: "canvas must be an object" };
   const canvasError = exactKeys(
     raw.canvas,
-    ["showGrid", "annotationGrid", "drawAngle", "scrollBehavior"],
+    [
+      "showGrid",
+      "majorGridDots",
+      "annotationGrid",
+      "drawAngle",
+      "scrollBehavior",
+    ],
     "canvas",
   );
   if (canvasError) return { ok: false, message: canvasError };
   if (typeof raw.canvas.showGrid !== "boolean")
     return { ok: false, message: "canvas.showGrid must be true or false" };
+  if (typeof raw.canvas.majorGridDots !== "boolean")
+    return { ok: false, message: "canvas.majorGridDots must be true or false" };
   if (![1, 5, 10].includes(raw.canvas.annotationGrid as number))
     return { ok: false, message: "canvas.annotationGrid must be 1, 5, or 10" };
   if (!["free", "45", "orthogonal"].includes(raw.canvas.drawAngle as string))
