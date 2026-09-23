@@ -17,6 +17,7 @@ import {
 
 const canvas: CanvasPreferenceCodeValue = {
   showGrid: true,
+  majorGridDots: false,
   annotationGrid: 5,
   drawAngle: "free",
   scrollBehavior: "auto",
@@ -68,6 +69,7 @@ describe("document Style code", () => {
     value.bulkDefaults.nmosNet = "net-ground";
     value.canvas = {
       showGrid: false,
+      majorGridDots: true,
       annotationGrid: 1,
       drawAngle: "45",
       scrollBehavior: "pan",
@@ -81,6 +83,7 @@ describe("document Style code", () => {
   it.each([
     ["appearance.fontScale", 0.49, "from 0.5 to 2"],
     ["appearance.wireStrokeScale", 2.01, "from 0.5 to 2"],
+    ["canvas.majorGridDots", "coarse", "must be true or false"],
     ["canvas.annotationGrid", 2, "must be 1, 5, or 10"],
     ["canvas.drawAngle", "diagonal", 'must be "free", "45", or "orthogonal"'],
     ["canvas.scrollBehavior", "smooth", 'must be "auto", "zoom", or "pan"'],
@@ -124,6 +127,7 @@ describe("document Style code", () => {
     document.mosBulkDefaults = { nmosNetId: "net-ground" };
     const changedCanvas: CanvasPreferenceCodeValue = {
       showGrid: false,
+      majorGridDots: true,
       annotationGrid: 10,
       drawAngle: "orthogonal",
       scrollBehavior: "zoom",
@@ -144,7 +148,7 @@ describe("document Style code", () => {
     const source = serializeDocumentSettingsCode(editableValue());
     const spans = documentSettingsCodeSpans(source, document);
 
-    expect(spans).toHaveLength(11);
+    expect(spans).toHaveLength(12);
     expect(
       spans.find((span) => span.field.path === "appearance.fontScale")?.field
         .options,
@@ -163,12 +167,13 @@ describe("document Style code", () => {
         "appearance.fontScale": 1.5,
         "bulkDefaults.nmosNet": "net-ground",
         "canvas.showGrid": false,
+        "canvas.majorGridDots": true,
       }),
     );
     expect(JSON.parse(changed)).toMatchObject({
       appearance: { fontScale: 1.5 },
       bulkDefaults: { nmosNet: "net-ground" },
-      canvas: { showGrid: false },
+      canvas: { showGrid: false, majorGridDots: true },
     });
   });
 

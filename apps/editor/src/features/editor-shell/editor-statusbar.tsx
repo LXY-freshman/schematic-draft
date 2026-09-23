@@ -15,6 +15,29 @@ function toolLabel(
   return tool.charAt(0).toUpperCase() + tool.slice(1);
 }
 
+/**
+ * The background grid is one button with three states, so each of them has to
+ * say what it is and what the next click does.
+ */
+function gridMode(visible: boolean, major: boolean): "off" | "fine" | "coarse" {
+  if (!visible) return "off";
+  return major ? "coarse" : "fine";
+}
+
+function gridToggleLabel(visible: boolean, major: boolean): string {
+  const mode = gridMode(visible, major);
+  if (mode === "off") return "Grid Off";
+  return mode === "coarse" ? "Grid On · Coarse" : "Grid On";
+}
+
+function gridToggleTitle(visible: boolean, major: boolean): string {
+  const mode = gridMode(visible, major);
+  if (mode === "off") return "Grid Off — click to show the background grid";
+  if (mode === "fine")
+    return "Grid On — click to mark every 7th dot as a coarse one";
+  return "Grid On · Coarse — every 7th dot is a coarse one; click to hide the background grid";
+}
+
 function issuesBadge(issues: {
   errorCount: number;
   warningCount: number;
@@ -75,6 +98,7 @@ export function EditorStatusbar({
   recoveryLabel,
   zoomPercent,
   gridVisible,
+  gridMajorVisible,
   issues,
   selectionFilterSummary,
   onOpenSelectionFilter,
@@ -97,6 +121,8 @@ export function EditorStatusbar({
   zoomPercent: number;
   /** Whether the canvas paints its background grid dots. */
   gridVisible: boolean;
+  /** Whether the visible grid also carries its coarse dots. */
+  gridMajorVisible: boolean;
   selectionFilterSummary: string | null;
   issues?: {
     errorCount: number;
@@ -210,23 +236,23 @@ export function EditorStatusbar({
       </div>
       <div className="statusbar-view-controls">
         {/* One click away, unlike the canvas.showGrid setting. The label
-            collapses to the icon in half-width windows. */}
+            collapses to the icon in half-width windows. Three states cycle
+            through one button: off, fine dots, fine dots under coarse ones.
+            `aria-pressed` can only say whether a grid is painted, so which
+            grid is named in the title and in `data-grid-mode`. */}
         <button
           type="button"
           className="statusbar-grid-toggle"
           data-testid="statusbar-grid-toggle"
+          data-grid-mode={gridMode(gridVisible, gridMajorVisible)}
           aria-label="Grid"
           aria-pressed={gridVisible}
-          title={
-            gridVisible
-              ? "Grid On — click to hide the background grid"
-              : "Grid Off — click to show the background grid"
-          }
+          title={gridToggleTitle(gridVisible, gridMajorVisible)}
           onClick={onToggleGrid}
         >
           <ToolIcon name="grid" />
           <span className="statusbar-grid-label">
-            {gridVisible ? "Grid On" : "Grid Off"}
+            {gridToggleLabel(gridVisible, gridMajorVisible)}
           </span>
         </button>
         <div className="canvas-controls" aria-label="Canvas view controls">

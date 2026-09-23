@@ -660,6 +660,12 @@
   fill: var(--icm-grid-dot);
 }
 
+/* A dot has no stroke to thicken, so the coarse grid is told apart by being
+   both bigger and darker than the fine one it sits on. */
+.canvas-grid-dot-major {
+  fill: var(--icm-grid-dot-major);
+}
+
 .rich-text-floating-toolbar {
   display: flex;
   flex-wrap: wrap;

@@ -226,7 +226,7 @@ test("blocks destructive browser refresh shortcuts and uses the stronger grid", 
   );
 });
 
-test("the status bar toggles the grid, labelled full-width and an icon half-width", async ({
+test("the status bar cycles the grid through its three states, labelled full-width and an icon half-width", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
@@ -235,15 +235,33 @@ test("the status bar toggles the grid, labelled full-width and an icon half-widt
   const toggle = page.getByRole("button", { name: "Grid", exact: true });
   const label = toggle.locator(".statusbar-grid-label");
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(toggle).toHaveAttribute("data-grid-mode", "fine");
   await expect(label).toHaveText("Grid On");
   await expect(label).toBeVisible();
   await expect(page.getByTestId("canvas-grid-dots")).toBeVisible();
+  await expect(page.getByTestId("canvas-grid-major-dots")).toHaveCount(0);
 
+  // The first click marks every seventh dot; the fine grid stays underneath it.
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(toggle).toHaveAttribute("data-grid-mode", "coarse");
+  await expect(label).toHaveText("Grid On · Coarse");
+  await expect(page.getByTestId("canvas-grid-dots")).toBeVisible();
+  await expect(page.getByTestId("canvas-grid-major-dots")).toBeVisible();
+  // Style settings show the state the status bar set.
+  expect(JSON.parse(await readDocumentStyleCode(page)).canvas).toMatchObject({
+    showGrid: true,
+    majorGridDots: true,
+  });
+  await page.getByTestId("draw-tool-document-style").click();
+
+  // The second click takes both layers away together.
   await toggle.click();
   await expect(page.getByTestId("canvas-grid-dots")).toHaveCount(0);
+  await expect(page.getByTestId("canvas-grid-major-dots")).toHaveCount(0);
   await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect(toggle).toHaveAttribute("data-grid-mode", "off");
   await expect(label).toHaveText("Grid Off");
-  // Style settings show the state the status bar set.
   expect(JSON.parse(await readDocumentStyleCode(page)).canvas.showGrid).toBe(
     false,
   );
@@ -255,6 +273,7 @@ test("the status bar toggles the grid, labelled full-width and an icon half-widt
   expect((await toggle.boundingBox())!.width).toBeLessThanOrEqual(32);
   await toggle.click();
   await expect(page.getByTestId("canvas-grid-dots")).toBeVisible();
+  await expect(page.getByTestId("canvas-grid-major-dots")).toHaveCount(0);
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
 });
 

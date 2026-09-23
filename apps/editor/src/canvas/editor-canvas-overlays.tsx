@@ -14,20 +14,80 @@ import type { EditorTool } from "../interaction/interaction-state";
 import { serializePolylinePoints } from "./canvas-geometry";
 import type { DiagnosticMarker } from "./diagnostic-markers";
 
+/** Document units between two fine grid dots. */
+const GRID_STEP = 10;
+
+/**
+ * Fine dots per coarse dot. Seven is close enough to a centimetre of ruled
+ * paper to count squares by eye and prime enough that no smaller rhythm in the
+ * artwork lines up with it.
+ */
+const MAJOR_GRID_INTERVAL = 7;
+
+const GRID_DOT_RADIUS = 0.7;
+const MAJOR_GRID_DOT_RADIUS = 1.5;
+
+/**
+ * One dot per tile, whole rather than clipped to the quarter that a corner-
+ * centred circle leaves inside its own tile. Shifting the tile back by the
+ * radius keeps every dot centred on a multiple of the step — which is what a
+ * dot means here: a place things snap to.
+ */
+function GridDotPattern({
+  id,
+  step,
+  radius,
+  className,
+}: {
+  id: string;
+  step: number;
+  radius: number;
+  className: string;
+}) {
+  return (
+    <pattern
+      id={id}
+      x={-radius}
+      y={-radius}
+      width={step}
+      height={step}
+      patternUnits="userSpaceOnUse"
+    >
+      <circle className={className} cx={radius} cy={radius} r={radius} />
+    </pattern>
+  );
+}
+
 export function CanvasGridOverlay({
   visible,
+  majorDots,
   viewBox,
 }: {
   visible: boolean;
+  majorDots: boolean;
   viewBox: GridRect;
 }) {
   if (!visible) return null;
+  // Both patterns tile from the user-space origin, so every coarse dot lands on
+  // a fine one and panning cannot drift them apart.
+  const majorStep = GRID_STEP * MAJOR_GRID_INTERVAL;
   return (
     <>
       <defs>
-        <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-          <circle className="canvas-grid-dot" cx="0" cy="0" r="0.7" />
-        </pattern>
+        <GridDotPattern
+          id="grid"
+          step={GRID_STEP}
+          radius={GRID_DOT_RADIUS}
+          className="canvas-grid-dot"
+        />
+        {majorDots ? (
+          <GridDotPattern
+            id="grid-major"
+            step={majorStep}
+            radius={MAJOR_GRID_DOT_RADIUS}
+            className="canvas-grid-dot-major"
+          />
+        ) : null}
       </defs>
       <rect
         data-testid="canvas-grid-dots"
@@ -38,6 +98,18 @@ export function CanvasGridOverlay({
         height={viewBox.height}
         fill="url(#grid)"
       />
+      {majorDots ? (
+        <rect
+          data-testid="canvas-grid-major-dots"
+          data-camera-bounds="true"
+          data-grid-interval={MAJOR_GRID_INTERVAL}
+          x={viewBox.x}
+          y={viewBox.y}
+          width={viewBox.width}
+          height={viewBox.height}
+          fill="url(#grid-major)"
+        />
+      ) : null}
     </>
   );
 }

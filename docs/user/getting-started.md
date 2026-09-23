@@ -189,6 +189,11 @@ is defined.
   45° → any angle → automatic right-angle corner**. Auto follows the incoming
   leg; it is one of the two right-angle shapes, not a third extra stop.
   View changes do not increment the Document revision.
+- The grid button in the status bar cycles **Grid Off → Grid On → Grid On ·
+  Coarse**. The coarse state keeps the same fine dots and draws every seventh
+  one larger and darker, so the canvas reads as big squares of seven small ones
+  — useful for judging distance without measuring. It is a view setting only:
+  nothing about the grid reaches a saved file or an export.
 
 ## Editing multiple components
 

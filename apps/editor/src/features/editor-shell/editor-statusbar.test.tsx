@@ -17,6 +17,7 @@ describe("editor statusbar", () => {
         recoveryLabel="Saved locally"
         zoomPercent={100}
         gridVisible
+        gridMajorVisible={false}
         onToggleGrid={vi.fn()}
         selectionFilterSummary={null}
         onOpenSelectionFilter={vi.fn()}
@@ -36,12 +37,21 @@ describe("editor statusbar", () => {
     expect(markup).not.toContain('aria-label="Scroll wheel"');
   });
 
+  // One button, three states. Each row is a state and the click it promises:
+  // off -> fine, fine -> coarse, coarse -> off.
   it.each([
-    [true, "Grid On", "hide"],
-    [false, "Grid Off", "show"],
+    [false, false, "off", "Grid Off", "click to show the background grid"],
+    [true, false, "fine", "Grid On", "click to mark every 7th dot"],
+    [
+      true,
+      true,
+      "coarse",
+      "Grid On · Coarse",
+      "click to hide the background grid",
+    ],
   ] as const)(
-    "offers a one-click grid toggle (visible=%s)",
-    (gridVisible, label, action) => {
+    "cycles one grid button through its three states (visible=%s major=%s)",
+    (gridVisible, gridMajorVisible, mode, label, promise) => {
       const markup = renderToStaticMarkup(
         <EditorStatusbar
           status="Ready"
@@ -54,6 +64,7 @@ describe("editor statusbar", () => {
           recoveryLabel={null}
           zoomPercent={100}
           gridVisible={gridVisible}
+          gridMajorVisible={gridMajorVisible}
           onToggleGrid={vi.fn()}
           selectionFilterSummary={null}
           onOpenSelectionFilter={vi.fn()}
@@ -66,6 +77,9 @@ describe("editor statusbar", () => {
         />,
       );
       expect(markup).toContain('data-testid="statusbar-grid-toggle"');
+      expect(markup).toContain(`data-grid-mode="${mode}"`);
+      // Pressed can only say that some grid is painted; which one is in the
+      // title and the mode attribute.
       expect(markup).toContain(`aria-pressed="${gridVisible}"`);
       // The label is the full-width form; half-width CSS hides it and the
       // accessible name stays "Grid".
@@ -73,7 +87,7 @@ describe("editor statusbar", () => {
         `<span class="statusbar-grid-label">${label}</span>`,
       );
       expect(markup).toContain('aria-label="Grid"');
-      expect(markup).toContain(`click to ${action} the background grid`);
+      expect(markup).toContain(promise);
     },
   );
 
@@ -95,6 +109,7 @@ describe("editor statusbar", () => {
         recoveryLabel={null}
         zoomPercent={100}
         gridVisible
+        gridMajorVisible={false}
         onToggleGrid={vi.fn()}
         selectionFilterSummary={null}
         onOpenSelectionFilter={vi.fn()}
@@ -134,6 +149,7 @@ describe("editor statusbar", () => {
         recoveryLabel={null}
         zoomPercent={100}
         gridVisible
+        gridMajorVisible={false}
         onToggleGrid={vi.fn()}
         selectionFilterSummary="Filter: Wires"
         onOpenSelectionFilter={vi.fn()}
