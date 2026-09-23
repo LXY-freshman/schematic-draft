@@ -48,14 +48,17 @@ describe("enumerateVisioMasterSources", () => {
   });
 
   it("leaves out artwork a default variant makes unreachable", () => {
-    // `nmos` always resolves to `textbook-3terminal`, so its four-terminal
-    // drawing is never what a document shows.
+    // `nmos` always resolves to a declared variant, so the undecorated outline
+    // underneath them is never what a document shows. Both declared drawings
+    // are reachable, and only the non-default one carries a suffix.
     const nmos = definition("nmos");
     expect(nmos.defaultVariantId).toBe("textbook-3terminal");
-    const keys = enumerateVisioMasterSources([nmos]).map(
-      (source) => source.variant?.id,
-    );
-    expect(keys).toEqual(["textbook-3terminal"]);
+    const sources = enumerateVisioMasterSources([nmos]);
+    expect(sources.map((source) => source.variant?.id)).toEqual([
+      "textbook-3terminal",
+      "four-terminal",
+    ]);
+    expect(sources.map((source) => source.disambiguate)).toEqual([false, true]);
   });
 
   it("keeps the base artwork when no variant is the default", () => {
@@ -116,8 +119,19 @@ describe("buildSymbolMaster", () => {
     const bulk = nmos.connections.at(-1);
     expect(bulk?.xFraction).toBeCloseTo((-4 + 24) / 48, 6);
     expect(bulk?.yFraction).toBeCloseTo(0.5, 6);
-    // One reachable master, so the name carries no variant suffix.
+    // The default drawing keeps the device's own name; the one that draws the
+    // bulk lead says which drawing it is.
     expect(nmos.master.name).toBe("NMOS");
+    expect(master("nmos#four-terminal").master.name).toBe(
+      "NMOS (four-terminal)",
+    );
+    expect(
+      master("nmos#four-terminal").connections.map((pin) => pin.pinName),
+    ).toEqual(["D", "G", "S", "B"]);
+    // B is a terminal in both drawings; only where a wire lands on it moves.
+    expect(
+      master("nmos#four-terminal").connections.at(-1)?.xFraction,
+    ).toBeCloseTo((20 + 24) / 48, 6);
   });
 
   it("splits artwork into one child shape per drawn stroke", () => {

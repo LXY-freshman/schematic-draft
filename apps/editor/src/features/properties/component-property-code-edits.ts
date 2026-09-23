@@ -15,6 +15,7 @@ import {
   symbolForInputsSwapped,
   symbolForInternalMark,
   symbolForOutputsSwapped,
+  variantForBulkTerminal,
 } from "./component-visual-variants";
 
 type Instance = SchematicDocument["instances"][number];
@@ -107,11 +108,23 @@ export function planComponentPropertyCodeEdits(
     nextSymbolId =
       symbolForOutputsSwapped(nextSymbolId, value.appearance.outputsSwapped) ??
       nextSymbolId;
-  if (nextSymbolId !== instance.symbolId)
+  // The bulk switch changes which drawing of one Symbol is instantiated, so it
+  // rides on the same edit rather than opening a second path to the variant.
+  const nextVariantId =
+    value.appearance.bulkTerminal === undefined
+      ? undefined
+      : variantForBulkTerminal(nextSymbolId, value.appearance.bulkTerminal);
+  if (
+    nextSymbolId !== instance.symbolId ||
+    (nextVariantId !== undefined && nextVariantId !== instance.symbolVariantId)
+  )
     edits.push({
       kind: "set_instance_symbol",
       instanceId: instance.id,
       symbolId: nextSymbolId,
+      ...(nextVariantId !== undefined
+        ? { symbolVariantId: nextVariantId }
+        : {}),
     });
 
   let nextSignalFlow = value.signalFlow;

@@ -75,7 +75,7 @@ describe("Extended Devices catalog", () => {
     ["ndmos", "N-channel DMOS"],
     ["pdmos", "P-channel DMOS"],
   ] as const)(
-    "defines %s as a four-terminal MOS with a hidden body",
+    "defines %s as a four-terminal MOS drawn with or without its body",
     (id, name) => {
       const symbol = expandedDeviceSymbols.find(
         (candidate) => candidate.id === id,
@@ -91,6 +91,8 @@ describe("Extended Devices catalog", () => {
             hiddenPinNames: ["B"],
             hiddenPrimitiveParts: ["bulk-lead", "source-arrow-host"],
           },
+          // B is a terminal in both drawings; this one simply draws its lead.
+          { id: "four-terminal", hiddenPinNames: [] },
         ],
       });
     },

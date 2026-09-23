@@ -74,7 +74,11 @@ Promised:
 
 - **Topology.** One shape per placed Instance, backed by a master keyed by
   symbol and variant; one one-dimensional line shape per Route; one shape
-  per visible Junction. Shape counts equal object counts.
+  per visible Junction. Shape counts equal object counts. A symbol whose
+  artwork a Document can reach more than one way yields one master per reachable
+  drawing: the drawing it resolves to by default is named after the device, and
+  each other one appends its variant — `NMOS` and `NMOS (four-terminal)`. A
+  drawing no default lets a Document reach gets no master at all.
 - **Glue.** A wire end that lands on a pin is glued to that pin's connection
   point, through a `PAR(PNT(…))` formula and a matching `<Connect>` record.
   Moving a device in Visio moves the wire ends with it. Every `<Connect>` names

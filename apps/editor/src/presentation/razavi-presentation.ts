@@ -9,21 +9,12 @@ import {
 import { replaceProjectDocument } from "../document/editor-session";
 import type { CircuitProject, SchematicDocument } from "@icm/model";
 import { builtInSymbols, createProjectSymbolResolver } from "@icm/symbols";
+import { defaultRazaviSymbolVariantId } from "./razavi-symbol-variants";
 
-const DEFAULT_SYMBOL_VARIANTS: Readonly<Record<string, string>> = {
-  nmos: "textbook-3terminal",
-  pmos: "textbook-3terminal",
-  "depletion-nmos": "textbook-3terminal",
-  "depletion-pmos": "textbook-3terminal",
-  ndmos: "standard-3terminal",
-  pdmos: "standard-3terminal",
-};
-
-export function defaultRazaviSymbolVariantId(
-  symbolId: string,
-): string | undefined {
-  return DEFAULT_SYMBOL_VARIANTS[symbolId];
-}
+export {
+  defaultRazaviSymbolVariantId,
+  FOUR_TERMINAL_VARIANT_ID,
+} from "./razavi-symbol-variants";
 
 /** Explicit body-bias is information, never an error. */
 export function razaviHiddenBulkRisk(

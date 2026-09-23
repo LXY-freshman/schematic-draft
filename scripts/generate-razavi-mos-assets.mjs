@@ -282,6 +282,13 @@ function symbol(polarity, measurement, threeTerminal, bodyMeasurement) {
             hiddenPrimitiveParts: ["bulk-lead", "source-arrow-host"],
             additionalPrimitives: sourceArrowPrimitives(measurement, polarity),
           },
+          // The calibrated artwork drawn whole: the bulk lead the reference
+          // shows, with no pin hidden. B is a terminal in both drawings, so
+          // this changes what is drawn and nothing electrical.
+          {
+            id: "four-terminal",
+            hiddenPinNames: [],
+          },
         ],
     ...(threeTerminal ? {} : { defaultVariantId: "textbook-3terminal" }),
   };

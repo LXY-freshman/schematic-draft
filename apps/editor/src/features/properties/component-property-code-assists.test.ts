@@ -110,6 +110,7 @@ describe("Canvas property assistance", () => {
       "appearance",
       "appearance.color",
       "appearance.strokeScale",
+      "appearance.bulkTerminal",
       "display.visualAnnotation",
       "display.value",
     ]);
@@ -179,8 +180,11 @@ describe("Canvas property assistance", () => {
     expect(
       propertyCodeChanges(source, context, { "placement.unsupported": 0 }),
     ).toEqual([]);
+    // A resistor has no display annotations and no bulk to draw, so nothing
+    // in its code is a switch.
     const noDisplay = {
       ...context,
+      instance: { ...context.instance, symbolId: "resistor" },
       referenceVisible: null,
       valueVisible: null,
     };

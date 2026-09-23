@@ -93,8 +93,9 @@ is defined.
   supply marker — its connection and Net name), **Parameters** (one row per
   declared parameter, plus the target netlist Model where the device takes
   one), **Display** (the Visual annotation, Value, and per-parameter visibility
-  switches), and **Appearance** (line color, internal mark text, and the
-  differential swap switches). A section appears only when the selection has
+  switches), and **Appearance** (line color, stroke width, internal mark text,
+  the bulk-terminal switch, and the differential swap switches). A section
+  appears only when the selection has
   those fields, so a schematic-only block offers no Parameters and no Display
   section rather than dead controls. Placement and Identity start open;
   Appearance starts collapsed.
@@ -115,6 +116,11 @@ is defined.
   only; the device and its pins are the same either way. Components expose no
   background
   or fill color; those belong only to drawable shapes that can contain paint.
+  A MOSFET also exposes **Bulk terminal**, which draws its body lead and turns
+  the three-terminal symbol into the four-terminal one. B is a real pin in both
+  drawings — the three-terminal symbol only hides the lead — so the netlist and
+  anything already wired to the body are unchanged; the wire simply re-lands on
+  the side of the channel instead of the back of the symbol.
   Differential-input blocks expose **Swap inputs**; fully differential
   amplifiers also expose **Swap outputs**. They exchange the +/− positions
   independently, connections follow their named pins, and internal marks stay

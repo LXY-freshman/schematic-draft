@@ -94,7 +94,12 @@ export interface VisioMasterSource {
   readonly definition: SymbolDefinition;
   /** Undefined when the symbol's own artwork is what the master draws. */
   readonly variant: SymbolVariant | undefined;
-  /** False when the symbol yields one master and the name needs no suffix. */
+  /**
+   * True when this master shares its symbol with another drawing and needs a
+   * variant suffix to tell them apart in the Shapes window. The drawing the
+   * symbol resolves to by default keeps the plain symbol name, so the common
+   * case reads as the device rather than as one of several spellings of it.
+   */
   readonly disambiguate: boolean;
   /**
    * What this master draws, when the symbol draws more than one thing.
@@ -135,8 +140,10 @@ export function symbolHasVisioMaster(definition: SymbolDefinition): boolean {
  * The masters one symbol yields.
  *
  * A symbol with a default variant never resolves to its variant-free artwork,
- * so that artwork is not worth a master: the four-terminal MOSFET drawing
- * behind `nmos` is unreachable once `textbook-3terminal` is its default.
+ * so that artwork is not worth a master: the undecorated MOSFET outline behind
+ * `nmos` is unreachable once `textbook-3terminal` is its default. The other
+ * declared variants are reachable, and a MOS drawn with its bulk lead is one
+ * of them, so a symbol can yield more than one master.
  */
 export function visioMasterSourcesForSymbol(
   definition: SymbolDefinition,
@@ -150,8 +157,14 @@ export function visioMasterSourcesForSymbol(
     reachable.push(undefined);
   }
   reachable.push(...definition.variants);
-  const disambiguate = reachable.length > 1;
-  return reachable.map((variant) => ({ definition, variant, disambiguate }));
+  return reachable.map((variant) => ({
+    definition,
+    variant,
+    // The default drawing answers to the device's own name; the rest say which
+    // drawing they are.
+    disambiguate:
+      reachable.length > 1 && variant?.id !== definition.defaultVariantId,
+  }));
 }
 
 /** The symbol and variant combinations a document can actually reach. */

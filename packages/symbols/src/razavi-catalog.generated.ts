@@ -991,7 +991,7 @@ export const razaviSymbolCatalogEntries: readonly RazaviSymbolCatalogEntry[] = [
     automaticMappings: ["spice:M:nmos", "pdk:model-type:nmos"],
     assetPath: "nmos.json",
     assetHash:
-      "7bfa080f6bc6166a4ae7e0e91f8f6c058e6f6a4cc22a208818c6283fe8650953",
+      "0341a2d4c4b7db8256fc40e0e50f338f72078009f095f33bcd3b44fc9ae6d6a0",
   },
   {
     symbolId: "nor-gate",
@@ -1507,7 +1507,7 @@ export const razaviSymbolCatalogEntries: readonly RazaviSymbolCatalogEntry[] = [
     automaticMappings: ["spice:M:pmos", "pdk:model-type:pmos"],
     assetPath: "pmos.json",
     assetHash:
-      "daaa6cbb9dcd9de154a9b3e4796b2e8e5b24b39161661935c91f2e078fe1af74",
+      "0be494471aa6cbd4c09728276f23d00aca5b1887e675db8dcdb33d54355e800d",
   },
   {
     symbolId: "pnp",
@@ -6778,6 +6778,10 @@ export const razaviCatalogSymbols: readonly SymbolDefinition[] = [
           },
         ],
       },
+      {
+        id: "four-terminal",
+        hiddenPinNames: [],
+      },
     ],
     defaultVariantId: "textbook-3terminal",
   },
@@ -10245,6 +10249,10 @@ export const razaviCatalogSymbols: readonly SymbolDefinition[] = [
             part: "source-arrow",
           },
         ],
+      },
+      {
+        id: "four-terminal",
+        hiddenPinNames: [],
       },
     ],
     defaultVariantId: "textbook-3terminal",

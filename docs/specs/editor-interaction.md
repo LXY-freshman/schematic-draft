@@ -140,7 +140,13 @@ sits beside the color as a number field stepping by 0.25: a free multiplier from
 0.25 to 4 over the weight this component's artwork is otherwise drawn at. It is
 always written in the code, because `1` and an absent override are the same
 drawing and only absence is stored, and it carries nothing electrical — a
-heavier symbol is the same device with the same pins. Applying valid code plans the existing typed placement,
+heavier symbol is the same device with the same pins. `appearance.bulkTerminal`
+appears only on a MOS that declares a bulk drawing, and selects between the
+symbol's default three-terminal variant and its `four-terminal` one. It is a
+Symbol *variant* switch, not a Symbol switch: B is a declared terminal of the
+same Symbol in both drawings — hidden as an auxiliary pin in one, drawn on its
+lead in the other — so pin order, netlist projection and existing connections
+are identical either way, and only the anchor B routes to moves. Applying valid code plans the existing typed placement,
 annotation, parameter, identity, and style edits as one transaction. Unknown
 root keys and invalid values are rejected without changing the Document.
 `parameters` contains descriptor-owned values and arbitrary model/dialect

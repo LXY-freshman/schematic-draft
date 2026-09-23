@@ -177,6 +177,10 @@
             "part": "source-arrow"
           }
         ]
+      },
+      {
+        "id": "four-terminal",
+        "hiddenPinNames": []
       }
     ],
     "defaultVariantId": "standard-3terminal"
