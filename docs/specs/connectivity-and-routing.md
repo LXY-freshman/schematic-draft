@@ -407,10 +407,10 @@ always produces the same answer:
   on one segment must not run into each other. A crossing that cannot be drawn
   this way is drawn flat rather than distorted.
 
-The rule is derived once, in `@icm/derived`, because the formal SVG scene and
-the Visio export both need the same answer and must not drift apart. A Document
-in which no Route asks for jumps derives none and renders byte for byte as it
-did before the flag existed.
+The rule is derived once, in `@icm/derived`, because the formal SVG scene, the
+editor's Net highlight and the Visio export all need the same answer and must
+not drift apart. A Document in which no Route asks for jumps derives none and
+renders byte for byte as it did before the flag existed.
 
 ## Transaction invariants
 

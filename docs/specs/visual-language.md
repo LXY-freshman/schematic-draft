@@ -58,7 +58,8 @@ replacing the short stretch of line at each crossing it hops. The hop is part
 of the same Route object, with the same id, Net, colour, stroke and dash; a
 horizontal conductor hops upward and a vertical one to its right, whichever way
 each was drawn. Its geometry is not connectivity, and the arc never stands in
-for a node marker.
+for a node marker. The editor's Net highlight traces the same path, so the halo
+goes around every hop the conductor beneath it goes around.
 
 Annotations are semantic `instance-label`, `instance-value`, `net-label`,
 `power-label`, and `route-marker` objects. Current

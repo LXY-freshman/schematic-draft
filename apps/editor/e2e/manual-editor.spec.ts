@@ -2919,6 +2919,20 @@ test("hops a marked wire over the wire it crosses, and nothing else", async ({
   ).toHaveCount(1);
   await expect(page.getByTestId("crossing-count")).toHaveText("1");
   await expect(page.locator('[data-layer="junctions"] circle')).toHaveCount(0);
+
+  // The highlight is a second painter of the same centerline, so it has to
+  // take the arc too — a halo that cut straight across would contradict the
+  // wire it sits on.
+  await page.getByRole("button", { name: "Highlight Net (H)" }).click();
+  const highlightCore = page.locator(
+    ".net-highlight-overlay path.net-highlight-core",
+  );
+  await expect(highlightCore).toHaveCount(1);
+  expect(await highlightCore.getAttribute("d")).toMatch(/ A /u);
+  await expect(page.locator(".net-highlight-overlay polyline")).toHaveCount(0);
+  await page.keyboard.press("h");
+  await expect(page.getByTestId("net-highlight-overlay")).toHaveCount(0);
+
   const saved = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   expect(
     saved.documents[0].routes.find(

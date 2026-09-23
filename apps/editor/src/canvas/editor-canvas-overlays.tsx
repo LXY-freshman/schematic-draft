@@ -3,9 +3,11 @@ import {
   resolveEndpointConnection,
   type NetHighlight,
   type ResolvedRouteGeometry,
+  type RouteLineJump,
 } from "@icm/derived";
 import type { Diagnostic } from "@icm/derived";
 import type { GridRect, RouteBranch, SchematicDocument } from "@icm/model";
+import { routePathData } from "@icm/render-svg";
 import type { SymbolResolver } from "@icm/symbols";
 
 import type { EditorTool } from "../interaction/interaction-state";
@@ -88,6 +90,7 @@ export function NetHighlightOverlay({
   document,
   resolver,
   routeGeometryRecords,
+  routeLineJumps,
 }: {
   highlight: NetHighlight | undefined;
   document: SchematicDocument;
@@ -96,11 +99,37 @@ export function NetHighlightOverlay({
     route: RouteBranch;
     geometry: ResolvedRouteGeometry;
   }[];
+  routeLineJumps: ReadonlyMap<string, readonly RouteLineJump[]>;
 }) {
   if (!highlight) return null;
   const highlightedRoutes = routeGeometryRecords.filter(({ route }) =>
     highlight.routes.includes(route.id),
   );
+  // The wire underneath is painted by the scene renderer, which goes around
+  // every hop arc. The halo has to take the same path or it crosses what the
+  // wire steps over. Routes with no hop keep the polyline they always had.
+  const highlightShape = (
+    route: RouteBranch,
+    geometry: ResolvedRouteGeometry,
+    className: string,
+    key: string,
+  ) => {
+    const jumps = routeLineJumps.get(route.id) ?? [];
+    return jumps.length > 0 ? (
+      <path
+        key={key}
+        className={className}
+        d={routePathData(geometry.centerline, jumps)}
+        fill="none"
+      />
+    ) : (
+      <polyline
+        key={key}
+        className={className}
+        points={serializePolylinePoints(geometry.centerline)}
+      />
+    );
+  };
   return (
     <g
       data-testid="net-highlight-overlay"
@@ -108,20 +137,17 @@ export function NetHighlightOverlay({
       className="net-highlight-overlay"
       pointerEvents="none"
     >
-      {highlightedRoutes.map(({ route, geometry }) => (
-        <polyline
-          key={route.id}
-          className="net-highlight-halo"
-          points={serializePolylinePoints(geometry.centerline)}
-        />
-      ))}
-      {highlightedRoutes.map(({ route, geometry }) => (
-        <polyline
-          key={`${route.id}-core`}
-          className="net-highlight-core"
-          points={serializePolylinePoints(geometry.centerline)}
-        />
-      ))}
+      {highlightedRoutes.map(({ route, geometry }) =>
+        highlightShape(route, geometry, "net-highlight-halo", route.id),
+      )}
+      {highlightedRoutes.map(({ route, geometry }) =>
+        highlightShape(
+          route,
+          geometry,
+          "net-highlight-core",
+          `${route.id}-core`,
+        ),
+      )}
       {document.junctions
         .filter((junction) => highlight.junctions.includes(junction.id))
         .map((junction) => (
