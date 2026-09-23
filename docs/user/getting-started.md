@@ -276,8 +276,11 @@ command that asks where to put the file. A new or imported drawing has no file
 yet, so its first **Save** asks once and then remembers.
 
 A dot beside the Project name means there are changes the file does not have.
-Refresh and window close then show a leave warning; only a completed Save clears
-it.
+The window title says the same thing where it is harder to miss: it names the
+open file — `amplifier.schdraft — Schematic Draft` — and adds a `*` while those
+changes are unsaved. A Project with no file yet is titled after its Project
+name. Refresh and window close then show a leave warning; only a completed Save
+clears it.
 
 Edits also stage a recovery copy in the application's own IndexedDB. Recovery is
 silent crash protection, not Save, and can be lost if that storage is cleared. A

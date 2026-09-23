@@ -1,4 +1,5 @@
-// Reads the desktop shell's own console and computed styles in a real window.
+// Reads the desktop shell's own console, computed styles and window caption in
+// a real window.
 //
 // The shell serves a Content Security Policy that nothing below Electron
 // applies: the dev server, the preview server and every Playwright run are
@@ -8,6 +9,9 @@
 // read. That is how an editor shipped for two releases with italics upright,
 // weights flattened, an active-low overbar missing, the code panels unstyled
 // and the round-period font never loaded.
+//
+// The window caption is here for the same reason: a browser test can only read
+// `document.title`, and whether Electron accepts it is the shell's decision.
 //
 //   pnpm desktop:build && node scripts/shell-style-window-check.mjs
 //
@@ -61,9 +65,15 @@ page.on("console", (message) => {
 
 await page.getByTestId("schematic-canvas").waitFor({ timeout: 30_000 });
 
+/** The caption Windows shows, which only a launched window has. */
+const caption = () =>
+  app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.title);
+const cleanCaption = await caption();
+
 // A D flip-flop carries both cases the policy used to break: italic signal
 // names, and the overbar that is the only thing separating Q from its
-// complement.
+// complement. Inserting it also leaves the Project dirty, which is what the
+// caption's unsaved marker is read from below.
 {
   const summary = page
     .locator("summary", { hasText: "Edit" })
@@ -123,6 +133,9 @@ const seen = await page.evaluate(async () => {
   };
 });
 
+const dirtyCaption = await caption();
+const pageTitle = await page.title();
+
 await app.close();
 
 assert.deepEqual(
@@ -165,5 +178,24 @@ assert.equal(
   "an active-low signal renders as its own complement",
 );
 pass("schematic italics and the active-low overbar render");
+
+// The caption is the other thing no test below Electron can see: Playwright
+// reads `document.title`, and the shell used to refuse every page title, so
+// the two could disagree and only a launched window would know.
+assert.equal(
+  dirtyCaption,
+  pageTitle,
+  "the window caption and the page title disagree",
+);
+assert.notEqual(
+  cleanCaption,
+  "Schematic Draft",
+  "the caption is still pinned to the product name",
+);
+assert.ok(
+  !cleanCaption.includes("*") && dirtyCaption.includes(" * "),
+  `the caption did not mark unsaved work: ${cleanCaption} → ${dirtyCaption}`,
+);
+pass("the window caption names the Project and marks unsaved work");
 
 console.log(`\n${results.length} checks passed`);

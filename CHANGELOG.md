@@ -8,6 +8,18 @@ Entries at and below `0.9.2` are inherited from
 this application was forked from. They describe the shared editing core; the
 hosted features some of them mention are gone.
 
+## Unreleased
+
+### Changed
+
+- **The window title names the file you are editing.** It used to read
+  `Schematic Draft` no matter what was open, so several windows were
+  indistinguishable in the taskbar and in `Alt+Tab`. It now reads
+  `amplifier.schdraft — Schematic Draft`, with a `*` after the file name while
+  there are changes the file does not have — the same fact as the dot beside
+  the Project name, somewhere it cannot be missed. A Project that has never
+  been saved is titled after its Project name instead.
+
 ## 1.2.0 — Control over the drawing (2026-09-23)
 
 ### Added

@@ -113,6 +113,7 @@ import {
 } from "../features/editor-shell/editor-file-commands";
 import { EditorStatusbar } from "../features/editor-shell/editor-statusbar";
 import { useShellCloseBridge } from "../features/editor-shell/shell-close-bridge";
+import { formatWindowTitle } from "../features/editor-shell/window-title";
 import { documentSettingsCodeValue } from "../features/editor-shell/document-settings-code";
 import { normalizedStyleOverrides } from "../features/editor-shell/style-knobs";
 import { useCellSymbolLayout } from "../features/hierarchy/use-cell-symbol-layout";
@@ -607,6 +608,20 @@ export function App({ project: initialProject }: AppProps) {
         : { status: outcome.status };
     },
   });
+  // The window caption. In the shell this IS the Windows title bar: Electron
+  // takes the page title, so the taskbar, Alt-Tab and the window list all name
+  // the file being edited. The `*` reads the same fact as the dot beside the
+  // Project name in the toolbar, just where it cannot be missed.
+  const windowTitle = formatWindowTitle({
+    filePath: fileBinding?.path ?? null,
+    projectName: project.name,
+    dirty: isDirtyWork(),
+  });
+  useEffect(() => {
+    // `window.` is required: `document` in this component is the schematic
+    // Document, not the DOM one.
+    window.document.title = windowTitle;
+  }, [windowTitle]);
   const startupReopenAttemptedRef = useRef(false);
   const hasExplicitBootTarget =
     typeof window !== "undefined" &&
