@@ -98,7 +98,7 @@ describe("RoutePropertyForm", () => {
     expect(markup).not.toContain('aria-label="Loading Canvas property code"');
   });
 
-  it("shows the line-jump box unticked, and ticked once the wire asks to hop", () => {
+  it("shows the line-jump button unpressed, and pressed once the wire asks to hop", () => {
     const { document, route, netLabel } = routeFixture("OUT");
     const render = () =>
       renderToStaticMarkup(
@@ -111,11 +111,15 @@ describe("RoutePropertyForm", () => {
         />,
       );
     const flat = render();
+    // One button that stays down while the hop is on, rather than a checkbox
+    // among a row of framed selects.
     expect(flat).toContain("Hop over crossings");
-    expect(flat).not.toContain('type="checkbox" checked=""');
+    expect(flat).toContain('class="toggle-action-button"');
+    expect(flat).toContain('aria-pressed="false"');
+    expect(flat).not.toContain('type="checkbox"');
 
     route.styleOverride = { ...route.styleOverride, lineJump: true };
-    expect(render()).toContain('type="checkbox" checked=""');
+    expect(render()).toContain('aria-pressed="true"');
   });
 
   it("offers no scope until the wire claims a Net name", () => {

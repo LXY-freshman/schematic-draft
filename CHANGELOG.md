@@ -33,6 +33,13 @@ hosted features some of them mention are gone.
   sizes and two weights; they now match the labels on the selects and switches
   beside them. **RGB** also wears the frame of a button, because it is one, and
   each swatch has a darker outline so a pale colour is still a visible chip.
+- **Hop over crossings and Highlight Net are buttons that stay pressed.** One
+  was a tick box and the other a button that renamed itself to **Clear Net
+  highlight** whenever the highlight was on, so telling the current state apart
+  meant reading two different kinds of evidence. Both are now the same control:
+  one fixed name, and the blue frame a chosen colour swatch wears while what it
+  turned on is on. Clicking either still toggles it, and **H** still toggles the
+  highlight.
 
 ### Fixed
 
@@ -40,8 +47,8 @@ hosted features some of them mention are gone.
   tile it repeats in, so three quarters of it fell outside and only a quarter
   was ever drawn — invisible at the fine size, and an obvious wedge at the
   coarse one. The dots are now drawn whole, in the same places as before.
-- **Highlighting a net no longer cuts across the line jumps on it.** A wire
-  ticked **Hop over crossings** is drawn with a small arc at each crossing, but
+- **Highlighting a net no longer cuts across the line jumps on it.** A wire set
+  to **Hop over crossings** is drawn with a small arc at each crossing, but
   the blue highlight was painted as a straight line over the same centerline,
   so it ran through every arc the wire went around. Both now trace the same
   path. Wires with no hops are drawn exactly as before.

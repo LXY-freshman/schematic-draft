@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import type { Annotation, SchematicDocument } from "@icm/model";
 
-import { DisplayToggle } from "../component-insert/display-toggle";
+import { ToggleActionButton } from "../../components/toggle-action-button";
 import { ColorOverrideControl } from "./color-override-control";
 import type { CanvasPropertyField } from "./component-property-fields";
 import { PropertyDisclosure } from "./property-disclosure";
@@ -188,11 +188,11 @@ export function RoutePropertyForm({
             })
           }
         />
-        <DisplayToggle
+        <ToggleActionButton
           label={field("appearance.lineJump")?.label ?? "Hop over crossings"}
-          checked={value.appearance.lineJump}
+          pressed={value.appearance.lineJump}
           help={field("appearance.lineJump")?.help}
-          onChange={(lineJump) => commitAppearance({ lineJump })}
+          onToggle={(lineJump) => commitAppearance({ lineJump })}
         />
       </PropertyDisclosure>
       {actions}

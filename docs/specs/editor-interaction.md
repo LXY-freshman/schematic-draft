@@ -261,7 +261,11 @@ act on. Naming a wire authors or renames its Net label in the same transaction
 as any style it carries, and clearing the name removes that label. Style is
 drawing only: it never changes Net membership, Junctions, or netlist output.
 **Highlight Net** and **Delete wire** stay beside the sections instead of
-trailing the code. A MOS bulk route keeps its instance-owned surface described
+trailing the code. **Hop over crossings** and **Highlight Net** are buttons
+that stay held down while what they turned on is on: each keeps one fixed name
+and reports its state through `aria-pressed`, wearing the accent frame a chosen
+colour swatch wears. Neither renames itself to describe the undo it offers.
+A MOS bulk route keeps its instance-owned surface described
 above and does not reach this form.
 
 ## Annotation and drawing properties
