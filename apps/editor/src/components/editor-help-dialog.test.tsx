@@ -14,7 +14,7 @@ describe("EditorHelpDialog", () => {
     expect(markup).toContain('role="dialog"');
     expect(markup).toContain("About Schematic Draft");
     expect(markup).toContain("never connects to a server");
-    expect(markup).toContain("Version <strong>1.1.0</strong>");
+    expect(markup).toContain("Version <strong>1.2.0</strong>");
     // AGPL attribution: the upstream source, handed to the system browser by
     // the desktop shell rather than fetched inside the application.
     expect(markup).toContain(
