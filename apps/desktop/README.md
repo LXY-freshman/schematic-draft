@@ -67,6 +67,8 @@ Schematic Draft\
   - 文件是纯 JSON，可以直接备份、拷贝、用 Git 管理；
   - 存到 `Projects\` 之外也完全可以，对话框去哪儿都行 —— 只是那样迁移就得自己再拷一份。
 - **导出的 SVG/PDF/PNG/Visio/netlist**：另存为对话框默认也从 `Projects\` 开始。
+  网表在 `Netlist → Save netlist to file…`，按侧栏里选的格式写出 `.spi` 或 `.scs`；
+  Netlist 按钮本身仍然是点一下就复制到剪贴板，两个出口给的是同一份字节。
   `File → Export drawing → Visio` 导出的 `.vsdx` 是拿去改的，不是拿去看的：每个器件是
   一个带引脚、参考号和参数的 Visio 形状，每根导线是一条线段、两端粘在引脚上。在 Visio
   里拖器件，线端跟着走；线本身保持你画的走法，Visio 不会自作主张重排 —— 代价是直接拖

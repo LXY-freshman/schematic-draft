@@ -77,6 +77,7 @@ export function planDesignNetlistExport({
   profile,
   portCase,
   electricalWarningsPresent = false,
+  delivery = "clipboard",
 }: {
   format: NetlistFormat;
   project: CircuitProject;
@@ -84,6 +85,13 @@ export function planDesignNetlistExport({
   profile?: NetlistExportProfile;
   portCase?: NetlistPortCase;
   electricalWarningsPresent?: boolean;
+  /**
+   * Where the netlist is going. The netlist itself and every reason to refuse
+   * to produce one are identical either way — this only decides whether the
+   * report says the text was copied or the file was written, so the two
+   * commands cannot drift apart on what counts as exportable.
+   */
+  delivery?: "clipboard" | "file";
 }): DesignNetlistExportPlan {
   const result = createDesignNetlistExport(project, {
     format,
@@ -111,6 +119,7 @@ export function planDesignNetlistExport({
     };
   }
   const printed = result.file;
+  const label = format === "spice" ? "SPICE" : "Spectre";
   const note = result.placeholders.length
     ? `; incomplete netlist: ${result.placeholders.length} TODO field${result.placeholders.length === 1 ? "" : "s"}`
     : result.diagnostics.length || electricalWarningsPresent
@@ -122,7 +131,10 @@ export function planDesignNetlistExport({
       bytes: printed.text,
       mediaType: printed.mediaType,
       extension: printed.extension.slice(1),
-      report: `${format === "spice" ? "SPICE" : "Spectre"} netlist copied${note}`,
+      report:
+        delivery === "clipboard"
+          ? `${label} netlist copied${note}`
+          : `Exported ${label} netlist${note}`,
     },
   };
 }

@@ -62,7 +62,7 @@ export async function clickCommand(
 /** Run one workflow command from the Netlist menu. */
 export async function clickNetlistWorkflowCommand(
   page: Page,
-  command: "check-and-save",
+  command: "check-and-save" | "save-netlist-file",
 ): Promise<void> {
   const details = await openMenu(page, "Netlist");
   await details.getByTestId(command).click();

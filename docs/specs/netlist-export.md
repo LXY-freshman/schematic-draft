@@ -356,9 +356,14 @@ and the explicit substrate rule belong only to the selected preset above.
 The editor's primary Netlist button copies immediately in its current format
 (SPICE by default) and opens the live right sidebar. That panel's Format select
 chooses the format, which is remembered with the browser-local configuration.
-The adjacent menu offers Configuration…, Instances…, Check Report…, and Check
-and Save; it has no format choice. Clipboard rejection leaves selectable code
-and a status message, without a download fallback.
+The adjacent menu offers Configuration…, Instances…, Check Report…, Check
+and Save, and **Save netlist to file…**; it has no format choice. Copying and
+saving to a file are two deliveries of one projection: the same extraction, the
+same bytes, the same extension, and the same refusal to produce anything while
+`unfinishedDrawingDiagnostics` is non-empty or the configuration is invalid.
+Only the status wording differs. Clipboard rejection leaves selectable code and
+a status message; it never falls back to a file on its own, because writing one
+is a separate command the author asks for.
 
 The copy/export projection removes the strict printer's generated title and
 adds no diagnostic, preset, TODO-summary or library comments. It also accepts

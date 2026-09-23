@@ -3064,6 +3064,7 @@ export function App({ project: initialProject }: AppProps) {
   const {
     exportSvg,
     exportDesignNetlist,
+    saveDesignNetlistToFile,
     exportRaster,
     exportVisio,
     importSpiceFiles,
@@ -3696,6 +3697,7 @@ export function App({ project: initialProject }: AppProps) {
         }}
         onOpenNetlistPreflight={() => setNetlistPreflightOpen(true)}
         onExportNetlist={exportDesignNetlist}
+        onSaveNetlistToFile={saveDesignNetlistToFile}
         helpButtonRef={helpButtonRef}
         helpOpen={helpOpen}
         onOpenHelp={() => setHelpOpen(true)}

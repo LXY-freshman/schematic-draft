@@ -57,6 +57,7 @@ export interface EditorAppChromeProps {
   netlistProfileId: NetlistProfileId;
   netlistFormat: "spice" | "spectre";
   onExportNetlist: (format: "spice" | "spectre") => void;
+  onSaveNetlistToFile: (format: "spice" | "spectre") => void;
   helpButtonRef: RefObject<HTMLButtonElement | null>;
   helpOpen: boolean;
   onOpenHelp: () => void;
@@ -99,6 +100,7 @@ export function EditorAppChrome({
   netlistFormat,
   onOpenNetlistConfiguration,
   onExportNetlist,
+  onSaveNetlistToFile,
   helpButtonRef,
   helpOpen,
   onOpenHelp,
@@ -338,6 +340,18 @@ export function EditorAppChrome({
                   >
                     <span className="toolbar-check-glyph" aria-hidden="true" />
                     Check and Save
+                  </button>
+                  <span className="command-group-label">Export</span>
+                  <button
+                    type="button"
+                    data-testid="save-netlist-file"
+                    title={`Write the ${NETLIST_PROFILE_LABELS[netlistProfileId]} ${netlistFormat === "spice" ? "SPICE (.spi)" : "Spectre (.scs)"} netlist to a file`}
+                    onClick={() => {
+                      dismissOpenCommandMenus();
+                      onSaveNetlistToFile(netlistFormat);
+                    }}
+                  >
+                    Save netlist to file…
                   </button>
                 </div>
               </details>

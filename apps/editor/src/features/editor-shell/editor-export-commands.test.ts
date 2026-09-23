@@ -74,6 +74,54 @@ describe("editor export commands", () => {
     expect(plan.artifact.mediaType).toBe("application/x-spice");
     expect(plan.artifact.report).toBe("SPICE netlist copied");
   });
+
+  it("delivers the same netlist to the clipboard and to a file", () => {
+    // Copying and saving are two ways out of one projection. Only the report's
+    // verb may differ: the moment the bytes, the extension or what counts as
+    // exportable could diverge, one command would hand out a netlist the other
+    // refuses.
+    const project = createEmptyProject("project", "My Circuit");
+    const copied = planDesignNetlistExport({ format: "spectre", project });
+    const saved = planDesignNetlistExport({
+      format: "spectre",
+      project,
+      delivery: "file",
+    });
+    expect(copied.status).toBe("ready");
+    expect(saved.status).toBe("ready");
+    if (copied.status !== "ready" || saved.status !== "ready") return;
+    expect(saved.artifact.bytes).toEqual(copied.artifact.bytes);
+    expect(saved.artifact.extension).toBe("scs");
+    expect(saved.artifact.mediaType).toBe(copied.artifact.mediaType);
+    expect(copied.artifact.report).toBe("Spectre netlist copied");
+    expect(saved.artifact.report).toBe("Exported Spectre netlist");
+  });
+
+  it("refuses a file for exactly the drawings it refuses a copy for", () => {
+    const project = createEmptyProject("project", "Circuit");
+    project.documents[0]!.netlist = undefined;
+    expect(
+      planDesignNetlistExport({ format: "spice", project, delivery: "file" }),
+    ).toEqual({
+      status: "blocked",
+      message: "Resolve the Check Report findings before export",
+    });
+  });
+
+  it("carries findings into the saved file's report too", () => {
+    const project = createEmptyProject("project", "Circuit");
+    const plan = planDesignNetlistExport({
+      format: "spice",
+      project,
+      delivery: "file",
+      electricalWarningsPresent: true,
+    });
+    expect(plan.status).toBe("ready");
+    if (plan.status !== "ready") return;
+    expect(plan.artifact.report).toBe(
+      "Exported SPICE netlist; see Check Report for findings",
+    );
+  });
 });
 
 describe("Visio export", () => {
