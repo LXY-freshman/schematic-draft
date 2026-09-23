@@ -296,6 +296,10 @@
             "part": "source-arrow"
           }
         ]
+      },
+      {
+        "id": "four-terminal",
+        "hiddenPinNames": []
       }
     ],
     "defaultVariantId": "textbook-3terminal"

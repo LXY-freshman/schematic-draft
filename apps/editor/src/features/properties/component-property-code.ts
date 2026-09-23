@@ -14,6 +14,7 @@ import {
   parseCanvasColor,
 } from "./component-property-fields";
 import {
+  componentBulkTerminalShown,
   componentInputPolarity,
   componentInputsSwapped,
   componentInternalMark,
@@ -51,6 +52,8 @@ export interface ComponentPropertyCodeValue extends ComponentPropertyDetailsValu
     color: ComponentPropertyColor;
     /** Multiplier over the profile stroke; 1 is the weight with no override. */
     strokeScale: number;
+    /** Draw the MOS bulk lead; absent for a component with no bulk. */
+    bulkTerminal?: boolean;
     internalMark?: string;
     inputPolarity?: boolean;
     inputsSwapped?: boolean;
@@ -220,6 +223,7 @@ function parseAppearance(
   const internalMark = componentInternalMark(context.instance);
   const inputPolarity = componentInputPolarity(context.instance.symbolId);
   const booleanStates = {
+    bulkTerminal: componentBulkTerminalShown(context.instance),
     inputPolarity,
     inputsSwapped: componentInputsSwapped(context.instance.symbolId),
     outputsSwapped: componentOutputsSwapped(context.instance.symbolId),
@@ -276,6 +280,7 @@ export function componentPropertyCodeValue(
 ): ComponentPropertyCodeValue {
   const { instance } = context;
   const internalMark = componentInternalMark(instance);
+  const bulkTerminal = componentBulkTerminalShown(instance);
   const inputPolarity = componentInputPolarity(instance.symbolId);
   const inputsSwapped = componentInputsSwapped(instance.symbolId);
   const outputsSwapped = componentOutputsSwapped(instance.symbolId);
@@ -317,6 +322,7 @@ export function componentPropertyCodeValue(
     appearance: {
       color: formattedColor(instance.styleOverride?.foreground),
       strokeScale: instance.styleOverride?.strokeScale ?? 1,
+      ...(bulkTerminal !== undefined ? { bulkTerminal } : {}),
       ...(internalMark !== undefined ? { internalMark } : {}),
       ...(inputPolarity !== undefined ? { inputPolarity } : {}),
       ...(inputsSwapped !== undefined ? { inputsSwapped } : {}),
@@ -348,6 +354,9 @@ export function serializeComponentPropertyCode(
         color:
           appearance.color === "auto" ? "auto" : colorToRgb(appearance.color),
         strokeScale: appearance.strokeScale,
+        ...(appearance.bulkTerminal !== undefined
+          ? { bulkTerminal: appearance.bulkTerminal }
+          : {}),
         ...(appearance.internalMark !== undefined
           ? { internalMark: appearance.internalMark }
           : {}),
@@ -513,6 +522,9 @@ export function defaultComponentPropertyCode(
   value.appearance = {
     color: "auto",
     strokeScale: 1,
+    ...(value.appearance.bulkTerminal !== undefined
+      ? { bulkTerminal: false }
+      : {}),
     ...(value.appearance.internalMark !== undefined
       ? { internalMark: NO_INTERNAL_MARK }
       : {}),

@@ -99,6 +99,43 @@ describe("ComponentPropertyForm", () => {
     expect(markup).toContain('max="4"');
   });
 
+  it("offers the bulk switch to a MOS and to nothing else", () => {
+    const mos = renderToStaticMarkup(
+      <ComponentPropertyForm
+        instance={{
+          id: "M1",
+          symbolId: "nmos",
+          symbolVariantId: "textbook-3terminal",
+          placement: {
+            position: { x: 0, y: 0 },
+            rotation: 0 as const,
+            mirror: "none" as const,
+          },
+        }}
+        revision={4}
+        referenceVisible
+        valueVisible={false}
+        onApply={vi.fn(() => ({ ok: true as const }))}
+      />,
+    );
+
+    // Which drawing a MOS wears is an appearance fact, so it sits with the
+    // colour and the weight rather than with its netlist identity.
+    expect(disclosure(mos, "Component appearance")).not.toBe("");
+    expect(mos).toContain("<span>Bulk terminal</span>");
+
+    const resistor = renderToStaticMarkup(
+      <ComponentPropertyForm
+        instance={RESISTOR}
+        revision={4}
+        referenceVisible
+        valueVisible={false}
+        onApply={vi.fn(() => ({ ok: true as const }))}
+      />,
+    );
+    expect(resistor).not.toContain("Bulk terminal");
+  });
+
   it("offers no control for a fact this component does not carry", () => {
     const markup = renderToStaticMarkup(
       <ComponentPropertyForm

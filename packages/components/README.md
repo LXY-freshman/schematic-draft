@@ -158,10 +158,16 @@ The product set is exactly the reviewed, Reference-calibrated entries:
 
 `nmos` and `pmos` are the only MOS asset IDs in the Reference-calibrated
 Razavi catalog. Their default visual variant is `textbook-3terminal`; explicit
-bulk-capable variants remain properties of the same canonical assets. Optional
+bulk-capable variants remain properties of the same canonical assets. Every MOS
+asset — the two above, the two depletion parts and the two DMOS parts —
+declares `B` as a fourth pin and a `four-terminal` variant that hides nothing,
+so the calibrated artwork can be drawn with its bulk lead. The variant changes
+which drawing an Instance shows and nothing else: `pinOrder` and the netlist
+projection are the same in both. Optional
 families such as high-voltage DMOS and Razavi-compatible depletion MOS live in
 the separate Extended Devices catalog and do not claim Razavi visual
-authority. The drawn VDD rail remains the explicit Net/Route authoring form;
+authority; where the insert palette files them is the editor's decision, not
+the catalog's. The drawn VDD rail remains the explicit Net/Route authoring form;
 `vdd-port` is its reviewed marker Symbol for placed-device authoring. New rails
 and VDD Power default to local scope; VDD Power is a formal Cell Pin unless the
 user explicitly selects Global. There is no legacy

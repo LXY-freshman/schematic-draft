@@ -1,4 +1,8 @@
 import type { Instance } from "@icm/model";
+import {
+  defaultRazaviSymbolVariantId,
+  FOUR_TERMINAL_VARIANT_ID,
+} from "../../presentation/razavi-symbol-variants";
 import { differentialInputSibling } from "../editor-shell/differential-input-swap";
 import { differentialOutputSibling } from "../editor-shell/differential-output-swap";
 
@@ -105,4 +109,26 @@ export function symbolForOutputsSwapped(
   return componentOutputsSwapped(symbolId) === swapped
     ? symbolId
     : differentialOutputSibling(symbolId);
+}
+
+/**
+ * Whether this MOS is drawn with its bulk lead. Undefined means the component
+ * has no bulk to draw. Unlike the switches above this one changes the Symbol
+ * *variant*, not the Symbol: B is a terminal in both drawings, so the netlist,
+ * the pin order and every existing connection are the same either way.
+ */
+export function componentBulkTerminalShown(
+  instance: Instance,
+): boolean | undefined {
+  if (!defaultRazaviSymbolVariantId(instance.symbolId)) return undefined;
+  return instance.symbolVariantId === FOUR_TERMINAL_VARIANT_ID;
+}
+
+export function variantForBulkTerminal(
+  symbolId: string,
+  shown: boolean,
+): string | undefined {
+  const threeTerminal = defaultRazaviSymbolVariantId(symbolId);
+  if (!threeTerminal) return undefined;
+  return shown ? FOUR_TERMINAL_VARIANT_ID : threeTerminal;
 }

@@ -116,6 +116,13 @@ export const CANVAS_PROPERTY_FIELDS: readonly CanvasPropertyField[] = [
     help: "Multiplier over the line weight this component is normally drawn with, from 0.25 to 4. Drawing only: a heavier symbol is the same device with the same pins.",
   },
   {
+    path: "appearance.bulkTerminal",
+    label: "Bulk terminal",
+    kind: "boolean",
+    description: "",
+    help: "Draw this MOS with its bulk lead, as a four-terminal device. B is a terminal in both drawings, so the netlist and every connection stay as they are.",
+  },
+  {
     path: "appearance.internalMark",
     label: "Internal mark",
     kind: "text",

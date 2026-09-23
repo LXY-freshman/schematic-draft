@@ -591,6 +591,14 @@ export function ComponentPropertyForm(props: ComponentPropertyFormProps) {
           resetKey={`${instance.id}-${revision}`}
           onCommit={(strokeScale) => commitAppearance({ strokeScale })}
         />
+        {value.appearance.bulkTerminal === undefined ? null : (
+          <DisplayToggle
+            label={label("appearance.bulkTerminal", "Bulk terminal")}
+            checked={value.appearance.bulkTerminal}
+            help={help("appearance.bulkTerminal")}
+            onChange={(checked) => commitAppearance({ bulkTerminal: checked })}
+          />
+        )}
         {internalMark !== undefined ? (
           <>
             <DisplayToggle

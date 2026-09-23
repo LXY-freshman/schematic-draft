@@ -58,6 +58,14 @@ export function symbolCategory(symbolId: string): string {
   ) {
     return EXTENDED_DEVICE_CATEGORY;
   }
+  // A DMOS or a depletion-mode MOS is reached for as a transistor, whichever
+  // library it was authored in, so it sits with the transistors rather than
+  // four sections below them. The catalog entry keeps saying `extended`.
+  if (
+    ["ndmos", "pdmos", "depletion-nmos", "depletion-pmos"].includes(symbolId)
+  ) {
+    return "Transistors";
+  }
   const expanded = expandedDeviceCatalogEntry(symbolId);
   if (expanded) return expanded.category;
   if (["nmos", "pmos", "npn", "pnp"].includes(symbolId)) {

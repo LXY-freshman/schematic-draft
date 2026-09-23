@@ -101,10 +101,10 @@ describe("component insertion catalog", () => {
     expect(symbolCategory("differential-transconductance")).toBe(
       "Analog Blocks",
     );
-    expect(symbolCategory("ndmos")).toBe("Extended Devices");
-    expect(symbolCategory("pdmos")).toBe("Extended Devices");
-    expect(symbolCategory("depletion-nmos")).toBe("Extended Devices");
-    expect(symbolCategory("depletion-pmos")).toBe("Extended Devices");
+    expect(symbolCategory("ndmos")).toBe("Transistors");
+    expect(symbolCategory("pdmos")).toBe("Transistors");
+    expect(symbolCategory("depletion-nmos")).toBe("Transistors");
+    expect(symbolCategory("depletion-pmos")).toBe("Transistors");
     expect(symbolCategory("annotation-arrow")).toBe("Annotations");
     expect(symbolCategory("annotation-polarity-both")).toBe("Annotations");
     expect(symbolCategory("annotation-ellipsis")).toBe("Annotations");
@@ -217,11 +217,13 @@ describe("component insertion catalog", () => {
     ).toHaveLength(1);
   });
 
-  it("keeps adjustable passives, diodes, and DMOS in one extended library", () => {
+  it("keeps adjustable passives and diodes in one extended library", () => {
     const extended = componentCatalog("razavi-textbook-v1", "").find(
       (group) => group.category === "Extended Devices",
     );
 
+    // The DMOS and depletion-mode entries are authored in this library too,
+    // but a reader looks for them among the transistors.
     expect(extended?.symbols.map((symbol) => symbol.id)).toEqual([
       "variable-resistor",
       "variable-capacitor",
@@ -230,10 +232,6 @@ describe("component insertion catalog", () => {
       "zener-diode",
       "tcoil",
       "xfmr",
-      "depletion-nmos",
-      "depletion-pmos",
-      "ndmos",
-      "pdmos",
     ]);
     expect(extended).not.toHaveProperty("subcategory");
   });
@@ -299,8 +297,18 @@ describe("reach order inside a category", () => {
         .symbols.map((symbol) => symbol.id);
 
     // Alphabetical order separated NMOS from PMOS with a bipolar between them,
-    // and the supply Port from its Rail.
-    expect(ids("Transistors")).toEqual(["nmos", "pmos", "npn", "pnp"]);
+    // and the supply Port from its Rail. The four-terminal and depletion-mode
+    // parts follow the everyday four they are reached for far less often than.
+    expect(ids("Transistors")).toEqual([
+      "nmos",
+      "pmos",
+      "npn",
+      "pnp",
+      "depletion-nmos",
+      "depletion-pmos",
+      "ndmos",
+      "pdmos",
+    ]);
     expect(ids("Extended Devices")).toEqual([
       "variable-resistor",
       "variable-capacitor",
@@ -309,10 +317,6 @@ describe("reach order inside a category", () => {
       "zener-diode",
       "tcoil",
       "xfmr",
-      "depletion-nmos",
-      "depletion-pmos",
-      "ndmos",
-      "pdmos",
     ]);
     const power = ids("Power and Ports");
     expect(power.indexOf("vdd-port")).toBeLessThan(power.indexOf("vdd"));

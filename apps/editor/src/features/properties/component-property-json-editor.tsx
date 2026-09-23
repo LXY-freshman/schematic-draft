@@ -299,6 +299,7 @@ function jsonDecorations(state: EditorState, read: () => Props): DecorationSet {
   for (const field of [
     { path: "display.visualAnnotation", label: "visual annotation" },
     { path: "display.value", label: "value" },
+    { path: "appearance.bulkTerminal", label: "bulk terminal" },
     { path: "appearance.inputPolarity", label: "input polarity" },
     { path: "appearance.inputsSwapped", label: "inputs" },
     { path: "appearance.outputsSwapped", label: "outputs" },
@@ -624,7 +625,9 @@ class DisplayToggleWidget extends WidgetType {
               ? "Visual annotation"
               : this.label === "value"
                 ? "Value"
-                : this.label
+                : this.label === "bulk terminal"
+                  ? "Bulk terminal"
+                  : this.label
         } · ${
           this.checked === "mixed"
             ? "Mixed"

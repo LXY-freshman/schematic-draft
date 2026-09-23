@@ -29,6 +29,16 @@ hosted features some of them mention are gone.
   written at schema 59 and **Schematic Draft 1.3.0 will refuse to open it**.
   Files that use no stroke width are unaffected and open in either version, and
   1.3.1 opens everything older as before.
+- **A MOSFET can be drawn with its bulk lead.** Every MOS in the library —
+  NMOS, PMOS, the two depletion parts and the two DMOS — already carried B as a
+  fourth terminal; only the drawing left it out. Appearance now holds a **Bulk
+  terminal** switch that draws the lead, turning the familiar three-terminal
+  symbol into the four-terminal one without touching the device. B is a real
+  pin either way, so the netlist, the pin order and every wire already landing
+  on the body stay exactly as they were; what moves is where the wire lands,
+  because the body lead comes out of the side of the channel rather than the
+  back of the symbol. In Visio the two drawings are two masters, named after
+  the device and **… (four-terminal)**.
 - **The background grid can mark every seventh dot.** The status bar's grid
   button now cycles **Grid Off → Grid On → Grid On · Coarse**. The coarse state
   keeps the same fine dots and draws every seventh one larger and darker, so
@@ -39,6 +49,12 @@ hosted features some of them mention are gone.
 
 ### Changed
 
+- **The depletion and DMOS parts sit with the transistors.** D-NMOS, D-PMOS and
+  the two DMOS entries were four sections down the Library, under **Extended
+  Devices**, because that is the catalog they are authored in. Someone reaching
+  for a transistor looks under **Transistors**, so that is where they are now,
+  after the four everyday parts. Nothing else about them changed — same
+  symbols, same parameters, same library of origin.
 - **The colour swatches in Properties are MATLAB's default colour order.** The
   four presets became eight: the neutral light gray, then MATLAB's Blue,
   Orange, Yellow, Purple, Green, Cyan and Dark red. A wire and the plotted
