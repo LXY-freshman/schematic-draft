@@ -1,6 +1,6 @@
 # Project File Compatibility
 
-The current Project schema version is `58`. It retains schematic-only
+The current Project schema version is `59`. It retains schematic-only
 hierarchy integrity, a Project structural revision, stable formal Cell ports,
 and definition-level Cell symbol presentation. It also has one typed Instance
 netlist authority, formal Cell parameters, and Project-local external
@@ -77,7 +77,7 @@ arrowheads, dots, no head, and legacy open arrowheads. Unset ends preserve the
 previous head style, placement, and scale; v54 content changes only its stamp.
 These additions do not invent intent while upgrading an older Project.
 The original file is never overwritten silently. Schemas older than v24 and
-versions newer than v58 are rejected by the project-file boundary.
+versions newer than v59 are rejected by the project-file boundary.
 
 Simulation setups and folders (v37 through v50 above) are still read, upgraded,
 and written back unchanged. This edition has no simulator, so nothing acts on
@@ -131,3 +131,16 @@ it never connects or disconnects anything, and it changes no netlist output.
 The schema 57 upgrade preserves all existing Route data and changes only the
 version stamp, so a Project opened from an older file draws exactly the
 crossings it drew before.
+
+Schema 59 adds an optional `styleOverride.strokeScale` to Wires and to
+components — a free multiplier between 0.25 and 4 over the line width each
+would otherwise be drawn with. It is appearance only: a thicker wire carries
+no more current, a thicker symbol has the same pins in the same places, and
+neither changes netlist output. The schema 58 upgrade changes only the version
+stamp, so everything opened from an older file keeps the weight it had.
+
+**A Project that uses the new field cannot be opened by 1.3.0 or earlier.**
+Saving in 1.3.1 stamps every Project schema 59, and older builds reject a
+schema newer than the one they know — this is true whether or not the drawing
+actually sets a thickness. Keep a copy of anything that has to stay readable
+by an older installation.

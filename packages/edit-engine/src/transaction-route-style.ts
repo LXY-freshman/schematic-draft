@@ -1,5 +1,5 @@
 import { RouteStyleOverrideSchema } from "@icm/model";
-import type { SchematicDocument } from "@icm/model";
+import type { RouteStyleOverride, SchematicDocument } from "@icm/model";
 
 import type { EditTransaction } from "./edit-schema.js";
 import type { EditMutationOutcome, RejectEdit } from "./transaction-domain.js";
@@ -8,6 +8,19 @@ type RouteStyleOverrideEdit = Extract<
   EditTransaction["edits"][number],
   { kind: "set_route_style_override" }
 >;
+
+/**
+ * A default is not an override. `strokeScale: 1` asks for exactly the profile
+ * stroke an absent field already gives, so it is dropped rather than stored as
+ * a fact about nothing — the same reason `lineJump: false` has never been.
+ */
+function withoutDefaultStrokeScale(
+  override: RouteStyleOverride,
+): RouteStyleOverride {
+  if (override.strokeScale !== 1) return override;
+  const { strokeScale: _default, ...rest } = override;
+  return rest;
+}
 
 export interface RouteStyleOverrideEditContext {
   draft: SchematicDocument;
@@ -37,9 +50,15 @@ export function applyRouteStyleOverrideEdit(
   const parsed =
     edit.styleOverride === null
       ? undefined
-      : RouteStyleOverrideSchema.parse(edit.styleOverride);
+      : withoutDefaultStrokeScale(
+          RouteStyleOverrideSchema.parse(edit.styleOverride),
+        );
   const next =
-    parsed?.color || parsed?.arrow || parsed?.lineStyle || parsed?.lineJump
+    parsed?.color ||
+    parsed?.arrow ||
+    parsed?.lineStyle ||
+    parsed?.lineJump ||
+    parsed?.strokeScale
       ? structuredClone(parsed)
       : undefined;
   if (

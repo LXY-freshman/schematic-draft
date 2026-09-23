@@ -22,6 +22,7 @@ import {
 } from "./component-property-surface";
 import { NO_INTERNAL_MARK } from "./component-visual-variants";
 import { PropertyDisclosure } from "./property-disclosure";
+import { StrokeScaleField } from "./stroke-scale-field";
 import {
   commitPropertyInput,
   handlePropertyInputKeyDown,
@@ -581,6 +582,14 @@ export function ComponentPropertyForm(props: ComponentPropertyFormProps) {
               color: color ? (color as `#${string}`) : "auto",
             });
           }}
+        />
+        <StrokeScaleField
+          ariaLabel="Component stroke width"
+          label={label("appearance.strokeScale", "Stroke width ×")}
+          help={help("appearance.strokeScale")}
+          value={value.appearance.strokeScale}
+          resetKey={`${instance.id}-${revision}`}
+          onCommit={(strokeScale) => commitAppearance({ strokeScale })}
         />
         {internalMark !== undefined ? (
           <>

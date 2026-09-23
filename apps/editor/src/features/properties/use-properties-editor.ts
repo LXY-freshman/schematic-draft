@@ -559,6 +559,9 @@ export function usePropertiesEditor(options: UsePropertiesEditorOptions) {
     // Flat crossings are the default, so an unticked box stores nothing.
     if (!value.appearance.lineJump) delete styleOverride.lineJump;
     else styleOverride.lineJump = true;
+    // Same for the profile weight: one is what an absent field already draws.
+    if (value.appearance.strokeScale === 1) delete styleOverride.strokeScale;
+    else styleOverride.strokeScale = value.appearance.strokeScale;
     const nextStyle =
       Object.keys(styleOverride).length > 0 ? styleOverride : null;
     if (

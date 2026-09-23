@@ -21,6 +21,18 @@ rendering and export. Object-level overrides apply only within their declared
 scope. Invalid scales are rejected, not clamped; clearing overrides restores
 the base profile without rewriting objects.
 
+One object may also be drawn heavier or lighter than the composed profile says.
+`Route.styleOverride.strokeScale`, `Instance.styleOverride.strokeScale` and the
+drafting `strokeScale` are free multipliers within 0.25–4, each multiplying the
+stroke width its own object would otherwise take — wire or power rail for a
+Route, every stroke the artwork resolves for an Instance's symbol. They compose
+on top of the document scales rather than replacing them, so raising
+`Document.presentation.styleOverrides` moves a scaled object with everything
+else. Absence and `1` mean the same thing and only absence is stored, so a
+Document that scales nothing renders exactly as it did before the field
+existed. Nothing electrical follows: a heavier wire carries no more current,
+and a heavier symbol is the same device with the same pins.
+
 ## Terminology
 
 | Term          | Meaning                                                            |

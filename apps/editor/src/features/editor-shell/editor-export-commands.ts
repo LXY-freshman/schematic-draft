@@ -187,6 +187,7 @@ export async function createVisualExportArtifact(
 const VISIO_CAVEAT_PHRASES: Record<VisioPageCaveat["kind"], string> = {
   "annotation-ornament": "annotation ornaments dropped",
   "body-text": "symbol body text drawn on the page instead of in the symbol",
+  "dropped-instance-paint": "per-component colour and line weight dropped",
   "formula-text": "formulas written as their source",
   "overbar-text": "overbar rules dropped",
   "pin-name-text": "pin names left off the symbol",

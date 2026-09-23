@@ -35,6 +35,11 @@ export const RouteStyleOverrideSchema = z.strictObject({
   // A jump arc never creates, removes or implies an electrical connection,
   // and omission (the default) leaves the crossing drawn flat.
   lineJump: z.boolean().optional(),
+  // Free multiplier over the profile stroke this Route would otherwise take
+  // (wire or power rail), on the same 0.25-4 range drafting objects use.
+  // Appearance only: a thicker conductor carries no more current and no
+  // different connectivity.
+  strokeScale: z.number().finite().min(0.25).max(4).optional(),
 });
 export const RouteLegTargetSchema = z.discriminatedUnion("kind", [
   z.strictObject({

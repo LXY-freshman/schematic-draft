@@ -470,17 +470,35 @@ function profileMiterAttribute(profile: SchematicStyleProfile): string {
   return ` stroke-miterlimit="${profile.miterLimit}"`;
 }
 
+/**
+ * One object's stroke width under its own multiplier. A multiplier of one —
+ * which is what an absent `strokeScale` means — returns the number untouched,
+ * so a Document that scales nothing renders byte for byte as it always has.
+ * Anything else is rounded, because a binary product like 0.6000000000000001
+ * has no business in an SVG attribute.
+ */
+function scaleStroke(width: number, scale = 1): number {
+  if (scale === 1) return width;
+  return Number((width * scale).toFixed(4));
+}
+
 function primitiveStyle(
   primitive: SymbolPrimitive,
   profile: SchematicStyleProfile,
+  strokeScale = 1,
 ): string {
   const style = primitive.style;
   if (!style) return "";
-  const strokeWidth = resolvePrimitiveStrokeWidth(
+  const resolved = resolvePrimitiveStrokeWidth(
     profile,
     style.strokeRole,
     style.strokeWidth,
   );
+  // An unresolved width inherits the enclosing symbol group's stroke, which
+  // carries the same scale — so scaling only what is written here keeps every
+  // stroke of one symbol in proportion.
+  const strokeWidth =
+    resolved === undefined ? undefined : scaleStroke(resolved, strokeScale);
   return [
     strokeWidth === undefined ? "" : ` stroke-width="${strokeWidth}"`,
     style.lineCap === undefined ? "" : ` stroke-linecap="${style.lineCap}"`,
@@ -496,9 +514,10 @@ function renderPrimitive(
   profile: SchematicStyleProfile,
   foregroundOverride?: string,
   orientation?: Pick<Orientation, "rotation" | "mirror">,
+  strokeScale?: number,
 ): string {
   const fg = foregroundOverride ?? profile.foreground;
-  const style = primitiveStyle(primitive, profile);
+  const style = primitiveStyle(primitive, profile, strokeScale);
   const rendered = screenUprightPrimitive(primitive, orientation);
   const uprightPart = rendered.part?.startsWith("upright-")
     ? ` data-part="${escapeXml(rendered.part)}"`
@@ -597,6 +616,7 @@ export function renderSymbolDefinitionBody(
   foregroundOverride?: string,
   signalFlowParameters?: SignalFlowLayoutParameters,
   orientation?: Pick<Orientation, "rotation" | "mirror">,
+  strokeScale?: number,
 ): string {
   const adaptive = resolveAdaptiveSignalFlowBlockLayout(
     definition,
@@ -611,7 +631,7 @@ export function renderSymbolDefinitionBody(
     const bodyRight = body.x + body.width;
     const frame = renderAdaptiveSignalFlowFrame(
       adaptive,
-      `data-role="signal-flow-frame" data-part="body" fill="none" stroke-width="${profile.strokes.emphasis}" stroke-linecap="butt" stroke-linejoin="miter"`,
+      `data-role="signal-flow-frame" data-part="body" fill="none" stroke-width="${scaleStroke(profile.strokes.emphasis, strokeScale)}" stroke-linecap="butt" stroke-linejoin="miter"`,
     );
     return [
       `<line data-part="input-a-lead" x1="${left}" y1="${center.y}" x2="${bodyLeft}" y2="${center.y}"/>`,
@@ -623,7 +643,13 @@ export function renderSymbolDefinitionBody(
   return [...definition.primitives, ...additionalPrimitives]
     .filter((primitive) => !primitive.part || !hidden.has(primitive.part))
     .map((primitive) =>
-      renderPrimitive(primitive, profile, foregroundOverride, orientation),
+      renderPrimitive(
+        primitive,
+        profile,
+        foregroundOverride,
+        orientation,
+        strokeScale,
+      ),
     )
     .join("");
 }
@@ -1177,9 +1203,10 @@ export function buildSvgScene(
         presentation !== "wire"
           ? ` data-route-presentation="${presentation}"`
           : "";
-      const strokeWidth = isPowerRail
-        ? profile.strokes.powerRail
-        : profile.strokes.wire;
+      const strokeWidth = scaleStroke(
+        isPowerRail ? profile.strokes.powerRail : profile.strokes.wire,
+        route.styleOverride?.strokeScale ?? 1,
+      );
       const directionArrow = renderRouteDirectionArrow(
         geometry.centerline,
         route.styleOverride?.arrow,
@@ -1279,6 +1306,7 @@ export function buildSvgScene(
       }
       const styleOverride = instance.styleOverride;
       const foregroundOverride = styleOverride?.foreground;
+      const strokeScale = styleOverride?.strokeScale ?? 1;
       const primitives = renderSymbolDefinitionBody(
         resolved.definition,
         resolved.variant?.hiddenPrimitiveParts,
@@ -1287,6 +1315,7 @@ export function buildSvgScene(
         foregroundOverride,
         instance.signalFlowParameters,
         instance.placement ?? undefined,
+        strokeScale,
       );
       const pinNames = renderVisiblePinNames(
         resolved.definition,
@@ -1324,7 +1353,7 @@ export function buildSvgScene(
             : `<rect data-role="instance-background" x="${background.x}" y="${background.y}" width="${background.width}" height="${background.height}" fill="${styleOverride.background}"/>`;
       const symbolRole =
         styleOverride === undefined ? "" : ' data-role="instance-symbol"';
-      return `<g data-object-id="${escapeXml(instance.id)}" data-symbol-id="${escapeXml(resolved.definition.id)}"><g transform="${instanceTransform(instance)}">${backgroundRect}<g${symbolRole} fill="none" stroke="${strokeColor}" stroke-width="${profile.strokes.symbol}" stroke-linecap="${profile.lineCap}" stroke-linejoin="${profile.lineJoin}"${profileMiterAttribute(profile)}>${primitives}</g></g>${formula}${pinNames}</g>`;
+      return `<g data-object-id="${escapeXml(instance.id)}" data-symbol-id="${escapeXml(resolved.definition.id)}"><g transform="${instanceTransform(instance)}">${backgroundRect}<g${symbolRole} fill="none" stroke="${strokeColor}" stroke-width="${scaleStroke(profile.strokes.symbol, strokeScale)}" stroke-linecap="${profile.lineCap}" stroke-linejoin="${profile.lineJoin}"${profileMiterAttribute(profile)}>${primitives}</g></g>${formula}${pinNames}</g>`;
     })
     .join("");
   const annotations = [...document.annotations]

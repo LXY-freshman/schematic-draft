@@ -12,6 +12,23 @@ hosted features some of them mention are gone.
 
 ### Added
 
+- **A wire or a component can be drawn heavier or lighter than the rest.**
+  Appearance now carries **Stroke width ×** beside the colour, on a wire and on
+  a component alike: any multiplier from 0.25 to 4 over the weight that object
+  is normally drawn at, in steps of a quarter. Use it to make a supply rail read
+  as a rail, or a device under discussion stand out on a printed page. It is
+  drawing only — a heavier wire carries no more current, and a heavier symbol is
+  the same device with the same pins — and `1` means exactly what no setting at
+  all meant before. The document-wide Wire, symbol and annotation scales still
+  apply on top, so raising one of those moves a scaled object along with
+  everything else. A wire's width travels into Visio; a component's does not,
+  because every instance of one symbol shares one Visio master. The export's
+  status line now names the components that lost it — which it also does, at
+  last, for a per-component colour, dropped silently until now.
+  **This changes the Project file.** A Project that uses the new field is
+  written at schema 59 and **Schematic Draft 1.3.0 will refuse to open it**.
+  Files that use no stroke width are unaffected and open in either version, and
+  1.3.1 opens everything older as before.
 - **The background grid can mark every seventh dot.** The status bar's grid
   button now cycles **Grid Off → Grid On → Grid On · Coarse**. The coarse state
   keeps the same fine dots and draws every seventh one larger and darker, so

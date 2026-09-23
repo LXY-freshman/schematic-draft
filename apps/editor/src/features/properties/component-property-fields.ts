@@ -30,7 +30,8 @@ export interface CanvasPropertyField {
     | "boolean"
     | "color"
     | "text"
-    | "choice";
+    | "choice"
+    | "number";
   options?: readonly {
     value: string | number | boolean | null;
     label: string;
@@ -106,6 +107,13 @@ export const CANVAS_PROPERTY_FIELDS: readonly CanvasPropertyField[] = [
     kind: "color",
     description: "",
     help: "Color for the component lines and text. Use the swatch for presets or a custom color. RGB channels are 0–255; hex is accepted. Auto inherits document ink.",
+  },
+  {
+    path: "appearance.strokeScale",
+    label: "Stroke width ×",
+    kind: "number",
+    description: "×",
+    help: "Multiplier over the line weight this component is normally drawn with, from 0.25 to 4. Drawing only: a heavier symbol is the same device with the same pins.",
   },
   {
     path: "appearance.internalMark",

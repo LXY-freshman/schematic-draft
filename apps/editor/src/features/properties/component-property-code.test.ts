@@ -41,7 +41,8 @@ describe("component property code", () => {
     "mirror": "none"
   },
   "appearance": {
-    "color": "auto"
+    "color": "auto",
+    "strokeScale": 1
   },
   "display": {
     "visualAnnotation": true,
@@ -92,7 +93,7 @@ describe("component property code", () => {
           mirror: "horizontal",
         },
         display: { visualAnnotation: true, value: true },
-        appearance: { color: "#DC2626" },
+        appearance: { color: "#DC2626", strokeScale: 1 },
       },
     });
   });
@@ -243,7 +244,10 @@ describe("component property code", () => {
     const parsed = parseComponentPropertyCode(JSON.stringify(decoded), context);
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) throw new Error(parsed.message);
-    expect(parsed.value.appearance).toEqual({ color: "#ff0080" });
+    expect(parsed.value.appearance).toEqual({
+      color: "#ff0080",
+      strokeScale: 1,
+    });
     const formatted = serializeComponentPropertyCode(parsed.value);
     expect(formatted).toContain('"color": [255, 0, 128]');
     expect(parseComponentPropertyCode(formatted, context)).toEqual(parsed);
@@ -282,6 +286,7 @@ describe("component property code", () => {
     const decoded = JSON.parse(formatComponentPropertyCode(opampContext));
     expect(decoded.appearance).toEqual({
       color: "auto",
+      strokeScale: 1,
       internalMark: "G",
       inputsSwapped: false,
     });
@@ -388,6 +393,35 @@ describe("component property code", () => {
       ).toBe(true);
     },
   );
+
+  it("carries a component stroke multiplier, and refuses one off the scale", () => {
+    const scaled = {
+      ...context,
+      instance: { ...instance, styleOverride: { strokeScale: 2.5 } },
+    };
+    expect(
+      JSON.parse(formatComponentPropertyCode(scaled)).appearance.strokeScale,
+    ).toBe(2.5);
+    expect(
+      JSON.parse(formatComponentPropertyCode(context)).appearance.strokeScale,
+    ).toBe(1);
+
+    // The range is the Project file's own; nothing may be authored here that
+    // the schema would refuse on the way back in.
+    for (const invalid of [undefined, 0, 0.2, 4.1, "2", null]) {
+      const decoded = JSON.parse(formatComponentPropertyCode(context));
+      decoded.appearance.strokeScale = invalid;
+      expect(
+        parseComponentPropertyCode(JSON.stringify(decoded), context),
+      ).toEqual({
+        ok: false,
+        message:
+          invalid === undefined
+            ? "appearance.strokeScale is required"
+            : "appearance.strokeScale must be a number from 0.25 to 4",
+      });
+    }
+  });
 
   it.each(["inputsSwapped", "outputsSwapped"])(
     "rejects missing, malformed or unsupported %s",

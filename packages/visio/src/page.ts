@@ -111,7 +111,14 @@ export type VisioPageCaveat =
   | { readonly kind: "annotation-ornament"; readonly detail: string }
   | { readonly kind: "unplaced-instance"; readonly detail: string }
   | { readonly kind: "unresolved-route"; readonly detail: string }
-  | { readonly kind: "unglued-wire-end"; readonly detail: string };
+  | { readonly kind: "unglued-wire-end"; readonly detail: string }
+  /**
+   * An Instance whose `styleOverride` asks for paint a shared master cannot
+   * give it. Every instance of one symbol instantiates one master, so a
+   * per-instance colour or stroke weight would need a master per instance —
+   * the package says so rather than drawing the wrong thing in silence.
+   */
+  | { readonly kind: "dropped-instance-paint"; readonly detail: string };
 
 /** What the page holds, for the structural assertions the tests make. */
 export interface VisioPageCounts {
@@ -476,6 +483,18 @@ export function buildVisioPage(
     if (instance.placement === null) {
       caveats.push({ kind: "unplaced-instance", detail: instance.id });
     }
+    // Colour, background and stroke weight all live on the shared master, so
+    // an instance that asks for its own loses it here. Saying so is the point:
+    // the alternative is a user discovering it by looking for a red transistor
+    // that is black.
+    const paint = instance.styleOverride;
+    if (
+      paint?.foreground !== undefined ||
+      paint?.background !== undefined ||
+      paint?.strokeScale !== undefined
+    ) {
+      caveats.push({ kind: "dropped-instance-paint", detail: instance.id });
+    }
   }
   const placed = placeable.filter((instance) => instance.placement !== null);
   const symbolMasters = collectSymbolMasters(
@@ -670,6 +689,9 @@ export function buildVisioPage(
         to: frame.point(jump.to),
       }),
     );
+    // The master carries the ordinary wire weight, so only a wire that asks
+    // for a different one writes a cell of its own.
+    const strokeScale = documentRoute.styleOverride?.strokeScale ?? 1;
     return wireShape({
       id: shapeId,
       masterId: wireMasterId,
@@ -677,6 +699,13 @@ export function buildVisioPage(
       begin,
       end,
       ...(jumps.length > 0 ? { jumps } : {}),
+      ...(strokeScale === 1
+        ? {}
+        : {
+            lineWeightInches: inchesFromUnits(
+              profile.strokes.wire * strokeScale,
+            ),
+          }),
       propertySection: shapeDataSection(
         netShapeDataRows(document, documentRoute),
       ),

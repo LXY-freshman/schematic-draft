@@ -79,7 +79,7 @@ to the system browser rather than followed in-app.
   explicit cut partitions physical connectivity.
 - Cell Pins are ordered hierarchy interfaces. Visual variants never delete
   electrical terminal semantics or invent MOS bulk connections.
-- Canonical Project content is schema-58, governed by the
+- Canonical Project content is schema-59, governed by the
   [file-format contract](specs/project-file-format.md). Saving to a file and
   keeping a browser recovery copy are distinct operations with distinct
   lifetimes.
