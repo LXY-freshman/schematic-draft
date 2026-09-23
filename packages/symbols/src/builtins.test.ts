@@ -72,6 +72,9 @@ describe("built-in Symbol libraries", () => {
     expect(expandedDeviceSymbols.map((symbol) => symbol.id)).toEqual([
       "depletion-nmos",
       "depletion-pmos",
+      "dgan",
+      "egan",
+      "igbt",
       "ndmos",
       "pdmos",
     ]);

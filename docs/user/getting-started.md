@@ -64,6 +64,14 @@ is defined.
   their netlist facts: drag one to the canvas, select **Place…** for a cursor
   placement, or use **Place all** for a deterministic starter grid. **Return
   to tray** is reversible through Undo and is distinct from permanent Delete.
+- **Transistors** also holds three power switches: **E-GaN** and **D-GaN**, the
+  normally-off and normally-on GaN HEMTs, drawn with D/G/S and no body lead
+  because a GaN HEMT has no body diode; and **IGBT**, drawn with C/G/E. They
+  place, wire, rotate and export like any other symbol, but no SPICE primitive
+  describes them, so this application will not invent one: netlist export
+  reports them as non-netlistable unless you bind the instance to a `.subckt`
+  you imported from the vendor, after which it prints as an ordinary subcircuit
+  call.
 - Click to select, `Shift`/`Ctrl`-click to extend the selection, or drag blank
   canvas to box-select. Dragging one selected instance moves the whole
   selection atomically.

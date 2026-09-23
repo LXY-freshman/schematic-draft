@@ -20,7 +20,7 @@ describe("shapes quick-place", () => {
       }),
     );
 
-    expect(symbols).toHaveLength(67);
+    expect(symbols).toHaveLength(70);
     expect(markup).toContain("All devices");
     expect(markup.match(/data-testid="shapes-chip-/g)).toHaveLength(
       symbols.length,
@@ -32,7 +32,7 @@ describe("shapes quick-place", () => {
     expect(
       groups.map((group) => [group.category, group.symbols.length]),
     ).toEqual([
-      ["Transistors", 8],
+      ["Transistors", 11],
       ["Passives", 4],
       ["Power and Ports", 5],
       ["Sources", 3],

@@ -58,11 +58,20 @@ export function symbolCategory(symbolId: string): string {
   ) {
     return EXTENDED_DEVICE_CATEGORY;
   }
-  // A DMOS or a depletion-mode MOS is reached for as a transistor, whichever
-  // library it was authored in, so it sits with the transistors rather than
-  // four sections below them. The catalog entry keeps saying `extended`.
+  // A DMOS, a depletion-mode MOS, a GaN HEMT or an IGBT is reached for as a
+  // transistor, whichever library it was authored in, so it sits with the
+  // transistors rather than four sections below them. The catalog entry keeps
+  // saying `extended`.
   if (
-    ["ndmos", "pdmos", "depletion-nmos", "depletion-pmos"].includes(symbolId)
+    [
+      "ndmos",
+      "pdmos",
+      "depletion-nmos",
+      "depletion-pmos",
+      "egan",
+      "dgan",
+      "igbt",
+    ].includes(symbolId)
   ) {
     return "Transistors";
   }
@@ -158,7 +167,10 @@ export function symbolCategory(symbolId: string): string {
 const LIBRARY_DISPLAY_NAMES: Readonly<Record<string, string>> = {
   "depletion-nmos": "D-NMOS",
   "depletion-pmos": "D-PMOS",
+  dgan: "D-GaN",
+  egan: "E-GaN",
   "externally-controlled-switch": "Ctrl SW",
+  igbt: "IGBT",
   port: "Cell Pin",
   "port-filled": "Cell Pin (filled)",
   "zener-diode": "Zener",
@@ -168,6 +180,9 @@ const LIBRARY_DISPLAY_NAMES: Readonly<Record<string, string>> = {
 const LIBRARY_DESCRIPTIONS: Readonly<Record<string, string>> = {
   "d-flip-flop-reset":
     "Rising-edge D flip-flop with an active-high asynchronous reset",
+  dgan: "Normally-on GaN HEMT: D/G/S, no body. Drawn and wired; a netlist needs a vendor subcircuit",
+  egan: "Normally-off GaN HEMT: D/G/S, no body. Drawn and wired; a netlist needs a vendor subcircuit",
+  igbt: "Insulated-gate bipolar transistor: C/G/E. Drawn and wired; a netlist needs a vendor subcircuit",
   "voltage-controlled-switch":
     "Four-terminal switch: P/N carry the switched path; CP/CN sense the control voltage",
   "externally-controlled-switch":
@@ -238,6 +253,10 @@ const SYMBOL_ORDER: readonly string[] = [
   "depletion-pmos",
   "ndmos",
   "pdmos",
+  // Wide-bandgap and bipolar-gate power switches after the silicon MOS family.
+  "egan",
+  "dgan",
+  "igbt",
   "vdd-port",
   "vdd",
   "ground",

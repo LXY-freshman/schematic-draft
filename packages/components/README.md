@@ -51,7 +51,9 @@ appropriate to the change. The check is part of the static delivery gate.
 NDMOS/PDMOS and depletion NMOS/PMOS are checked/regenerated against their
 declared base MOS through one shared derivation operation, not independently
 maintained copies of the MOS construction rules. Other families keep their
-existing targeted generators.
+existing targeted generators; directly authored definitions that declare no
+`catalog.derivedFrom` — the two Cell Pins and the three power switches below —
+have no generator and are edited in place.
 
 Runtime adapters in `@icm/devices` and `@icm/symbols` are generated projections,
 not additional authoring sources. Electrical consumers do not import artwork;
@@ -173,6 +175,21 @@ and VDD Power default to local scope; VDD Power is a formal Cell Pin unless the
 user explicitly selects Global. There is no legacy
 symbol catalog or generic fallback. A device without a reviewed Razavi symbol
 or an explicit Extended Devices entry is an unsupported import error.
+
+`egan`, `dgan` and `igbt` are the wide-bandgap and bipolar-gate power switches
+in that same Extended Devices catalog. The Reference has no evidence for them,
+so their artwork is hand-drawn on the 10-unit connection grid and claims no
+Razavi visual authority: a stroked gate plate, then a broken channel for the
+enhancement-mode GaN HEMT and a continuous one for the depletion-mode part,
+neither carrying a bulk terminal because a GaN HEMT has no body diode. The IGBT
+keeps that MOS gate plate and takes bipolar `C`/`G`/`E` leads with the reviewed
+NPN's swept-back emitter barb. All three declare `deviceClass: "switch"` with
+`targetPolicy: "none"` and every capability false — the honest position, since
+no primitive SPICE card encodes them and this edition will not invent model
+parameters. They draw, wire and carry connectivity like any other device; a
+netlist reaches them by binding the Instance to an imported vendor `.subckt`,
+which extraction dispatches ahead of the device path. Unbound, extraction
+reports `NON_NETLISTABLE_DEVICE` rather than printing a card it cannot justify.
 
 The catalog records only runtime electrical pin order and visual authority.
 It does not read or cite VSS/Visio. Historic VSS material is archival evidence

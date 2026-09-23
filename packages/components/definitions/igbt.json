@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "symbol": {
+    "schemaVersion": 1,
+    "id": "igbt",
+    "name": "N-channel IGBT",
+    "viewBox": { "x": -34, "y": -24, "width": 42, "height": 48 },
+    "pins": [
+      {
+        "name": "C",
+        "role": "collector",
+        "at": { "x": 0, "y": -20 },
+        "direction": "north",
+        "presentation": { "visibility": "visible", "leadLength": 10 }
+      },
+      {
+        "name": "G",
+        "role": "gate",
+        "at": { "x": -30, "y": 0 },
+        "direction": "west",
+        "presentation": { "visibility": "visible", "leadLength": 10 }
+      },
+      {
+        "name": "E",
+        "role": "emitter",
+        "at": { "x": 0, "y": 20 },
+        "direction": "south",
+        "presentation": { "visibility": "visible", "leadLength": 10 }
+      }
+    ],
+    "primitives": [
+      {
+        "kind": "line",
+        "from": { "x": -30, "y": 0 },
+        "to": { "x": -22, "y": 0 },
+        "style": {
+          "strokeRole": "normal",
+          "lineCap": "butt",
+          "lineJoin": "miter"
+        }
+      },
+      {
+        "kind": "line",
+        "from": { "x": -22, "y": -10 },
+        "to": { "x": -22, "y": 10 },
+        "part": "gate-plate",
+        "style": {
+          "strokeRole": "emphasis",
+          "lineCap": "butt",
+          "lineJoin": "miter"
+        }
+      },
+      {
+        "kind": "line",
+        "from": { "x": -16, "y": -14 },
+        "to": { "x": -16, "y": 14 },
+        "part": "channel-bar",
+        "style": {
+          "strokeRole": "emphasis",
+          "lineCap": "butt",
+          "lineJoin": "miter"
+        }
+      },
+      {
+        "kind": "polyline",
+        "points": [
+          { "x": -16, "y": -6 },
+          { "x": 0, "y": -13 },
+          { "x": 0, "y": -20 }
+        ],
+        "style": {
+          "strokeRole": "normal",
+          "lineCap": "butt",
+          "lineJoin": "miter"
+        }
+      },
+      {
+        "kind": "polyline",
+        "points": [
+          { "x": -16, "y": 6 },
+          { "x": 0, "y": 13 },
+          { "x": 0, "y": 20 }
+        ],
+        "style": {
+          "strokeRole": "normal",
+          "lineCap": "butt",
+          "lineJoin": "miter"
+        }
+      },
+      {
+        "kind": "polygon",
+        "points": [
+          { "x": 0, "y": 13 },
+          { "x": -7, "y": 6 },
+          { "x": -10, "y": 13 }
+        ],
+        "fill": "foreground",
+        "stroke": "none",
+        "part": "emitter-arrow"
+      }
+    ],
+    "variants": []
+  },
+  "electrical": {
+    "id": "igbt",
+    "symbolId": "igbt",
+    "deviceClass": "switch",
+    "referencePrefix": "Q",
+    "pinOrder": ["C", "G", "E"],
+    "seriesInsertionPinPair": ["C", "E"],
+    "targetPolicy": "none",
+    "parameters": [],
+    "dialects": ["spice", "spectre"],
+    "capabilities": {
+      "supportsModel": false,
+      "supportsBulkBinding": false,
+      "supportsValueAnnotation": false
+    }
+  },
+  "catalog": {
+    "library": "extended",
+    "symbolId": "igbt",
+    "category": "Extended Devices",
+    "subcategory": "High-voltage devices"
+  }
+}

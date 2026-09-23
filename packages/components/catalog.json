@@ -87,7 +87,15 @@
       "runtimeOwner": "presentation.nodes.junction"
     }
   ],
-  "extendedEntries": ["depletion-nmos", "depletion-pmos", "ndmos", "pdmos"],
+  "extendedEntries": [
+    "depletion-nmos",
+    "depletion-pmos",
+    "dgan",
+    "egan",
+    "igbt",
+    "ndmos",
+    "pdmos"
+  ],
   "deviceOrder": [
     "resistor",
     "variable-resistor",
@@ -102,6 +110,9 @@
     "depletion-pmos",
     "ndmos",
     "pdmos",
+    "egan",
+    "dgan",
+    "igbt",
     "diode",
     "zener-diode",
     "npn",

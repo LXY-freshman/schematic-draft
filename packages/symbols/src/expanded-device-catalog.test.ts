@@ -24,6 +24,21 @@ describe("Extended Devices catalog", () => {
         subcategory: MOS_VARIANT_SUBCATEGORY,
       },
       {
+        symbolId: "dgan",
+        category: EXTENDED_DEVICE_CATEGORY,
+        subcategory: HIGH_VOLTAGE_DEVICE_SUBCATEGORY,
+      },
+      {
+        symbolId: "egan",
+        category: EXTENDED_DEVICE_CATEGORY,
+        subcategory: HIGH_VOLTAGE_DEVICE_SUBCATEGORY,
+      },
+      {
+        symbolId: "igbt",
+        category: EXTENDED_DEVICE_CATEGORY,
+        subcategory: HIGH_VOLTAGE_DEVICE_SUBCATEGORY,
+      },
+      {
         symbolId: "ndmos",
         category: EXTENDED_DEVICE_CATEGORY,
         subcategory: HIGH_VOLTAGE_DEVICE_SUBCATEGORY,
