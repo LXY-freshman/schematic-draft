@@ -77,7 +77,7 @@ arrowheads, dots, no head, and legacy open arrowheads. Unset ends preserve the
 previous head style, placement, and scale; v54 content changes only its stamp.
 These additions do not invent intent while upgrading an older Project.
 The original file is never overwritten silently. Schemas older than v24 and
-versions newer than v57 are rejected by the project-file boundary.
+versions newer than v58 are rejected by the project-file boundary.
 
 Simulation setups and folders (v37 through v50 above) are still read, upgraded,
 and written back unchanged. This edition has no simulator, so nothing acts on
