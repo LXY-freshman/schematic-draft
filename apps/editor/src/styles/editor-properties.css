@@ -310,6 +310,21 @@
   background: var(--icm-surface);
 }
 
+/* A toggle that stands alone in a form section is one control on one row, so
+   it takes the frame, height and caption size of the selects above it. The
+   grid lays its own row out; the shared `.context-actions button` margin would
+   add a second gap on top of that one. */
+.property-disclosure-body > .toggle-action-button {
+  width: 100%;
+  min-height: var(--icm-control-h-lg);
+  margin-top: 0;
+  padding: 0.45rem 0.55rem;
+  border-color: var(--icm-border);
+  background: var(--icm-surface);
+  font-size: var(--icm-font-sm);
+  text-align: left;
+}
+
 .component-readonly-fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1199,10 +1214,20 @@
   background: var(--component-swatch-color);
 }
 
-.component-color-swatch[aria-pressed="true"] {
+/* One pressed look for every control that reports its state with
+   `aria-pressed`: the accent frame the chrome gives any pressed button, and
+   the halo around it that says *held*, not merely hovered. The colour swatches
+   set this shape; **Hop over crossings** and **Highlight Net** now borrow it
+   instead of spelling their state out in a label that rewrites itself. */
+.component-color-swatch[aria-pressed="true"],
+.toggle-action-button[aria-pressed="true"] {
   border-color: var(--icm-accent);
   outline: 2px solid rgb(var(--icm-accent-rgb) / 25%);
   outline-offset: 1px;
+}
+
+.toggle-action-button[aria-pressed="true"] {
+  background: var(--icm-accent-tint);
 }
 
 .component-color-swatch:focus-visible,

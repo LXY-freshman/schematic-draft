@@ -142,13 +142,17 @@ is defined.
   Styling changes the drawing only: it never changes what is connected to what,
   nor what the netlist exports. A MOS bulk connection belongs to its transistor
   and offers only its own delete action instead of this panel.
-- **Hop over crossings** is off for every wire until you tick it, and it is a
-  per-wire choice: tick it on the wire you want to read as passing over, and it
+- **Hop over crossings** is off for every wire until you press it, and it is a
+  per-wire choice: press it on the wire you want to read as passing over, and it
   draws a small arc wherever it crosses a wire on a different Net. Two wires on
   the same Net are connected where they meet, so they never hop. The arc is
   drawing and nothing else — it neither makes nor breaks a connection, and a
   junction dot still means exactly what it meant before. It travels into SVG,
   PNG, PDF, and Visio export along with the rest of the drawing.
+- **Hop over crossings** and **Highlight Net** are buttons that stay held down,
+  framed in blue, while what they turned on is on. Neither changes its name as
+  you use it, so the panel always shows the state you are in rather than the
+  step that would leave it.
 - For a MOS device, the compact **Bulk** row shows its current Net or
   **Unconnected** beside **Connect**. Click the button to draw from the bulk
   terminal on the canvas. Hover the status for the terminal name and connection

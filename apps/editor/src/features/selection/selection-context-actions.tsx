@@ -1,6 +1,7 @@
 import type { MosBulkResolution } from "@icm/derived";
 import type { Annotation, SchematicDocument } from "@icm/model";
 
+import { ToggleActionButton } from "../../components/toggle-action-button";
 import {
   GroupPropertyCodeEditor,
   type GroupPropertyCodeEditorProps,
@@ -177,11 +178,11 @@ export function RouteActionsSection({
         onApply={onApply}
         actions={
           <div className="route-property-code-actions">
-            <button type="button" onClick={onToggleHighlight}>
-              {highlightActive
-                ? "Clear Net highlight (H)"
-                : "Highlight Net (H)"}
-            </button>
+            <ToggleActionButton
+              label="Highlight Net (H)"
+              pressed={highlightActive}
+              onToggle={onToggleHighlight}
+            />
             <button type="button" onClick={onDeleteWire}>
               Delete wire
             </button>
@@ -267,9 +268,11 @@ export function AnnotationActionsSection({
   return (
     <section className="context-actions" aria-label="Annotation actions">
       <h2>Annotation</h2>
-      <button type="button" onClick={onToggleHighlight}>
-        {highlightActive ? "Clear Net highlight (H)" : "Highlight Net (H)"}
-      </button>
+      <ToggleActionButton
+        label="Highlight Net (H)"
+        pressed={highlightActive}
+        onToggle={onToggleHighlight}
+      />
     </section>
   );
 }

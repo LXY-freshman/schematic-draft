@@ -2905,11 +2905,12 @@ test("hops a marked wire over the wire it crosses, and nothing else", async ({
   const hopped = page.locator(
     '[data-layer="routes"] path[data-object-id="route-ui-1"]',
   );
-  const box = properties.getByRole("checkbox", { name: "Hop over crossings" });
+  const box = properties.getByRole("button", { name: "Hop over crossings" });
   await expect(flat).toHaveCount(1);
-  await expect(box).not.toBeChecked();
+  await expect(box).toHaveAttribute("aria-pressed", "false");
 
-  await box.check();
+  await box.click();
+  await expect(box).toHaveAttribute("aria-pressed", "true");
   await expect(hopped).toHaveAttribute("data-route-line-jumps", "1");
   await expect(flat).toHaveCount(0);
   // The wire underneath keeps its own drawing, and the crossing stays a
@@ -2940,8 +2941,10 @@ test("hops a marked wire over the wire it crosses, and nothing else", async ({
     ).styleOverride,
   ).toEqual({ lineJump: true });
 
-  // Unticking is a return to the flat polyline, not a second kind of override.
-  await box.uncheck();
+  // Releasing the button is a return to the flat polyline, not a second kind of
+  // override.
+  await box.click();
+  await expect(box).toHaveAttribute("aria-pressed", "false");
   await expect(flat).toHaveCount(1);
   await expect(hopped).toHaveCount(0);
   const cleared = JSON.parse((await projectFileBytes(page)).toString("utf8"));
@@ -4929,7 +4932,14 @@ test("highlights the complete current-document Net from a selected route", async
   await page.keyboard.press("Escape");
   await clickRoute(page, "route-ui-1");
   await openSelectionShelf(page);
-  await page.getByRole("button", { name: "Highlight Net (H)" }).click();
+  const highlightButton = page.getByRole("button", {
+    name: "Highlight Net (H)",
+  });
+  await expect(highlightButton).toHaveAttribute("aria-pressed", "false");
+  await highlightButton.click();
+  // The button keeps its name and stays held down while the highlight is on,
+  // so the panel says which state the canvas is in.
+  await expect(highlightButton).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByTestId("net-highlight-overlay")).toHaveAttribute(
     "data-net-id",
     "net-ui-1",
@@ -4943,6 +4953,7 @@ test("highlights the complete current-document Net from a selected route", async
   await expect(page.getByTestId("flightline")).toHaveCount(0);
   await page.keyboard.press("h");
   await expect(page.getByTestId("net-highlight-overlay")).toHaveCount(0);
+  await expect(highlightButton).toHaveAttribute("aria-pressed", "false");
 });
 
 test("recomputes highlighted routed components after a Net Label is deleted", async ({

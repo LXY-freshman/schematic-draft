@@ -159,7 +159,13 @@ describe("selection context actions", () => {
     expect(markup).toContain('aria-label="Route property code"');
     expect(markup).not.toContain('aria-label="Electrical Net label"');
     expect(markup).not.toContain("current arrow");
-    expect(markup).toContain("Clear Net highlight (H)");
+    // The button keeps its name and reports the highlight through its pressed
+    // state, so what it is called never depends on what it would undo.
+    expect(markup).toContain("Highlight Net (H)");
+    expect(markup).not.toContain("Clear Net highlight");
+    expect(markup).toMatch(
+      /class="toggle-action-button"[^>]*aria-pressed="true"/u,
+    );
   });
 
   it("presents a MOS bulk route as instance-owned instead of a generic wire", () => {
