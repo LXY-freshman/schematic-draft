@@ -18,6 +18,7 @@ import {
   planDesignNetlistExport,
   requestBrowserDownload,
 } from "./editor-export-commands";
+import type { DesignNetlistExportPlan } from "./editor-export-commands";
 
 type SpiceImportResult = Awaited<ReturnType<typeof importSpiceSources>>;
 export interface SpiceImportReport {
@@ -86,27 +87,44 @@ export function createEditorFileCommands({
       });
   };
 
-  const exportDesignNetlist = (
+  /**
+   * Everything both netlist commands decide before they differ: the sidebar
+   * shows the netlist, a broken configuration stops here, and a drawing the
+   * Check Report refuses is refused the same way whether the text is going to
+   * the clipboard or to a file. Only the delivery is the caller's.
+   */
+  const planNetlist = (
     format: NetlistFormat,
-    namingProfile: NetlistNamingProfile = "native",
-  ): void => {
+    namingProfile: NetlistNamingProfile,
+    delivery: "clipboard" | "file",
+  ): DesignNetlistExportPlan | null => {
     showNetlist(format, namingProfile);
     if (netlistConfigurationError) {
       setStatus(`Fix Netlist configuration: ${netlistConfigurationError}`);
-      return;
+      return null;
     }
     const plan = planDesignNetlistExport({
       format,
       project,
       namingProfile,
+      delivery,
       ...(netlistProfile ? { profile: netlistProfile } : {}),
       ...(netlistPortCase ? { portCase: netlistPortCase } : {}),
       electricalWarningsPresent: electricalWarningsPresent(),
     });
     if (plan.status === "blocked") {
       setStatus(plan.message);
-      return;
+      return null;
     }
+    return plan;
+  };
+
+  const exportDesignNetlist = (
+    format: NetlistFormat,
+    namingProfile: NetlistNamingProfile = "native",
+  ): void => {
+    const plan = planNetlist(format, namingProfile, "clipboard");
+    if (plan?.status !== "ready") return;
     void (async () => {
       try {
         await navigator.clipboard.writeText(String(plan.artifact.bytes));
@@ -117,6 +135,25 @@ export function createEditorFileCommands({
         );
       }
     })();
+  };
+
+  /**
+   * The same netlist, written to a file instead of the clipboard. Until now
+   * the only way out of the editor was `Ctrl+V` into something else, so a
+   * netlist could not be handed to a simulator without a round trip through
+   * another program — and a clipboard the browser refuses left no way at all.
+   *
+   * The delivery is the ordinary export surface: in the shell it is a native
+   * Save As dialog that starts in `Projects\`, the same as SVG, PNG and Visio.
+   */
+  const saveDesignNetlistToFile = (
+    format: NetlistFormat,
+    namingProfile: NetlistNamingProfile = "native",
+  ): void => {
+    const plan = planNetlist(format, namingProfile, "file");
+    if (plan?.status !== "ready") return;
+    requestBrowserDownload(plan.artifact, project.name);
+    setStatus(plan.artifact.report);
   };
 
   const exportRaster = async (format: "png" | "pdf"): Promise<void> => {
@@ -238,6 +275,7 @@ export function createEditorFileCommands({
   return {
     exportSvg,
     exportDesignNetlist,
+    saveDesignNetlistToFile,
     exportRaster,
     exportVisio,
     importSpiceFiles,

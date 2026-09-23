@@ -10,6 +10,16 @@ hosted features some of them mention are gone.
 
 ## Unreleased
 
+### Added
+
+- **The netlist can be written to a file.** Until now the only way out of the
+  editor was the clipboard, so handing a netlist to a simulator meant pasting
+  it into an editor and saving it by hand. **Netlist / Save netlist to file…**
+  writes the netlist the panel is showing as a `.spi` or `.scs`, through the
+  same Save As dialog the drawing exports use. It is the same projection as the
+  copy button — identical bytes, and a circuit the Check Report blocks from
+  being copied cannot be saved either.
+
 ### Changed
 
 - **The window title names the file you are editing.** It used to read

@@ -367,6 +367,13 @@ and **Process** selectors choose what is copied and are remembered locally;
 **Default** restores every preset. Editing the circuit refreshes the
 visible code. Clipboard failures leave the code selectable for manual copy.
 
+**Netlist / Save netlist to file…** writes that same netlist to disk instead —
+a `.spi` for SPICE or a `.scs` for Spectre, in the format the panel is showing.
+The desktop application turns it into a Save As dialog that starts in
+`Projects\`. Copying and saving are two ways out of one projection: the bytes
+are identical, and a circuit the Check Report blocks from being copied cannot
+be saved either.
+
 **Netlist / Instances…** opens the Project's netlist instances as one editable
 JSON document in the right sidebar. Paste whole blocks to change references,
 model bindings and parameters together. Outer keys are Cell IDs; inner keys are

@@ -5,6 +5,7 @@ import { createEmptyProject } from "@icm/model";
 import {
   awaitEditorReady,
   clickCommand,
+  clickNetlistWorkflowCommand,
   copyNetlistText,
   downloadBytes,
   expectComponentCodeField,
@@ -807,4 +808,41 @@ test("keeps the netlist live and selectable when clipboard access fails", async 
   await code.focus();
   await code.selectText();
   expect(downloads).toEqual([]);
+});
+
+/**
+ * The netlist as a file, not just as clipboard text.
+ *
+ * Until this existed a netlist could only leave the editor through `Ctrl+V`
+ * into another program, and a browser that refused the clipboard left no way
+ * out at all. In the desktop shell this download becomes a native Save As
+ * dialog that starts in `Projects\`, like every other export.
+ */
+test("saves the netlist to a file with the same bytes it copies", async ({
+  page,
+}) => {
+  await page.goto("/editor");
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+
+  const spiceDownload = page.waitForEvent("download");
+  await clickNetlistWorkflowCommand(page, "save-netlist-file");
+  const spiceFile = await spiceDownload;
+  expect(spiceFile.suggestedFilename()).toMatch(/\.spi$/u);
+  await expect(page.getByTestId("status")).toContainText(
+    "Exported SPICE netlist",
+  );
+
+  const stream = await spiceFile.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  const saved = Buffer.concat(chunks).toString("utf8");
+  expect(saved).toContain(".subckt dut");
+
+  // The file and the clipboard are two ways out of one projection, so the
+  // bytes have to be the same ones.
+  await page.getByTestId("copy-netlist").click();
+  await expect(page.getByTestId("status")).toContainText(
+    "SPICE netlist copied",
+  );
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(saved);
 });
