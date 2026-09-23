@@ -57,6 +57,19 @@ hosted features some of them mention are gone.
   the Project name, somewhere it cannot be missed. A Project that has never
   been saved is titled after its Project name instead.
 
+### Fixed
+
+- **Switches in Properties are shaped like the controls beside them.** A wire's
+  **Hop over crossings**, and a component's **Internal mark**, **Inverting
+  input**, **Swap inputs** and **Swap outputs**, came out as a small grey pill
+  with the box stranded on a line above its own words, sitting among full-width
+  white fields that looked nothing like it — the panel was styling them as
+  captions for controls rather than as the controls they are. Each now takes the
+  same frame, height and text as the selects it shares a section with, and the
+  tick is what says whether it is on. The switches clustered under **Display**
+  keep their compact shape: they are one row of related choices, not one control
+  each.
+
 ## 1.2.0 — Control over the drawing (2026-09-23)
 
 ### Added
