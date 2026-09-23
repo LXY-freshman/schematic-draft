@@ -1135,11 +1135,14 @@
   border-radius: var(--icm-radius-sm);
 }
 
+/* A fieldset's legend captions its control exactly the way `.property-section
+   label` above captions its own, so it reads the same. The Appearance card
+   used to hold four caption sizes and two weights between its colour control,
+   its RGB disclosure and the fields beside them. */
 .component-color-control legend {
   padding: 0 0.25rem;
   color: var(--icm-text-muted);
-  font-size: var(--icm-font-xs);
-  font-weight: 650;
+  font-size: var(--icm-font-sm);
 }
 
 .component-color-primary-row {
@@ -1149,11 +1152,13 @@
   gap: 0.4rem;
 }
 
+/* Monospace is for the hex value itself — `#rrggbb` has to line up as the
+   colour changes — and does not spread to the words around it. */
 .component-color-primary-row output {
   overflow: hidden;
   color: var(--icm-text);
   font-family: var(--icm-font-mono, ui-monospace, monospace);
-  font-size: var(--icm-font-xs);
+  font-size: var(--icm-font-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1183,11 +1188,13 @@
   background: var(--icm-surface);
 }
 
+/* The outline is the only thing separating a pale swatch from the white button
+   behind it, so it has to be darker than the chrome's own hairlines. */
 .component-color-swatch span {
   width: 100%;
   height: 100%;
   min-height: 1rem;
-  border: 1px solid rgb(15 23 42 / 25%);
+  border: 1px solid rgb(15 23 42 / 45%);
   border-radius: 3px;
   background: var(--component-swatch-color);
 }
@@ -1212,18 +1219,31 @@
   padding-top: 0.4rem;
 }
 
+/* People read `RGB` as a button, so it has to look like one: bare text with no
+   frame beside a row of framed controls was the thing that read as unclickable.
+   `--icm-border-strong` is the hairline every `<button>` already draws; the
+   muted fill is what makes the edge findable at all. */
 .component-rgb-details summary {
   width: fit-content;
+  min-height: var(--icm-control-h-lg);
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--icm-border-strong);
+  border-radius: var(--icm-radius-sm);
+  background: var(--icm-surface-muted);
   color: var(--icm-text-muted);
   cursor: pointer;
-  font-size: var(--icm-font-xs);
-  font-weight: 650;
+  font-size: var(--icm-font-sm);
   user-select: none;
+}
+
+.component-rgb-details summary:hover {
+  border-color: var(--icm-border-hover);
+  background: var(--icm-surface-hover);
 }
 
 .component-rgb-inputs label {
   min-width: 0;
-  font-size: var(--icm-font-xs);
+  font-size: var(--icm-font-sm);
 }
 
 .component-rgb-inputs input {
