@@ -1883,3 +1883,91 @@ describe("voltage-controlled switch", () => {
     ).toEqual(["XC1", "XM1", "XQ1", "XQ2", "XR1"]);
   });
 });
+
+describe("drawing-only power switches", () => {
+  // GaN HEMTs and the IGBT are drawn, designated and wired like every other
+  // device, but no SPICE primitive describes either one. Calling them `mos`
+  // would hand a GaN HEMT silicon model targets and a bulk class it does not
+  // have; calling the IGBT `bjt` would classify it as an NPN. The refusal is
+  // the honest answer, and it must arrive as a diagnostic rather than as a
+  // card with nothing where the model name belongs.
+  it.each([
+    ["egan", ["D", "G", "S"]],
+    ["dgan", ["D", "G", "S"]],
+    ["igbt", ["C", "G", "E"]],
+  ] as const)("refuses to emit a card for an unbound %s", (symbolId, pins) => {
+    const project = createEmptyProject("project", "Project");
+    const document = project.documents[0]!;
+    document.instances.push({
+      id: "Q1",
+      symbolId,
+      placement: null,
+      reference: "Q1",
+      netlist: { parameters: {} },
+    });
+    pins.forEach((pinName, index) => {
+      const id = `net-${index}`;
+      document.nets.push({
+        id,
+        terminals: [{ instanceId: "Q1", pinName }],
+      });
+      claimNet(document, id, index === pins.length - 1 ? "0" : `n${index}`);
+    });
+
+    const analysis = analyzeDesignNetlist(project);
+    expect(analysis.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
+      "NON_NETLISTABLE_DEVICE",
+    );
+    expect(analysis.ir).toBeNull();
+  });
+
+  // The route a power switch does have to a netlist: bind the drawn part to a
+  // `.subckt` the user imported from the vendor. Extraction dispatches the
+  // binding ahead of the device path, so `targetPolicy: "none"` does not stand
+  // in the way and the instance prints as an ordinary subcircuit call with the
+  // vendor's own model behind it.
+  it("prints a GaN HEMT bound to a vendor subcircuit as a subcircuit call", () => {
+    const project = createEmptyProject("project", "Project");
+    const document = project.documents[0]!;
+    project.externalSubcircuitDefinitions.push({
+      id: "external-gan",
+      name: "GAN_HEMT",
+      terminals: [
+        { id: "external-gan-d", name: "D", direction: "passive" },
+        { id: "external-gan-g", name: "G", direction: "passive" },
+        { id: "external-gan-s", name: "S", direction: "passive" },
+      ],
+      formalParameters: [],
+      interfaceStatus: "declared",
+    });
+    document.instances.push({
+      id: "Q1",
+      symbolId: "egan",
+      placement: null,
+      reference: "XQ1",
+      netlist: {
+        binding: { kind: "external-subcircuit", definitionId: "external-gan" },
+        parameters: {},
+      },
+    });
+    for (const [id, name, pinName] of [
+      ["net-d", "vbus", "D"],
+      ["net-g", "vgate", "G"],
+      ["net-s", "0", "S"],
+    ] as const) {
+      document.nets.push({ id, terminals: [{ instanceId: "Q1", pinName }] });
+      claimNet(document, id, name);
+    }
+
+    const analysis = analyzeDesignNetlist(project);
+
+    expect(
+      analysis.diagnostics.filter(
+        (diagnostic) => diagnostic.severity === "error",
+      ),
+    ).toEqual([]);
+    expect(printSpiceNetlist(analysis.ir!)).toContain(
+      "XQ1 vbus vgate 0 GAN_HEMT",
+    );
+  });
+});

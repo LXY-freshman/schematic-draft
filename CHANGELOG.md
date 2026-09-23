@@ -12,6 +12,19 @@ hosted features some of them mention are gone.
 
 ### Added
 
+- **Three power switches join Transistors: E-GaN, D-GaN and IGBT.** The two GaN
+  HEMTs are the normally-off and normally-on parts, drawn with D/G/S and no
+  body lead — a GaN HEMT has no body diode, and the symbol does not pretend
+  otherwise; the enhancement part's channel is broken where the depletion
+  part's is continuous. The IGBT keeps a MOS gate plate and takes bipolar
+  C/G/E leads. All three place, wire, rotate, label and export like any other
+  symbol. What they do not have is a SPICE primitive: no standard card
+  describes a GaN HEMT or an IGBT, so rather than dress one up as a MOSFET and
+  hand it silicon model parameters, netlist export reports the instance as
+  non-netlistable. Bind it to a `.subckt` you imported from the vendor and it
+  prints as an ordinary subcircuit call, with the vendor's own model behind it.
+  They are authored in the Extended Devices library, like the DMOS and
+  depletion parts, and filed under **Transistors** for the same reason.
 - **A wire or a component can be drawn heavier or lighter than the rest.**
   Appearance now carries **Stroke width ×** beside the colour, on a wire and on
   a component alike: any multiplier from 0.25 to 4 over the weight that object

@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "symbol": {
+    "schemaVersion": 1,
+    "id": "dgan",
+    "name": "Depletion-mode GaN HEMT",
+    "viewBox": { "x": -24, "y": -24, "width": 38, "height": 48 },
+    "pins": [
+      {
+        "name": "D",
+        "role": "drain",
+        "at": { "x": 10, "y": -20 },
+        "direction": "north",
+        "presentation": { "visibility": "visible", "leadLength": 10 }
+      },
+      {
+        "name": "G",
+        "role": "gate",
+        "at": { "x": -20, "y": 0 },
+        "direction": "west",
+        "presentation": { "visibility": "visible", "leadLength": 10 }
+      },
+      {
+        "name": "S",
+        "role": "source",
+        "at": { "x": 10, "y": 20 },
+        "direction": "south",
+        "presentation": { "visibility": "visible", "leadLength": 10 }
+      }
+    ],
+    "primitives": [
+      {
+        "kind": "line",
+        "from": { "x": -20, "y": 0 },
+        "to": { "x": -12, "y": 0 },
+        "style": {
+          "strokeRole": "normal",
+          "lineCap": "butt",
+          "lineJoin": "miter"
+        }
+      },
+      {
+        "kind": "line",
+        "from": { "x": -12, "y": -10 },
+        "to": { "x": -12, "y": 10 },
+        "part": "gate-plate",
+        "style": {
+          "strokeRole": "emphasis",
+          "lineCap": "butt",
+          "lineJoin": "miter"
+        }
+      },
+      {
+        "kind": "line",
+        "from": { "x": -6, "y": -14 },
+        "to": { "x": -6, "y": 14 },
+        "part": "channel-bar",
+        "style": {
+          "strokeRole": "emphasis",
+          "lineCap": "butt",
+          "lineJoin": "miter"
+        }
+      },
+      {
+        "kind": "polyline",
+        "points": [
+          { "x": -6, "y": -10 },
+          { "x": 10, "y": -10 },
+          { "x": 10, "y": -20 }
+        ],
+        "style": {
+          "strokeRole": "normal",
+          "lineCap": "butt",
+          "lineJoin": "miter"
+        }
+      },
+      {
+        "kind": "polyline",
+        "points": [
+          { "x": -6, "y": 10 },
+          { "x": 10, "y": 10 },
+          { "x": 10, "y": 20 }
+        ],
+        "style": {
+          "strokeRole": "normal",
+          "lineCap": "butt",
+          "lineJoin": "miter"
+        }
+      },
+      {
+        "kind": "polygon",
+        "points": [
+          { "x": 10, "y": 10 },
+          { "x": 3, "y": 7 },
+          { "x": 3, "y": 13 }
+        ],
+        "fill": "foreground",
+        "stroke": "none",
+        "part": "source-arrow"
+      }
+    ],
+    "variants": []
+  },
+  "electrical": {
+    "id": "dgan",
+    "symbolId": "dgan",
+    "deviceClass": "switch",
+    "referencePrefix": "Q",
+    "pinOrder": ["D", "G", "S"],
+    "seriesInsertionPinPair": ["D", "S"],
+    "targetPolicy": "none",
+    "parameters": [],
+    "dialects": ["spice", "spectre"],
+    "capabilities": {
+      "supportsModel": false,
+      "supportsBulkBinding": false,
+      "supportsValueAnnotation": false
+    }
+  },
+  "catalog": {
+    "library": "extended",
+    "symbolId": "dgan",
+    "category": "Extended Devices",
+    "subcategory": "High-voltage devices"
+  }
+}

@@ -298,7 +298,8 @@ describe("reach order inside a category", () => {
 
     // Alphabetical order separated NMOS from PMOS with a bipolar between them,
     // and the supply Port from its Rail. The four-terminal and depletion-mode
-    // parts follow the everyday four they are reached for far less often than.
+    // parts follow the everyday four they are reached for far less often than,
+    // and the power switches follow the silicon MOS family.
     expect(ids("Transistors")).toEqual([
       "nmos",
       "pmos",
@@ -308,6 +309,9 @@ describe("reach order inside a category", () => {
       "depletion-pmos",
       "ndmos",
       "pdmos",
+      "egan",
+      "dgan",
+      "igbt",
     ]);
     expect(ids("Extended Devices")).toEqual([
       "variable-resistor",
