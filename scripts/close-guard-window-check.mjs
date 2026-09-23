@@ -241,9 +241,10 @@ await rm(saveTarget, { force: true });
   pass("a bound Save overwrites in place, then closes");
 }
 
-// 7. File → Exit is `app.quit()`, not `window.close()`: Electron abandons the
-//    whole quit when the close is held, so the guard has to survive that and
-//    still be able to finish the quit afterwards.
+// 7. A quit that does not come through the window — Windows signing out or
+//    shutting down — is `app.quit()`, not `window.close()`: Electron abandons
+//    the whole quit when the close is held, so the guard has to survive that
+//    and still be able to finish the quit afterwards.
 {
   const { app, page } = await launch();
   await drawSomething(page);
@@ -253,8 +254,8 @@ await rm(saveTarget, { force: true });
   assert.equal(await windowCount(app), 1, "Cancel let the quit through");
   await stubDialogs(app, { response: 1 });
   await app.evaluate(({ app: electronApp }) => electronApp.quit());
-  await expectExit(app, "Exit after Don't Save");
-  pass("File → Exit asks, and quits once the answer allows it");
+  await expectExit(app, "quit after Don't Save");
+  pass("a quit asks, and goes through once the answer allows it");
 }
 
 // 8. The remembered geometry still reaches disk, now that `destroy()` is what

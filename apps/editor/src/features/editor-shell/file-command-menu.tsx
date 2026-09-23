@@ -21,6 +21,8 @@ export interface FileCommandMenuProps {
   onSaveAs: () => void;
   onRefresh: () => void;
   onOpenCopy: () => void;
+  /** Absent in a browser, where there is no folder on this computer to show. */
+  onOpenProjectsFolder: () => void;
   onImportProject: (file: File | null) => void;
   onImportSpice: (
     files: FileList | null,
@@ -111,6 +113,7 @@ export function FileCommandMenu({
   onSaveAs,
   onRefresh,
   onOpenCopy,
+  onOpenProjectsFolder,
   onImportProject,
   onImportSpice,
   onImportSpiceFromDisk,
@@ -273,6 +276,16 @@ export function FileCommandMenu({
         <button type="button" onClick={onRefresh}>
           Refresh app
         </button>
+        {hasFileBridge ? (
+          <button
+            type="button"
+            data-testid="open-projects-folder"
+            title="Show the folder this copy saves Projects in"
+            onClick={onOpenProjectsFolder}
+          >
+            Open Projects Folder
+          </button>
+        ) : null}
         <button type="button" onClick={onRevert} disabled={!canRevert}>
           Revert to Last Saved
         </button>

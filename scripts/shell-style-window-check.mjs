@@ -12,6 +12,8 @@
 //
 // The window caption is here for the same reason: a browser test can only read
 // `document.title`, and whether Electron accepts it is the shell's decision.
+// So are the absent menu bar and the window zoom keys — a menu Electron
+// installs by default, and accelerators it used to register with that menu.
 //
 //   pnpm desktop:build && node scripts/shell-style-window-check.mjs
 //
@@ -136,6 +138,25 @@ const seen = await page.evaluate(async () => {
 const dirtyCaption = await caption();
 const pageTitle = await page.title();
 
+// This application has one menu, and it is the editor's. Electron installs a
+// default menu bar when none is set, so "there is no menu" is a fact only a
+// launched window can confirm — and with it went the only place the window
+// shortcuts below were ever registered. Both have to be read from the live
+// window, so they are gathered here and asserted with everything else below.
+const shellMenu = await app.evaluate(({ Menu, BrowserWindow }) => ({
+  application: Menu.getApplicationMenu() === null ? null : "installed",
+  barVisible: BrowserWindow.getAllWindows()[0]?.isMenuBarVisible(),
+}));
+
+const zoomLevel = () =>
+  app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0]?.webContents.getZoomLevel(),
+  );
+await page.keyboard.press("Control+Minus");
+const zoomedOut = await zoomLevel();
+await page.keyboard.press("Control+0");
+const zoomReset = await zoomLevel();
+
 await app.close();
 
 assert.deepEqual(
@@ -197,5 +218,13 @@ assert.ok(
   `the caption did not mark unsaved work: ${cleanCaption} → ${dirtyCaption}`,
 );
 pass("the window caption names the Project and marks unsaved work");
+
+assert.equal(shellMenu.application, null, "a system menu is still installed");
+assert.equal(shellMenu.barVisible, false, "the window still shows a menu bar");
+pass("the shell installs no menu of its own");
+
+assert.ok(zoomedOut < 0, `Ctrl+- did not zoom the window out: ${zoomedOut}`);
+assert.equal(zoomReset, 0, "Ctrl+0 did not reset the window zoom");
+pass("the window zoom keys work without a menu to register them");
 
 console.log(`\n${results.length} checks passed`);

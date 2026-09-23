@@ -7,6 +7,7 @@ import {
   type PendingProjectOpen,
   type ProjectFileDialogs,
 } from "./project-files.js";
+import { handleShellApi, type ShellCommandPorts } from "./shell-commands.js";
 
 /**
  * The editor's origin inside the desktop shell.
@@ -38,6 +39,8 @@ export interface AppProtocolOptions {
   dialogs: ProjectFileDialogs;
   /** A file the launch was asked to open, for the editor to collect. */
   pendingOpen?: PendingProjectOpen;
+  /** The commands the editor's menus run in the shell; absent in tests. */
+  shell?: ShellCommandPorts;
 }
 
 function inside(root: string, requested: string): string {
@@ -141,20 +144,24 @@ export async function createAppProtocolHandler(
     const pathname = decodeURIComponent(url.pathname);
 
     if (pathname.startsWith("/api/")) {
-      const response = await handleProjectFileApi(request, pathname, {
-        dialogs: options.dialogs,
-        ...(options.pendingOpen === undefined
-          ? {}
-          : { pendingOpen: options.pendingOpen }),
-      });
+      const response =
+        (await handleProjectFileApi(request, pathname, {
+          dialogs: options.dialogs,
+          ...(options.pendingOpen === undefined
+            ? {}
+            : { pendingOpen: options.pendingOpen }),
+        })) ??
+        (options.shell
+          ? await handleShellApi(request, pathname, options.shell)
+          : null);
       if (response) {
         for (const [name, value] of Object.entries(secureHeaders)) {
           response.headers.set(name, value);
         }
         return response;
       }
-      // The file bridge is the only API this shell answers; anything else a
-      // future editor build asked for gets a 404 rather than hanging.
+      // The bridge is the only API this shell answers; anything else a future
+      // editor build asked for gets a 404 rather than hanging.
       return new Response(JSON.stringify({ error: "not-found" }), {
         status: 404,
         headers: { "content-type": "application/json", ...secureHeaders },
