@@ -42,6 +42,7 @@ import type { HierarchyFrame } from "@icm/derived";
 import { createEmptyProject, flattenRichText } from "@icm/model";
 import { tryParseProjectWithMetadata } from "@icm/project-protocol";
 import {
+  nativeFileDialogsAvailable,
   openProjectFileFromDisk,
   PROJECT_OPEN_REQUEST_EVENT,
   takeRequestedProjectPath,
@@ -559,6 +560,7 @@ export function App({ project: initialProject }: AppProps) {
     deleteRecoverySessionFromDialog,
     refreshApp,
     openProjectFile,
+    openProjectCopyFromDisk,
     openProjectFromDisk,
     reopenProjectPath,
   } = useProjectFileLifecycle({
@@ -3067,7 +3069,8 @@ export function App({ project: initialProject }: AppProps) {
     saveDesignNetlistToFile,
     exportRaster,
     exportVisio,
-    importSpiceFiles,
+    importSpiceFromDisk,
+    importSpiceFromInput,
   } = createEditorFileCommands({
     project,
     document,
@@ -3573,6 +3576,7 @@ export function App({ project: initialProject }: AppProps) {
         fileCommands={{
           openFilePath: fileBinding?.path ?? null,
           canRevert: savedProjectBaseline !== null && isDirtyWork(),
+          hasFileBridge: nativeFileDialogsAvailable(),
           hasRecoverySessions: recoverySessions.some(
             (session) =>
               session.latest?.unsavedAtSnapshot === true ||
@@ -3587,9 +3591,12 @@ export function App({ project: initialProject }: AppProps) {
             allowNextBrowserUnload();
             refreshApp();
           },
+          onOpenCopy: () => void openProjectCopyFromDisk(),
           onImportProject: (file) => void openProjectFile(file),
           onImportSpice: (files, namingProfile) =>
-            void importSpiceFiles(files, namingProfile),
+            void importSpiceFromInput(files, namingProfile),
+          onImportSpiceFromDisk: (namingProfile) =>
+            void importSpiceFromDisk(namingProfile),
           onExportSvg: exportSvg,
           onExportRaster: (format) => void exportRaster(format),
           onExportVisio: (kind) => void exportVisio(kind),

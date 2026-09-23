@@ -1,4 +1,5 @@
 import { PRODUCT_NAME } from "../../product";
+import { fileNameFromPath } from "./project-files";
 
 /**
  * What the window caption says while a Project is open.
@@ -23,18 +24,11 @@ export interface WindowTitleFacts {
 }
 
 /**
- * The bound file's own name, extension included.
- *
- * `ProjectFileBinding.name` deliberately strips the extension — it is the
- * Project name the editor shows in the toolbar. The caption names the *file*,
- * so `Low-pass filter.schdraft` and a legacy `Low-pass filter.icproj` are
- * distinguishable at a glance.
+ * The caption names the *file*, so it uses the bound path rather than
+ * `ProjectFileBinding.name`: that deliberately strips the extension, being the
+ * Project name the toolbar shows, and `Low-pass filter.schdraft` beside a
+ * legacy `Low-pass filter.icproj` should be distinguishable at a glance.
  */
-function fileNameFromPath(path: string): string {
-  const separator = Math.max(path.lastIndexOf("\\"), path.lastIndexOf("/"));
-  return separator === -1 ? path : path.slice(separator + 1);
-}
-
 export function formatWindowTitle(facts: WindowTitleFacts): string {
   const subject =
     facts.filePath === null

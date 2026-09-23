@@ -60,6 +60,7 @@ import {
 import {
   PROJECT_FILE_EXTENSION,
   PROJECT_FILE_EXTENSIONS,
+  SOURCE_FILE_EXTENSIONS,
   type ProjectFileDialogs,
 } from "./project-files.js";
 
@@ -114,6 +115,10 @@ const PROJECT_FILTERS = [
   { name: "Schematic Draft Project", extensions: PROJECT_FILE_EXTENSIONS },
 ];
 
+const SOURCE_FILTERS = [
+  { name: "SPICE / Spectre source", extensions: SOURCE_FILE_EXTENSIONS },
+];
+
 /**
  * The native Open/Save dialogs behind the editor's file bridge. They belong
  * to the window, so the editor cannot act while one is up.
@@ -135,6 +140,19 @@ function projectFileDialogs(
         ? await dialog.showOpenDialog(owner, options)
         : await dialog.showOpenDialog(options);
       return result.canceled ? null : (result.filePaths[0] ?? null);
+    },
+    async promptOpenMany() {
+      const owner = parent();
+      const options = {
+        title: "Import SPICE / SCS",
+        defaultPath: projectsDirectory(),
+        filters: SOURCE_FILTERS,
+        properties: ["openFile" as const, "multiSelections" as const],
+      };
+      const result = owner
+        ? await dialog.showOpenDialog(owner, options)
+        : await dialog.showOpenDialog(options);
+      return result.canceled ? null : result.filePaths;
     },
     async promptSave({ name, currentPath }) {
       const owner = parent();

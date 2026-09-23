@@ -1,6 +1,10 @@
+import { createSourceBundle } from "@icm/spice";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { takeRequestedProjectPath } from "./project-files";
+import {
+  openSourceFilesFromDisk,
+  takeRequestedProjectPath,
+} from "./project-files";
 
 /**
  * The startup probe is the one bridge call the editor makes unprompted, on
@@ -64,5 +68,71 @@ describe("takeRequestedProjectPath", () => {
     const fetched = countingFetch();
     await expect(takeRequestedProjectPath()).resolves.toBeNull();
     expect(fetched.calls()).toBe(0);
+  });
+});
+
+describe("openSourceFilesFromDisk", () => {
+  /** What the shell would answer, with the bytes base64 as the route sends them. */
+  function shellAnswers(payload: unknown): void {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(payload),
+        } as unknown as Response),
+      ),
+    );
+  }
+
+  const base64 = (bytes: Uint8Array): string =>
+    btoa(String.fromCharCode(...bytes));
+
+  it("carries a UTF-16 netlist through as bytes, not as text", async () => {
+    // The whole reason the bridge moves base64 rather than a string. The SPICE
+    // loader tells the encoding from the byte-order mark and records it; a
+    // bridge that read the file as UTF-8 would not lose a validation step, it
+    // would turn this netlist into mojibake. A Spectre `.scs` cannot make the
+    // same trip — the converter requires UTF-8 and says so — which is why the
+    // file under test is a `.spi`.
+    const text = "* circuit\nR0 in out 1k\n";
+    const utf16 = new Uint8Array([
+      0xff,
+      0xfe,
+      ...[...text].flatMap((character) => [character.charCodeAt(0), 0]),
+    ]);
+    shellAnswers({
+      status: "opened",
+      files: [
+        {
+          path: "D:\\Circuits\\circuit.spi",
+          name: "circuit.spi",
+          base64: base64(utf16),
+        },
+      ],
+    });
+
+    const outcome = await openSourceFilesFromDisk();
+    expect(outcome.status).toBe("opened");
+    if (outcome.status !== "opened") return;
+    // The importer resolves an `.include` against a file name, so that is what
+    // the bytes arrive under — the same thing a browser's picker hands over.
+    expect(outcome.files[0]!.path).toBe("circuit.spi");
+    expect([...outcome.files[0]!.bytes]).toEqual([...utf16]);
+
+    const bundle = await createSourceBundle(outcome.files, "circuit.spi");
+    expect(bundle.files[0]!.encoding).toBe("utf-16-le");
+    expect(bundle.files[0]!.text).toBe(text);
+  });
+
+  it("reports a cancelled dialog and a refusal apart", async () => {
+    shellAnswers({ status: "cancelled" });
+    expect(await openSourceFilesFromDisk()).toEqual({ status: "cancelled" });
+
+    shellAnswers({ status: "failed", message: "too large" });
+    expect(await openSourceFilesFromDisk()).toEqual({
+      status: "failed",
+      message: "too large",
+    });
   });
 });

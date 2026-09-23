@@ -90,7 +90,7 @@ occurred while the write was in flight, the submitted snapshot is on disk but
 the newer live content remains dirty. Undo back to the written content becomes
 clean.
 
-**Import Project File** is an interchange operation: it validates and loads
+**Open a Copy** is an interchange operation: it validates and loads
 bytes without binding a path, so it never claims to be Save and never clears
 dirty state. A contextual backup save is offered only when recovery needs
 attention. Saving a copy does not remove recovery records; bounded retention and

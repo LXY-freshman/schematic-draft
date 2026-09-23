@@ -127,6 +127,24 @@ function saveTargets(
   }));
 }
 
+/**
+ * Open a Project file as a copy, through the shell's own dialog.
+ *
+ * With a shell there, the File menu's import entries are commands rather than
+ * `<input type="file">` pickers, so this is the path a desktop user takes. The
+ * copy is deliberately unbound: the saves that follow still ask where to go.
+ */
+async function openCopy(
+  page: Page,
+  bridge: FileBridge,
+  file: { path: string; text: string },
+): Promise<void> {
+  bridge.files.set(file.path, file.text);
+  bridge.openPick = file.path;
+  const menu = await openMenu(page, "File");
+  await menu.getByTestId("open-project-copy").click();
+}
+
 const minimalProjectText = readFileSync(
   resolve(process.cwd(), "fixtures/projects/minimal/project.icproj.json"),
   "utf8",
@@ -139,10 +157,9 @@ test("imports and upgrades a portable Project", async ({ page }) => {
   const previousVersion = CURRENT_PROJECT_SCHEMA_VERSION - 1;
   source.schemaVersion = previousVersion;
   await page.goto("/editor");
-  await page.getByTestId("project-file").setInputFiles({
-    name: `minimal-v${previousVersion}.icproj.json`,
-    mimeType: "application/json",
-    buffer: Buffer.from(JSON.stringify(source)),
+  await openCopy(page, bridge, {
+    path: `C:\\portable\\minimal-v${previousVersion}.icproj.json`,
+    text: JSON.stringify(source),
   });
   await expect(page.getByTestId("status")).toContainText(
     `upgraded minimal-v${previousVersion}.icproj.json`,
@@ -200,10 +217,9 @@ test("normalizes legacy overlapping Wire topology on Project import", async ({
   );
 
   await page.goto("/editor");
-  await page.getByTestId("project-file").setInputFiles({
-    name: "legacy-overlap.icproj.json",
-    mimeType: "application/json",
-    buffer: Buffer.from(JSON.stringify(source)),
+  await openCopy(page, bridge, {
+    path: "C:\\portable\\legacy-overlap.icproj.json",
+    text: JSON.stringify(source),
   });
   await expect(page.getByTestId("status")).toContainText(
     "normalized connectivity and Wire topology in 1 Cell",
@@ -259,10 +275,9 @@ test("imports split source-ground markers with independent owners", async ({
     owner: { kind: "global-declaration", sourceNetId: "original-0" },
   });
   await page.goto("/editor");
-  await page.getByTestId("project-file").setInputFiles({
-    name: "split-ground.icproj.json",
-    mimeType: "application/json",
-    buffer: Buffer.from(JSON.stringify(source)),
+  await openCopy(page, bridge, {
+    path: "C:\\portable\\split-ground.icproj.json",
+    text: JSON.stringify(source),
   });
   await expect(page.getByTestId("status")).toContainText(
     "save to keep the repair",

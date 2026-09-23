@@ -30,13 +30,16 @@ Run `pnpm build` once after installing, and again after pulling package
 changes: the development server's Vite configuration loads some workspace
 packages from their built `dist/` output. In a plain browser, **Open Project…**
 and **Save** report a failure — the file bridge they call exists only in the
-desktop shell — so use **Import Project File…** there instead.
+desktop shell — so use **Open a Copy…** there instead, which falls back to the
+browser's own file picker. **Import SPICE / SCS…** falls back the same way.
 
 ## Bring in an existing netlist
 
 Open **File** and use **Import SPICE / SCS…** to select one `.cir`, `.sp`,
 `.spi`, or `.scs` entry plus its local include files. **Import Cadence SPICE
-(`!` globals)…** also treats net names ending in `!` as global Nets. Imported
+(`!` globals)…** also treats net names ending in `!` as global Nets. In the
+desktop application both open this application's own dialog — titled, starting
+in `Projects\`, and taking as many files at once as the entry names. Imported
 instances begin unplaced so that you decide the presentation.
 
 New Resistor, Capacitor, and Inductor instances—including their adjustable
@@ -303,9 +306,10 @@ copies remain available through **File / Recover Local Work…**; recovery never
 silently replaces the current Project. A Project restored from a recovery copy
 has no file binding, so its first **Save** asks where to put it.
 
-Use **Import Project File…** to validate a portable `.schdraft` or `.icproj.json`
-without binding it; invalid or future-version input leaves the current Document
-unchanged.
+Use **Open a Copy…** to validate a portable `.schdraft` or `.icproj.json`
+without binding it: the file is loaded but not adopted, so the first **Save**
+asks where to put the result and the original is never overwritten. Invalid or
+future-version input leaves the current Document unchanged.
 
 SPICE files are import inputs, not embedded source attachments. Saving an
 imported Project preserves the editable schematic and source provenance, but
@@ -432,7 +436,8 @@ make the circuit ready for simulation.
 
 Use **File / Import SPICE / SCS…** and select one `.scs` entry together with
 its local include files. `circuit.scs` is recognized as the entry when several
-netlist files are selected. Conversion happens in the browser and works locally.
+netlist files are selected. Conversion happens inside the editor, on this
+machine, like everything else here.
 The converted structure uses the existing import and placement flow. Errors
 show the source filename and line, and leave your current circuit unchanged.
 
