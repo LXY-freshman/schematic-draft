@@ -22,6 +22,21 @@ hosted features some of them mention are gone.
 
 ### Changed
 
+- **There is one menu now, the one in the window.** The desktop application
+  also carried a system menu bar, hidden behind `Alt`, holding not a single
+  editing command — only three things the window itself knew. All three have
+  moved somewhere they can be found: **Open Projects Folder** is in the
+  **File** menu with the rest of the file commands, and the About section of
+  **Help** now shows where this installation keeps its Projects and its
+  settings, whether that is inside the program folder, and whether `.schdraft`
+  files open with this copy — with a checkbox that turns the association on and
+  off. The checkbox reports what Windows actually did, so a refused change
+  shows as refused instead of looking applied. The window keys are unchanged:
+  `Ctrl +`, `Ctrl -` and `Ctrl 0` scale the interface, `F11` is full screen,
+  `Ctrl+Shift+I` opens the developer tools. **File → Exit** is gone with the
+  menu bar; close the window with its X or `Alt+F4`, which ask about unsaved
+  work exactly as before, as does signing out or shutting Windows down.
+
 - **Opening and importing files use this application's own dialogs.** Bringing
   in a netlist or a second Project used to go through a web page's file picker:
   untitled, starting wherever the last one did, offering filters named after a

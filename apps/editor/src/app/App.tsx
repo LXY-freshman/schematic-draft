@@ -47,6 +47,8 @@ import {
   PROJECT_OPEN_REQUEST_EVENT,
   takeRequestedProjectPath,
 } from "../features/editor-shell/project-files";
+import { openProjectsFolder } from "../features/editor-shell/shell-commands";
+import { ShellInstallFacts } from "../features/editor-shell/shell-install-facts";
 import {
   resolveReviewedExternalBinding,
   reviewedExternalModelSuggestions,
@@ -3592,6 +3594,7 @@ export function App({ project: initialProject }: AppProps) {
             refreshApp();
           },
           onOpenCopy: () => void openProjectCopyFromDisk(),
+          onOpenProjectsFolder: () => void openProjectsFolder(),
           onImportProject: (file) => void openProjectFile(file),
           onImportSpice: (files, namingProfile) =>
             void importSpiceFromInput(files, namingProfile),
@@ -3782,7 +3785,13 @@ export function App({ project: initialProject }: AppProps) {
       />
       <EditorDialogLayer
         help={
-          helpOpen ? { closeButtonRef: helpCloseRef, onClose: closeHelp } : null
+          helpOpen
+            ? {
+                closeButtonRef: helpCloseRef,
+                onClose: closeHelp,
+                installFacts: <ShellInstallFacts />,
+              }
+            : null
         }
         chunkLoadFailure={
           chunkLoadFailure === null

@@ -11,7 +11,6 @@ import {
   protocol,
   session,
   shell,
-  type MenuItemConstructorOptions,
 } from "electron";
 
 import {
@@ -63,6 +62,11 @@ import {
   SOURCE_FILE_EXTENSIONS,
   type ProjectFileDialogs,
 } from "./project-files.js";
+import {
+  type AssociationState,
+  type ShellCommandPorts,
+} from "./shell-commands.js";
+import { steppedZoomLevel, windowCommand } from "./window-shortcuts.js";
 
 const PRODUCT_NAME = "Schematic Draft";
 const APP_USER_MODEL_ID = "com.schematicdraft.desktop";
@@ -303,9 +307,9 @@ async function saveWindowState(window: BrowserWindow): Promise<void> {
  * now, and whether it was ever told not to.
  *
  * The association is the one thing this application writes outside its own
- * folder, so it is kept honest: per-user keys only, the Help menu shows and
- * flips the real state, and turning it off is remembered instead of being
- * quietly restored at the next launch.
+ * folder, so it is kept honest: per-user keys only, the editor's About section
+ * shows and flips the real state, and turning it off is remembered instead of
+ * being quietly restored at the next launch.
  */
 let associationActive = false;
 let associationWanted = true;
@@ -413,14 +417,21 @@ async function ensureFileAssociation(): Promise<void> {
   associationActive = await applyAssociation();
 }
 
+/**
+ * Flip the association at the editor's word, and say what really happened.
+ *
+ * The confirmation stays a native dialog: it reports a change to this
+ * account's registry, which is the one thing this application writes outside
+ * its own folder, and that belongs to the shell rather than to a panel inside
+ * the page.
+ */
 async function setFileAssociation(
   window: BrowserWindow,
   wanted: boolean,
-): Promise<void> {
+): Promise<AssociationState> {
   const done = wanted ? await applyAssociation() : await withdrawAssociation();
   await rememberAssociationChoice(wanted);
   associationActive = done ? wanted : await queryAssociation();
-  window.setMenu(buildMenu(window));
   await dialog.showMessageBox(window, {
     type: done ? "info" : "warning",
     title: PRODUCT_NAME,
@@ -435,75 +446,45 @@ async function setFileAssociation(
         : "The per-user registry entries this application added are gone.\nOpening a Project from inside the application still works."
       : `Nothing was changed. The keys are under\n${EXTENSION_KEY} and\n${OPEN_COMMAND_KEY}.`,
   });
+  return associationState();
 }
 
-function buildMenu(window: BrowserWindow): Menu {
-  const template: MenuItemConstructorOptions[] = [
-    {
-      label: "&File",
-      submenu: [
-        {
-          label: "Open Projects Folder",
-          click: () => void shell.openPath(projectsDirectory()),
-        },
-        { type: "separator" },
-        { role: "quit", label: "E&xit" },
-      ],
+/**
+ * Whether the association is a question worth asking here.
+ *
+ * A development run writes nothing to the registry, and a non-Windows run has
+ * no per-user association to write, so the editor is told the control does not
+ * apply rather than being told it is switched off.
+ */
+function associationState(): AssociationState {
+  if (process.platform !== "win32" || !app.isPackaged) return "unavailable";
+  return associationActive ? "on" : "off";
+}
+
+/** What the editor's own menus call into the shell for. */
+function shellCommandPorts(
+  window: () => BrowserWindow | null,
+): ShellCommandPorts {
+  return {
+    projectsDirectory,
+    settingsDirectory: () => app.getPath("userData"),
+    selfContained: () => installRoot !== null,
+    associationState: async () => {
+      if (process.platform !== "win32" || !app.isPackaged) return "unavailable";
+      // Asked rather than remembered: Explorer's claim can be taken by another
+      // program, or by another copy of this one, between launches.
+      associationActive = await queryAssociation();
+      return associationState();
     },
-    {
-      label: "&View",
-      submenu: [
-        { role: "zoomIn" },
-        { role: "zoomOut" },
-        { role: "resetZoom" },
-        { type: "separator" },
-        { role: "togglefullscreen" },
-        { type: "separator" },
-        { role: "toggleDevTools" },
-      ],
+    setAssociation: async (enabled) => {
+      const owner = window() ?? BrowserWindow.getAllWindows()[0] ?? null;
+      if (owner === null || process.platform !== "win32" || !app.isPackaged) {
+        return associationState();
+      }
+      return setFileAssociation(owner, enabled);
     },
-    {
-      label: "&Help",
-      submenu: [
-        {
-          label: `Open ${PROJECT_FILE_EXTENSION} Files With This Copy`,
-          type: "checkbox",
-          checked: associationActive,
-          enabled: process.platform === "win32" && app.isPackaged,
-          click: (item) => void setFileAssociation(window, item.checked),
-        },
-        { type: "separator" },
-        {
-          label: `About ${PRODUCT_NAME}`,
-          click: () =>
-            void dialog.showMessageBox(window, {
-              type: "info",
-              title: `About ${PRODUCT_NAME}`,
-              message: `${PRODUCT_NAME} ${app.getVersion()}`,
-              detail: [
-                "An offline desktop build of the open-source Analog Canvas",
-                "schematic editor (GNU AGPL-3.0).",
-                "",
-                "Nothing leaves this computer: the editor runs from bundled",
-                "files, Projects are saved wherever you choose, and every",
-                "network request is refused before a connection is made.",
-                "",
-                installRoot === null
-                  ? "This copy cannot write to its own folder, so it uses the\nper-user locations below."
-                  : "Everything this copy writes stays in its own folder, so\nmoving the folder moves the whole installation.",
-                "",
-                `Projects: ${projectsDirectory()}`,
-                `Settings and recovery: ${app.getPath("userData")}`,
-                associationActive
-                  ? `Double-click: ${PROJECT_FILE_EXTENSION} files open with this copy (a\nper-user registry entry, removable from this menu).`
-                  : `Double-click: ${PROJECT_FILE_EXTENSION} files are not associated with\nthis copy; nothing of it is in the registry.`,
-              ].join("\n"),
-            }),
-        },
-      ],
-    },
-  ];
-  return Menu.buildFromTemplate(template);
+    openFolder: (path) => shell.openPath(path),
+  };
 }
 
 /**
@@ -570,6 +551,32 @@ function guardWindowClose(window: BrowserWindow): void {
   });
 }
 
+/**
+ * The window keys that used to be a `View` menu.
+ *
+ * Every command in this application is in the editor's own menus, so there is
+ * no menu bar left to hang accelerators on. These five are not editor commands
+ * — they act on the window and its chrome — so they are matched on the way in
+ * and never reach the page.
+ */
+function registerWindowShortcuts(window: BrowserWindow): void {
+  window.webContents.on("before-input-event", (event, input) => {
+    const command = windowCommand(input);
+    if (command === null) return;
+    event.preventDefault();
+    if (command === "fullscreen") {
+      window.setFullScreen(!window.isFullScreen());
+      return;
+    }
+    if (command === "devtools") {
+      window.webContents.toggleDevTools();
+      return;
+    }
+    const level = steppedZoomLevel(window.webContents.getZoomLevel(), command);
+    if (level !== null) window.webContents.setZoomLevel(level);
+  });
+}
+
 async function createWindow(): Promise<BrowserWindow> {
   const state = await loadWindowState();
   const window = new BrowserWindow({
@@ -582,7 +589,6 @@ async function createWindow(): Promise<BrowserWindow> {
     minWidth: 900,
     minHeight: 600,
     show: false,
-    autoHideMenuBar: true,
     backgroundColor: "#1e3d36",
     webPreferences: {
       contextIsolation: true,
@@ -593,9 +599,9 @@ async function createWindow(): Promise<BrowserWindow> {
       devTools: true,
     },
   });
-  window.setMenu(buildMenu(window));
   if (state.maximized) window.maximize();
   window.once("ready-to-show", () => window.show());
+  registerWindowShortcuts(window);
 
   // Links to documentation open in the person's browser; the editor window
   // itself never navigates away from its own origin.
@@ -664,11 +670,15 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(async () => {
+    // One menu, and it is the editor's. Electron installs a default menu bar
+    // when none is set, and this application has no command that belongs in
+    // one: File, Export, Netlist and Help are all in the window.
+    Menu.setApplicationMenu(null);
     lockDownNetwork();
     routeDownloadsToSaveDialog();
     await mkdir(projectsDirectory(), { recursive: true });
     await loadAssociationChoice();
-    // Before the window, so the Help menu shows the association as it really is.
+    // Before the window, so the editor's About reads the association as it is.
     await ensureFileAssociation();
     let mainWindow: BrowserWindow | null = null;
     protocol.handle(
@@ -676,6 +686,7 @@ if (!app.requestSingleInstanceLock()) {
       await createAppProtocolHandler({
         editorRoot: editorRoot(),
         dialogs: projectFileDialogs(() => mainWindow),
+        shell: shellCommandPorts(() => mainWindow),
         pendingOpen: {
           take: () => {
             const path = requestedOpenPath;

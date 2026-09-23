@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 
 import editorPackage from "../../package.json";
 import { PRODUCT_NAME } from "../product";
@@ -59,11 +59,19 @@ function ShortcutChord({ keys }: { keys: readonly string[] }) {
 export interface EditorHelpDialogProps {
   closeButtonRef: RefObject<HTMLButtonElement | null>;
   onClose(): void;
+  /**
+   * Where this copy keeps its files, and whether it owns the double-click —
+   * facts only the desktop shell knows, so this is empty in a browser. Passed
+   * in rather than read here: the dialog stays presentation, and the shell
+   * adapter stays in the feature that owns the bridge.
+   */
+  installFacts?: ReactNode;
 }
 
 export function EditorHelpDialog({
   closeButtonRef,
   onClose,
+  installFacts,
 }: EditorHelpDialogProps) {
   return (
     <div
@@ -226,6 +234,7 @@ export function EditorHelpDialog({
             <p>
               Version <strong>{editorPackage.version}</strong>
             </p>
+            {installFacts}
             <nav
               className="help-resource-links"
               aria-label={`${PRODUCT_NAME} resources`}

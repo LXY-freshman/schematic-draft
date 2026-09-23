@@ -11,6 +11,7 @@ const handlers = {
   onSaveAs: vi.fn(),
   onRefresh: vi.fn(),
   onOpenCopy: vi.fn(),
+  onOpenProjectsFolder: vi.fn(),
   onImportProject: vi.fn(),
   onImportSpice: vi.fn(),
   onImportSpiceFromDisk: vi.fn(),
@@ -91,5 +92,24 @@ describe("FileCommandMenu", () => {
     expect(markup).toContain("Open a Copy…");
     expect(markup).toContain("Import Cadence SPICE (`!` globals)…");
     expect(markup).not.toContain('type="file"');
+    // The one command the system menu bar used to hold that is not about a
+    // file the editor opened. It has no meaning in a browser, so it appears
+    // only here.
+    expect(markup).toContain("Open Projects Folder");
+  });
+
+  it("leaves the shell's own commands out of a browser", () => {
+    const markup = renderToStaticMarkup(
+      <FileCommandMenu
+        openFilePath={null}
+        canRevert={false}
+        hasRecoverySessions={false}
+        hasFileBridge={false}
+        projectInputRef={createRef<HTMLInputElement>()}
+        {...handlers}
+      />,
+    );
+
+    expect(markup).not.toContain("Open Projects Folder");
   });
 });

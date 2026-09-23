@@ -530,6 +530,50 @@
   margin-top: 0.25rem;
 }
 
+/* Where this copy keeps its files, shown only in the desktop shell. */
+.help-install-facts {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--icm-border);
+  border-radius: var(--icm-radius-md);
+  background: var(--icm-surface-muted);
+}
+
+.help-install-facts dl {
+  display: grid;
+  gap: 0.15rem 0.7rem;
+  margin: 0;
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+
+.help-install-facts dt {
+  color: var(--icm-text-muted);
+  font-size: var(--icm-font-sm);
+}
+
+.help-install-facts dd {
+  min-width: 0;
+  margin: 0;
+}
+
+.help-install-facts code {
+  overflow-wrap: anywhere;
+  font-size: var(--icm-font-sm);
+}
+
+.help-install-facts p {
+  margin: 0;
+  color: var(--icm-text-muted);
+  font-size: var(--icm-font-sm);
+}
+
+.help-association {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .help-resource-links a {
   display: flex;
   align-items: center;

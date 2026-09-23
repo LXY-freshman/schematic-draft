@@ -40,7 +40,7 @@ Windows 本地离线运行的电路原理图编辑器。基于开源项目
 
 程序写的所有东西都在它自己的文件夹里，**整个文件夹复制或移动到别的盘、别的电脑就是迁移**，
 不会在 `%APPDATA%` 或者"文档"里留下东西。唯一的例外是双击打开要用的文件关联 ——
-那是几个当前用户的注册表项，只能写在注册表里，在 `Help` 菜单里可以随时取消（见下）：
+那是几个当前用户的注册表项，只能写在注册表里，在 `Help` 的 About 一节里可以随时取消（见下）：
 
 ```
 Schematic Draft\
@@ -60,8 +60,8 @@ Schematic Draft\
   - **标题栏写着正在编辑哪个文件**：`amplifier.schdraft — Schematic Draft`，有没保存的改动时
     文件名后面多一个 `*`。还没存成文件的新工程显示工程名。任务栏、`Alt+Tab` 和窗口列表里
     看到的也是这个，所以开着好几个窗口时不用挨个点进去认；
-  - **关窗口时有没保存的改动会先问**：`X`、`Alt+F4`、`File → Exit` 都一样，弹一个
-    Windows 原生对话框，三个按钮 —— `Save` 存好再关（没有文件的会先问位置），
+  - **关窗口时有没保存的改动会先问**：`X`、`Alt+F4`，以及 Windows 注销或关机，都一样，
+    弹一个 Windows 原生对话框，三个按钮 —— `Save` 存好再关（没有文件的会先问位置），
     `Don't Save` 丢掉这次的改动直接关，`Cancel` 什么都不做。存盘被取消或者失败时窗口不会关，
     东西还在编辑器里；
   - 文件是纯 JSON，可以直接备份、拷贝、用 Git 管理；
@@ -83,15 +83,19 @@ Schematic Draft\
   硬盘上那个 `.schdraft` 才是正本。
 - **窗口大小、界面偏好、崩溃恢复副本**：`AppData\`。崩溃恢复副本是保险，不是备份 ——
   硬盘上那个 `.schdraft` 才是正本。有副本可用时 `File` 菜单里会多出 `Recover Local Work…`。
-- 菜单 `File → Open Projects Folder` 直接打开 `Projects\`；`Help → About` 显示当前实际使用的路径。
+- `File → Open Projects Folder` 直接打开 `Projects\`；`Help` 里的 About 一节显示当前
+  实际使用的两个路径，以及双击关联开着没有。
 - 移动文件夹以后第一次启动，"上次打开的文件"路径失效，程序会提示一次并停在空工程上，
   重新 `Open Project…` 打开新位置的文件即可。
 - 压缩包解压出来的那份和安装包装出来的那份是各自独立的安装，`Projects\` 和 `AppData\`
   都在自己的文件夹里，不共用。
 - 如果把程序放在没有写权限的位置（`C:\Program Files`、只读共享盘），程序写不进自己的文件夹，
-  会退回到 `%APPDATA%\Schematic Draft\` 和 `文档\Schematic Draft\`；`Help → About` 会照实显示。
+  会退回到 `%APPDATA%\Schematic Draft\` 和 `文档\Schematic Draft\`；About 一节会照实显示。
 
-（菜单栏默认隐藏，按一下 `Alt` 键显示。）
+**这个程序只有一套菜单，就是窗口里那一条。**没有系统菜单栏，按 `Alt` 也不会弹出来 ——
+从前那条菜单栏里一个真正的命令都没有，只有三样主进程才知道的事，现在都在 `File` 菜单和
+`Help` 的 About 一节里。窗口本身的几个键照旧：`Ctrl +` / `Ctrl -` / `Ctrl 0` 缩放整个界面，
+`F11` 全屏，`Ctrl+Shift+I` 开发者工具。
 
 ## 双击打开
 
@@ -104,15 +108,15 @@ Schematic Draft\
 - 打开命令里写的是**这个文件夹里**的 exe，所以文件夹移动以后再启动一次就自动指向新位置；
 - 旧版本关联的是 `.icproj`；关联新后缀时会把那个键**交还**（同样只在它还指向本程序时才删），
   不会两个后缀都占着。已经存成 `.icproj` 的文件用 `File → Open Project…` 照样打开；
-- `Help → Open .schdraft Files With This Copy` 是个勾选项，显示当前真实状态，
+- `Help` 的 About 一节里有个勾选项 `Open .schdraft files with this copy`，显示当前真实状态，
   取消勾选就把上面那两个键删掉（后缀那一个只在它还指向本程序时才删，
-  别的程序后来抢走了就不动它）。取消的选择记在 `AppData\file-association.json` 里，
-  下次启动不会偷偷改回去；
+  别的程序后来抢走了就不动它）；改动完还会弹一个原生对话框说明发生了什么，因为动的是注册表。
+  取消的选择记在 `AppData\file-association.json` 里，下次启动不会偷偷改回去；
 - 没有关联也一样能用：程序内 `File → Open Project…`，或者在资源管理器里右键
   `打开方式 → 选择其他应用`，或者命令行 `schematic-draft.exe "D:\...\amp.schdraft"`。
 - 程序已经开着的时候再双击一个工程，会在**已经开着的窗口**里打开它，不会再启动一份；
   当前工程有未保存的改动时会先问一下，和 `Open Project…` 完全一样。
-- `Help → About` 会照实写明当前是否关联。
+- `Help` 的 About 一节会照实写明当前是否关联。
 
 ## 安全保证
 
@@ -177,7 +181,7 @@ electron-builder 自带的 `zip` 目标对 Windows 是不带顶层文件夹的�
 `ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/`
 （`sync-to-windows.sh` 已默认设置）。
 
-桌面外壳在 `apps/desktop/`（窗口、菜单、原生对话框、文件桥、断网拦截、打包），
+桌面外壳在 `apps/desktop/`（窗口、快捷键、原生对话框、文件桥、断网拦截、打包），
 文件打开/保存在 `apps/editor/src/features/editor-shell/`。这是一次正式分叉，不再合并上游更新：
 联网功能是删掉的，不是关掉的。
 

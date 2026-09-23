@@ -9,13 +9,19 @@ the `Projects/` directory new Projects are saved into, and the `AppData/`
 directory that keeps the window size and the crash-recovery copy, so moving the
 folder moves the whole installation. A copy placed somewhere it cannot write —
 `C:\Program Files`, a read-only share — falls back to the per-user AppData and
-Documents locations, and **Help → About** reports which paths are in use. The
+Documents locations, and the **About** section of **Help** reports which paths
+are in use. The
 window opens on an empty `New Circuit` Project whose one Cell is `dut`, ready for
 palette-first manual authoring — no file needs to be opened first.
 
 Nothing in the application reaches the network. Every outbound request is
 refused by the desktop shell, and an external link opens in your system browser
 instead of inside the application.
+
+Every command is in the menus across the top of the window. There is no system
+menu bar, so `Alt` opens nothing; the window's own keys are unchanged, with
+`Ctrl +`, `Ctrl -` and `Ctrl 0` scaling the whole interface and `F11` going
+full screen.
 
 ## Run from source
 
@@ -296,8 +302,9 @@ saving**, or **Stay** when the current Project has unsaved changes. The prompt
 names the file Save would write, or says it will ask when there is none.
 Continue without saving means discard: that working copy is removed before the
 action continues. Closing the desktop window with unsaved changes — the title
-bar's X, `Alt+F4`, or **File / Exit** — asks the same question in a Windows
-dialog: **Save**, **Don't Save**, or **Cancel**. Save runs the ordinary Save
+bar's X or `Alt+F4`, and a Windows sign-out or shutdown — asks the same
+question in a Windows dialog: **Save**, **Don't Save**, or **Cancel**. Save
+runs the ordinary Save
 command, so an unbound Project is asked where to go, and a save that is
 cancelled or fails leaves the window open with the work still in it. If a newer
 unsaved recovery copy is found on a later start, a
