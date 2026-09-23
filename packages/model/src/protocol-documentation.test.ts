@@ -25,6 +25,10 @@ describe("Project protocol documentation", () => {
         "docs/user/project-compatibility.md",
         `schema version is \`${version}\``,
       ],
+      // The rejection bound is the one number a reader acts on — it says
+      // whether the build in front of them will open a file at all — and it
+      // went stale for a release because nothing here was watching it.
+      ["docs/user/project-compatibility.md", `newer than v${version}`],
     ] as const;
 
     for (const [relativePath, expected] of expectations) {
