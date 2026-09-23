@@ -22,6 +22,18 @@ hosted features some of them mention are gone.
 
 ### Changed
 
+- **Opening and importing files use this application's own dialogs.** Bringing
+  in a netlist or a second Project used to go through a web page's file picker:
+  untitled, starting wherever the last one did, offering filters named after a
+  browser. In the desktop application **Import SPICE / SCS…** and
+  **Open a Copy…** now open the same dialog **Open Project…** does — titled,
+  starting in `Projects\`, filtered to the extensions this program reads. The
+  SPICE entries still take a whole family of files at once, and files arrive as
+  bytes, so a netlist saved as UTF-16 imports as the text it is rather than as
+  mojibake. **Import Project File…** is the command now named **Open a Copy…**;
+  it still loads without binding, so the first **Save** asks where to put the
+  result.
+
 - **The window title names the file you are editing.** It used to read
   `Schematic Draft` no matter what was open, so several windows were
   indistinguishable in the taskbar and in `Alt+Tab`. It now reads

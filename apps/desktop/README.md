@@ -66,6 +66,12 @@ Schematic Draft\
     东西还在编辑器里；
   - 文件是纯 JSON，可以直接备份、拷贝、用 Git 管理；
   - 存到 `Projects\` 之外也完全可以，对话框去哪儿都行 —— 只是那样迁移就得自己再拷一份。
+- **导入进来的文件**：`File → Import SPICE / SCS…`（以及 Cadence 那一项）和
+  `File → Open a Copy…` 弹的是和 `Open Project…` 同一种对话框 —— 有标题、默认从
+  `Projects\` 开始、过滤器写着本程序认得的后缀。SPICE 那两项可以一次多选，因为入口文件
+  和它 `.include` 的那些文件要一起交进来。`Open a Copy…` 打开的工程**不绑定文件**：
+  内容进了编辑器，但第一次 `Save` 仍会问位置，原文件不会被覆盖 —— 拿来验一份别人给的
+  工程正合适。
 - **导出的 SVG/PDF/PNG/Visio/netlist**：另存为对话框默认也从 `Projects\` 开始。
   网表在 `Netlist → Save netlist to file…`，按侧栏里选的格式写出 `.spi` 或 `.scs`；
   Netlist 按钮本身仍然是点一下就复制到剪贴板，两个出口给的是同一份字节。

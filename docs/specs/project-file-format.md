@@ -138,7 +138,7 @@ An invalid candidate never replaces the live Project.
 A migrated file is marked dirty: opening it does not write it back. The upgraded
 bytes reach disk only when the user saves — **Save** to the same path, or
 **Save As…** to keep the original file untouched. A file offered through
-**Import Project File…** is never bound, so it is never overwritten. Recovery
+**Open a Copy…** is never bound, so it is never overwritten. Recovery
 records may be canonicalized to the current schema only after a successful
 validated write.
 

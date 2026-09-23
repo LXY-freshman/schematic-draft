@@ -5,17 +5,28 @@ export interface FileCommandMenuProps {
   openFilePath: string | null;
   canRevert: boolean;
   hasRecoverySessions: boolean;
+  /**
+   * Whether the shell is there to run the editor's own dialogs.
+   *
+   * With one, every file entry is a command that opens a native dialog. In a
+   * plain browser — the dev server and the browser test suite — the same
+   * entries stay `<input type="file">` pickers, which is the only way in that
+   * a page has.
+   */
+  hasFileBridge: boolean;
   projectInputRef: RefObject<HTMLInputElement | null>;
   onNewProject: () => void;
   onOpenProject: () => void;
   onSave: () => void;
   onSaveAs: () => void;
   onRefresh: () => void;
+  onOpenCopy: () => void;
   onImportProject: (file: File | null) => void;
   onImportSpice: (
     files: FileList | null,
     namingProfile?: "native" | "cadence-bang",
   ) => void;
+  onImportSpiceFromDisk: (namingProfile?: "native" | "cadence-bang") => void;
   onExportSvg: () => void;
   onExportRaster: (format: "png" | "pdf") => void;
   onExportVisio: (kind: "drawing" | "stencil") => void;
@@ -92,14 +103,17 @@ export function FileCommandMenu({
   openFilePath,
   canRevert,
   hasRecoverySessions,
+  hasFileBridge,
   projectInputRef,
   onNewProject,
   onOpenProject,
   onSave,
   onSaveAs,
   onRefresh,
+  onOpenCopy,
   onImportProject,
   onImportSpice,
+  onImportSpiceFromDisk,
   onExportSvg,
   onExportRaster,
   onExportVisio,
@@ -151,40 +165,71 @@ export function FileCommandMenu({
             {openFilePath}
           </span>
         )}
-        <label className="file-import">
-          Import Project File…
-          <input
-            ref={projectInputRef}
-            data-testid="project-file"
-            type="file"
-            accept=".schdraft,.icproj,.json,.icproj.json,application/json"
-            onChange={(event) =>
-              onImportProject(event.currentTarget.files?.[0] ?? null)
-            }
-          />
-        </label>
-        <label className="file-import">
-          Import SPICE / SCS…
-          <input
-            data-testid="spice-files"
-            type="file"
-            accept=".spi,.cir,.sp,.scs,.inc,.lib"
-            multiple
-            onChange={(event) => onImportSpice(event.currentTarget.files)}
-          />
-        </label>
-        <label className="file-import">
-          Import Cadence SPICE (`!` globals)…
-          <input
-            data-testid="cadence-spice-files"
-            type="file"
-            accept=".spi,.cir,.sp,.scs,.inc,.lib"
-            multiple
-            onChange={(event) =>
-              onImportSpice(event.currentTarget.files, "cadence-bang")
-            }
-          />
-        </label>
+        {hasFileBridge ? (
+          <button
+            type="button"
+            data-testid="open-project-copy"
+            title="Open a Project file without binding it, so Save asks where to put the result"
+            onClick={onOpenCopy}
+          >
+            Open a Copy…
+          </button>
+        ) : (
+          <label className="file-import">
+            Open a Copy…
+            <input
+              ref={projectInputRef}
+              data-testid="project-file"
+              type="file"
+              accept=".schdraft,.icproj,.json,.icproj.json,application/json"
+              onChange={(event) =>
+                onImportProject(event.currentTarget.files?.[0] ?? null)
+              }
+            />
+          </label>
+        )}
+        {hasFileBridge ? (
+          <button
+            type="button"
+            data-testid="import-spice"
+            onClick={() => onImportSpiceFromDisk()}
+          >
+            Import SPICE / SCS…
+          </button>
+        ) : (
+          <label className="file-import">
+            Import SPICE / SCS…
+            <input
+              data-testid="spice-files"
+              type="file"
+              accept=".spi,.cir,.sp,.scs,.inc,.lib"
+              multiple
+              onChange={(event) => onImportSpice(event.currentTarget.files)}
+            />
+          </label>
+        )}
+        {hasFileBridge ? (
+          <button
+            type="button"
+            data-testid="import-cadence-spice"
+            onClick={() => onImportSpiceFromDisk("cadence-bang")}
+          >
+            Import Cadence SPICE (`!` globals)…
+          </button>
+        ) : (
+          <label className="file-import">
+            Import Cadence SPICE (`!` globals)…
+            <input
+              data-testid="cadence-spice-files"
+              type="file"
+              accept=".spi,.cir,.sp,.scs,.inc,.lib"
+              multiple
+              onChange={(event) =>
+                onImportSpice(event.currentTarget.files, "cadence-bang")
+              }
+            />
+          </label>
+        )}
         <div>
           <ExportSubmenu
             title="Export drawing"

@@ -10,8 +10,10 @@ const handlers = {
   onSave: vi.fn(),
   onSaveAs: vi.fn(),
   onRefresh: vi.fn(),
+  onOpenCopy: vi.fn(),
   onImportProject: vi.fn(),
   onImportSpice: vi.fn(),
+  onImportSpiceFromDisk: vi.fn(),
   onExportSvg: vi.fn(),
   onExportRaster: vi.fn(),
   onExportVisio: vi.fn(),
@@ -26,6 +28,7 @@ describe("FileCommandMenu", () => {
         openFilePath={"D:\\Circuits\\Low-pass filter.icproj.json"}
         canRevert
         hasRecoverySessions
+        hasFileBridge={false}
         projectInputRef={createRef<HTMLInputElement>()}
         {...handlers}
       />,
@@ -37,7 +40,7 @@ describe("FileCommandMenu", () => {
     expect(markup).toContain(
       "Save to D:\\Circuits\\Low-pass filter.icproj.json",
     );
-    expect(markup).toContain("Import Project File…");
+    expect(markup).toContain("Open a Copy…");
     expect(markup).toContain("Import SPICE / SCS…");
     expect(markup).toContain("Import Cadence SPICE (`!` globals)…");
     expect(markup).toContain('data-testid="cadence-spice-files"');
@@ -56,6 +59,7 @@ describe("FileCommandMenu", () => {
         openFilePath={null}
         canRevert={false}
         hasRecoverySessions={false}
+        hasFileBridge={false}
         projectInputRef={createRef<HTMLInputElement>()}
         {...handlers}
       />,
@@ -63,5 +67,29 @@ describe("FileCommandMenu", () => {
 
     expect(markup).toContain("Choose where to save this Project");
     expect(markup).not.toContain("Recover Local Work…");
+  });
+
+  it("asks the shell for files where there is a shell to ask", () => {
+    // Every other way into this editor is a page, where a file picker is the
+    // only door a browser opens. With the desktop shell behind it the same
+    // three entries are commands, so an import looks like an import and not
+    // like a web form: a titled dialog that starts in the Projects folder.
+    const markup = renderToStaticMarkup(
+      <FileCommandMenu
+        openFilePath={null}
+        canRevert={false}
+        hasRecoverySessions={false}
+        hasFileBridge
+        projectInputRef={createRef<HTMLInputElement>()}
+        {...handlers}
+      />,
+    );
+
+    expect(markup).toContain('data-testid="open-project-copy"');
+    expect(markup).toContain('data-testid="import-spice"');
+    expect(markup).toContain('data-testid="import-cadence-spice"');
+    expect(markup).toContain("Open a Copy…");
+    expect(markup).toContain("Import Cadence SPICE (`!` globals)…");
+    expect(markup).not.toContain('type="file"');
   });
 });

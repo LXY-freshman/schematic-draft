@@ -32,6 +32,25 @@ export type ProjectFileSaveOutcome =
   | { status: "cancelled" }
   | { status: "failed"; message: string };
 
+/**
+ * One netlist source file the shell read for an import.
+ *
+ * `path` is the file's own name rather than its place on the disk, because
+ * that is what an `.include` line inside another file refers to and what the
+ * importer resolves against — the same thing a browser's file picker hands
+ * over. `bytes` is deliberately not text: the SPICE loader tells UTF-8 from
+ * UTF-16 by the byte-order mark and records which it found.
+ */
+export interface OpenedSourceFile {
+  path: string;
+  bytes: Uint8Array;
+}
+
+export type SourceFilesOpenOutcome =
+  | { status: "opened"; files: OpenedSourceFile[] }
+  | { status: "cancelled" }
+  | { status: "failed"; message: string };
+
 const ENDPOINT = "/api/file";
 
 declare global {
@@ -59,6 +78,22 @@ function fileBridgeIsPresent(): boolean {
   if (typeof window === "undefined") return false;
   if (window.location.protocol === "app:") return true;
   return import.meta.env.DEV && window.__ICM_TEST_FILE_BRIDGE__ === true;
+}
+
+/**
+ * Whether the editor's own Open and Import dialogs are available.
+ *
+ * The same question as the bridge being there, asked by the surfaces that
+ * choose between a native dialog and the browser's `<input type="file">`.
+ */
+export function nativeFileDialogsAvailable(): boolean {
+  return fileBridgeIsPresent();
+}
+
+/** `D:\Circuits\filter.schdraft` → `filter.schdraft`, on either separator. */
+export function fileNameFromPath(path: string): string {
+  const separator = Math.max(path.lastIndexOf("\\"), path.lastIndexOf("/"));
+  return separator === -1 ? path : path.slice(separator + 1);
 }
 
 async function post(path: string, body?: unknown): Promise<unknown> {
@@ -119,6 +154,53 @@ export async function openProjectFileFromDisk(): Promise<ProjectFileOpenOutcome>
   } catch (error) {
     return failure(error, "The open dialog is unavailable");
   }
+}
+
+function decodeBase64(value: string): Uint8Array {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+/**
+ * Ask for netlist source files and read them.
+ *
+ * A multi-selection, because an import is one entry file together with the
+ * local includes it names, and the importer needs all of them at once.
+ */
+export async function openSourceFilesFromDisk(): Promise<SourceFilesOpenOutcome> {
+  let payload: unknown;
+  try {
+    payload = await post("/open-many");
+  } catch (error) {
+    return failure(error, "The import dialog is unavailable");
+  }
+  const body = payload as {
+    status?: unknown;
+    files?: unknown;
+    message?: unknown;
+  } | null;
+  if (body?.status === "cancelled") return { status: "cancelled" };
+  if (body?.status === "opened" && Array.isArray(body.files)) {
+    const files: OpenedSourceFile[] = [];
+    for (const entry of body.files as Array<Record<string, unknown>>) {
+      if (typeof entry.name !== "string" || typeof entry.base64 !== "string") {
+        return { status: "failed", message: "The files could not be read" };
+      }
+      files.push({ path: entry.name, bytes: decodeBase64(entry.base64) });
+    }
+    return { status: "opened", files };
+  }
+  return {
+    status: "failed",
+    message:
+      typeof body?.message === "string"
+        ? body.message
+        : "The files could not be read",
+  };
 }
 
 /** Re-read a path the editor already knows, with no dialog. */

@@ -25,6 +25,7 @@ import { projectChangeToken } from "./project-session-lifecycle";
 import { projectHasMeaningfulContent } from "./project-content";
 import { normalizeImportedProjectConductors } from "./project-conductor-normalization";
 import {
+  fileNameFromPath,
   openProjectFileFromDisk,
   readProjectFileAt,
   saveTextAsFile,
@@ -566,8 +567,15 @@ export function useProjectFileLifecycle({
     })();
   }
 
+  /**
+   * Load a Project file as a copy: validated, upgraded if need be, and left
+   * bound to nothing, so the first Save asks where it should go.
+   *
+   * The argument is only ever read for its name and its text, which is what a
+   * browser `File` and a file the shell read both supply.
+   */
   async function openProjectFile(
-    file: File | null,
+    file: { name: string; text(): Promise<string> } | null,
     options: { allowExactCurrentReplacement?: boolean } = {},
   ): Promise<void> {
     if (!file) return;
@@ -679,6 +687,26 @@ export function useProjectFileLifecycle({
       return;
     }
     await installOpenedFile(outcome.file);
+  }
+
+  /**
+   * File / Open a Copy…: the same dialog, deliberately without the binding.
+   *
+   * Opening a copy is how a portable `.icproj.json` is inspected or brought
+   * forward without claiming the file it came from — a later Save asks where
+   * to put it rather than writing over the original.
+   */
+  async function openProjectCopyFromDisk(): Promise<void> {
+    const outcome = await openProjectFileFromDisk();
+    if (outcome.status === "cancelled") return;
+    if (outcome.status === "failed") {
+      setStatus(`Could not open the Project file (${outcome.message})`);
+      return;
+    }
+    await openProjectFile({
+      name: fileNameFromPath(outcome.file.path),
+      text: () => Promise.resolve(outcome.file.text),
+    });
   }
 
   /** Reopen a path the editor already knows (the last file, a Cell import). */
@@ -828,6 +856,7 @@ export function useProjectFileLifecycle({
     deleteRecoverySessionFromDialog,
     refreshApp,
     openProjectFile,
+    openProjectCopyFromDisk,
     openProjectFromDisk,
     reopenProjectPath,
   };

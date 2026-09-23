@@ -3,7 +3,7 @@ import { convertNetlist, type SpiceSourceInput } from "@icm/spice";
 /** Convert only native Spectre inputs; the ordinary SPICE loader keeps ownership
  * of include resolution and import validation. No remote request is necessary. */
 export function convertImportSources(
-  inputs: SpiceSourceInput[],
+  inputs: readonly SpiceSourceInput[],
 ): SpiceSourceInput[] {
   return inputs.map((input) => {
     const prefix = new TextDecoder().decode(input.bytes.subarray(0, 512));

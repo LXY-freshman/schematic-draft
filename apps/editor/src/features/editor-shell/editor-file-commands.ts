@@ -6,7 +6,7 @@ import type {
   NetlistPortCase,
 } from "@icm/netlist";
 import type { CircuitProject, GridRect, SchematicDocument } from "@icm/model";
-import { importSpiceSources } from "@icm/spice";
+import { importSpiceSources, type SpiceSourceInput } from "@icm/spice";
 import type { SymbolResolver } from "@icm/symbols";
 
 import {
@@ -19,6 +19,26 @@ import {
   requestBrowserDownload,
 } from "./editor-export-commands";
 import type { DesignNetlistExportPlan } from "./editor-export-commands";
+import { openSourceFilesFromDisk } from "./project-files";
+
+/**
+ * What a browser's file picker gave, in the shape the importer takes.
+ *
+ * The desktop shell reads the bytes itself and needs no conversion; this is
+ * the adapter for the `<input type="file">` the editor still offers wherever
+ * there is no shell to ask.
+ */
+export async function sourceInputsFromFileList(
+  files: FileList | null,
+): Promise<SpiceSourceInput[]> {
+  if (!files) return [];
+  return Promise.all(
+    [...files].map(async (file) => ({
+      path: file.webkitRelativePath || file.name,
+      bytes: new Uint8Array(await file.arrayBuffer()),
+    })),
+  );
+}
 
 type SpiceImportResult = Awaited<ReturnType<typeof importSpiceSources>>;
 export interface SpiceImportReport {
@@ -203,16 +223,10 @@ export function createEditorFileCommands({
   };
 
   const importSpiceFiles = async (
-    files: FileList | null,
+    sourceInputs: readonly SpiceSourceInput[],
     namingProfile: "native" | "cadence-bang" = "native",
   ): Promise<void> => {
-    if (!files || files.length === 0) return;
-    const sourceInputs = await Promise.all(
-      [...files].map(async (file) => ({
-        path: file.webkitRelativePath || file.name,
-        bytes: new Uint8Array(await file.arrayBuffer()),
-      })),
-    );
+    if (sourceInputs.length === 0) return;
     const conventionalEntries = sourceInputs.filter((input) =>
       /\.(?:cir|sp|spi|scs)$/iu.test(input.path),
     );
@@ -272,6 +286,37 @@ export function createEditorFileCommands({
     }
   };
 
+  /**
+   * The same import, with the shell's own dialog in front of it.
+   *
+   * The bridge hands back bytes rather than text on purpose: the loader tells
+   * UTF-8 from UTF-16 by the byte-order mark, so a file read as a string would
+   * arrive as mojibake. Nothing about entry detection, include resolution or
+   * the diagnostics changes — only where the bytes came from.
+   */
+  const importSpiceFromDisk = async (
+    namingProfile: "native" | "cadence-bang" = "native",
+  ): Promise<void> => {
+    const outcome = await openSourceFilesFromDisk();
+    if (outcome.status === "cancelled") return;
+    if (outcome.status === "failed") {
+      setStatus(`Could not read the selected files (${outcome.message})`);
+      return;
+    }
+    await importSpiceFiles(outcome.files, namingProfile);
+  };
+
+  /** What a browser's file picker selected, read and imported. */
+  const importSpiceFromInput = async (
+    files: FileList | null,
+    namingProfile: "native" | "cadence-bang" = "native",
+  ): Promise<void> => {
+    await importSpiceFiles(
+      await sourceInputsFromFileList(files),
+      namingProfile,
+    );
+  };
+
   return {
     exportSvg,
     exportDesignNetlist,
@@ -279,5 +324,7 @@ export function createEditorFileCommands({
     exportRaster,
     exportVisio,
     importSpiceFiles,
+    importSpiceFromDisk,
+    importSpiceFromInput,
   };
 }

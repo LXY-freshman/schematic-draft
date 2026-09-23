@@ -56,9 +56,18 @@ export interface PendingProjectOpen {
   take(): string | null;
 }
 
+/**
+ * What the SPICE import dialog offers. The importer takes one entry file plus
+ * the local includes it names, so the dialog is a multi-selection over the
+ * whole family of source extensions rather than one file at a time.
+ */
+export const SOURCE_FILE_EXTENSIONS = ["spi", "cir", "sp", "scs", "inc", "lib"];
+
 export interface ProjectFileDialogs {
   /** Ask which file to open; null when the person cancels. */
   promptOpen(): Promise<string | null>;
+  /** Ask which source files to import; null when the person cancels. */
+  promptOpenMany(): Promise<readonly string[] | null>;
   /** Ask where to write; null when the person cancels. */
   promptSave(suggestion: {
     /** The Project name, for a first save with no path yet. */
@@ -150,6 +159,45 @@ export async function handleProjectFileApi(
     }
     if (chosen === null) return json({ status: "cancelled" });
     return openPath(chosen);
+  }
+
+  if (pathname === "/api/file/open-many") {
+    let chosen: readonly string[] | null;
+    try {
+      chosen = await deps.dialogs.promptOpenMany();
+    } catch (error) {
+      return failed(error, "The open dialog failed");
+    }
+    if (chosen === null || chosen.length === 0)
+      return json({ status: "cancelled" });
+    const files: { path: string; name: string; base64: string }[] = [];
+    let total = 0;
+    for (const path of chosen) {
+      let bytes: Buffer;
+      try {
+        bytes = await readFile(path);
+      } catch (error) {
+        return failed(error, "The file could not be read");
+      }
+      total += bytes.byteLength;
+      if (total > MAX_PROJECT_BYTES) {
+        return json({
+          status: "failed",
+          message: "The selected files are too large to import",
+        });
+      }
+      // Bytes, not text. The SPICE loader sniffs a byte-order mark to tell
+      // UTF-8 from UTF-16 and records which it found; decoding here as UTF-8
+      // would turn a UTF-16 netlist into mojibake before the importer ever saw
+      // it. Base64 because this route family answers in JSON and one response
+      // carries several files. Netlists are kilobytes; the overhead is noise.
+      files.push({
+        path,
+        name: basename(path),
+        base64: bytes.toString("base64"),
+      });
+    }
+    return json({ status: "opened", files });
   }
 
   if (pathname === "/api/file/read") {

@@ -41,6 +41,7 @@ const INDEX_HTML = [
 /** A stub for the native dialogs: the answers a person would have given. */
 interface StubDialogs extends ProjectFileDialogs {
   openAnswers: (string | null)[];
+  openManyAnswers: (readonly string[] | null)[];
   saveAnswers: (string | null)[];
   saveRequests: { name: string; currentPath: string | null }[];
 }
@@ -48,9 +49,12 @@ interface StubDialogs extends ProjectFileDialogs {
 function stubDialogs(): StubDialogs {
   const dialogs: StubDialogs = {
     openAnswers: [],
+    openManyAnswers: [],
     saveAnswers: [],
     saveRequests: [],
     promptOpen: () => Promise.resolve(dialogs.openAnswers.shift() ?? null),
+    promptOpenMany: () =>
+      Promise.resolve(dialogs.openManyAnswers.shift() ?? null),
     promptSave: (suggestion) => {
       dialogs.saveRequests.push(suggestion);
       return Promise.resolve(dialogs.saveAnswers.shift() ?? null);
@@ -196,6 +200,65 @@ describe("desktop app protocol", () => {
       status: "idle",
     });
     expect((await request("/api/file/pending")).status).toBe(405);
+  });
+
+  it("hands over netlist source files as bytes, never as text", async () => {
+    const { post, dialogs, workspace } = await shell();
+    const entry = join(workspace, "circuit.spi");
+    const include = join(workspace, "models.inc");
+    // UTF-16LE with its byte-order mark: the importer tells the encoding from
+    // these two bytes and records what it found, so a bridge that decoded to a
+    // string here would hand the compiler mojibake rather than a netlist.
+    const utf16 = Buffer.concat([
+      Buffer.from([0xff, 0xfe]),
+      Buffer.from('* circuit\n.include "models.inc"\n', "utf16le"),
+    ]);
+    await writeFile(entry, utf16);
+    await writeFile(include, ".model dtest D (is=1e-15)\n", "utf8");
+    dialogs.openManyAnswers.push([entry, include]);
+
+    const opened = (await (await post("/api/file/open-many")).json()) as {
+      status: string;
+      files: { path: string; name: string; base64: string }[];
+    };
+    expect(opened.status).toBe("opened");
+    // The name travels beside the path because an `.include` line names a
+    // file, not a location: that is what the importer resolves against.
+    expect(opened.files.map((file) => file.name)).toEqual([
+      "circuit.spi",
+      "models.inc",
+    ]);
+    expect(opened.files[0]!.path).toBe(entry);
+    expect([...Buffer.from(opened.files[0]!.base64, "base64")]).toEqual([
+      ...utf16,
+    ]);
+
+    // Cancelling and selecting nothing are the same outcome, and neither is a
+    // failure: the editor keeps the circuit it already had.
+    expect(await (await post("/api/file/open-many")).json()).toEqual({
+      status: "cancelled",
+    });
+    dialogs.openManyAnswers.push([]);
+    expect(await (await post("/api/file/open-many")).json()).toEqual({
+      status: "cancelled",
+    });
+
+    dialogs.openManyAnswers.push([join(workspace, "gone.spi")]);
+    expect(await (await post("/api/file/open-many")).json()).toEqual(
+      expect.objectContaining({ status: "failed" }),
+    );
+  });
+
+  it("refuses a selection larger than it will parse", async () => {
+    const { post, dialogs, workspace } = await shell();
+    // The cap is the whole selection, not each file: an import is an entry
+    // plus its includes, and all of them are held at once.
+    const half = join(workspace, "half.spi");
+    await writeFile(half, "x".repeat(9 * 1024 * 1024), "utf8");
+    dialogs.openManyAnswers.push([half, half]);
+    expect(await (await post("/api/file/open-many")).json()).toEqual(
+      expect.objectContaining({ status: "failed" }),
+    );
   });
 
   it("saves in place and only prompts without a path or for Save As", async () => {
