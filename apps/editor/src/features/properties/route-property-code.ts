@@ -14,6 +14,7 @@ import {
 } from "./component-property-fields";
 import { propertyCodeSpans } from "./component-property-code-assists";
 import type { PropertyJsonEditorAdapter } from "./component-property-json-editor";
+import { STROKE_SCALE_MAX, STROKE_SCALE_MIN } from "./stroke-scale-field";
 
 type Route = SchematicDocument["routes"][number];
 
@@ -36,6 +37,7 @@ const schema = z.strictObject({
     lineStyle: z.enum(["solid", "dashed", "dotted"]),
     directionArrow: z.enum(["none", "middle", "end"]),
     lineJump: z.boolean(),
+    strokeScale: z.number().min(STROKE_SCALE_MIN).max(STROKE_SCALE_MAX),
   }),
 });
 
@@ -93,6 +95,13 @@ export const ROUTE_PROPERTY_FIELDS: readonly CanvasPropertyField[] = [
     description: "",
     help: "Draw a small arc where this wire crosses another Net's wire. Drawing only: a hop neither makes nor breaks a connection.",
   },
+  {
+    path: "appearance.strokeScale",
+    label: "Stroke width ×",
+    kind: "number",
+    description: "×",
+    help: "Multiplier over the weight this wire is normally drawn with, from 0.25 to 4. Drawing only: a heavier wire carries no more current.",
+  },
 ];
 
 function netLabelScope(
@@ -128,6 +137,7 @@ export function routePropertyCodeValue(
       lineStyle: route.styleOverride?.lineStyle ?? "solid",
       directionArrow: route.styleOverride?.arrow ?? "none",
       lineJump: route.styleOverride?.lineJump ?? false,
+      strokeScale: route.styleOverride?.strokeScale ?? 1,
     },
   };
 }

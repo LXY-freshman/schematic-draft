@@ -2,7 +2,7 @@
 
 Status: `accepted`
 
-Project schema: `58`
+Project schema: `59`
 
 Primary owners: `packages/model` (current shape) and
 `packages/project-protocol` (file boundary)
@@ -14,9 +14,9 @@ portable interchange name `.icproj.json` — what the browser build downloads an
 what this repository's fixtures and examples use — is the same bytes and opens
 the same way, as do `.icproj` (what earlier builds saved) and a plain `.json`
 file. Nothing in the format depends on the
-name. The current-only model validates schema 58. The public `parseProject`
-boundary accepts schemas 24 through 58, runs the explicit contiguous upgrade
-chain, and returns only the current shape. Serialization writes only schema 58.
+name. The current-only model validates schema 59. The public `parseProject`
+boundary accepts schemas 24 through 59, runs the explicit contiguous upgrade
+chain, and returns only the current shape. Serialization writes only schema 59.
 Versions outside that range are rejected.
 
 [The loader](../../packages/project-protocol/src/load.ts) and its adjacent
@@ -78,10 +78,17 @@ an unsolicited bulk conversion of other files or recovery data.
   formal Cell-Pin names; hints and source identity never create connectivity.
 - Route endpoints are terminal or Junction references only.
 - `Route.styleOverride` is presentation only. Its optional `color`,
-  `lineStyle`, `arrow` and `lineJump` members never change Net membership or
-  netlist output. `lineJump` is a drawing request: when `true`, the Route hops
-  over the conductors it merely crosses. Omission — the default for every
-  Route, including every migrated one — draws those crossings flat.
+  `lineStyle`, `arrow`, `lineJump` and `strokeScale` members never change Net
+  membership or netlist output. `lineJump` is a drawing request: when `true`,
+  the Route hops over the conductors it merely crosses. Omission — the default
+  for every Route, including every migrated one — draws those crossings flat.
+  `strokeScale` is a free multiplier in `[0.25, 4]` over the profile stroke the
+  Route would otherwise take; a thicker conductor carries no more current.
+  Omission and `1` mean the same thing, and only omission is written.
+- `Instance.styleOverride` is presentation only. Alongside `foreground` and the
+  retained `background`, its optional `strokeScale` multiplies every stroke
+  width the symbol's artwork resolves to, on the same `[0.25, 4]` range. Pin
+  positions, terminal identity and netlist output are untouched.
 - A marker claim may classify its Logical Net as `vdd` or `ground`; role never
   substitutes for name identity.
 - A named Power Rail uses an ordinary Base Net, Route/Junction geometry, a
@@ -128,8 +135,8 @@ an unsolicited bulk conversion of other files or recovery data.
 ## Read and write
 
 ```text
-import text -> parse JSON -> require Project schema 24 through 58
--> converge to schema 58 -> strict schema-58 validation -> install unbound
+import text -> parse JSON -> require Project schema 24 through 59
+-> converge to schema 59 -> strict schema-59 validation -> install unbound
 save -> strict validation -> canonical key ordering -> bytes handed to the shell
 ```
 
@@ -153,7 +160,7 @@ recovery remain exact.
 Canonical serialization ends with one newline and is byte-stable across
 serialize/parse/serialize. The current corpus is listed in
 `fixtures/projects/compatibility-corpus.json`; its `current` entries must all be
-already canonical Project schema 58. Explicit `migrated` witnesses retain their
+already canonical Project schema 59. Explicit `migrated` witnesses retain their
 source bytes and declared source version; loading and saving must produce a
 byte-stable current Project. The rejected corpus names expected validation
 failures. These are test inventory categories, not new Project fields.

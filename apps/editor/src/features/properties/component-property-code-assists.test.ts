@@ -109,6 +109,7 @@ describe("Canvas property assistance", () => {
       "placement.mirror",
       "appearance",
       "appearance.color",
+      "appearance.strokeScale",
       "display.visualAnnotation",
       "display.value",
     ]);

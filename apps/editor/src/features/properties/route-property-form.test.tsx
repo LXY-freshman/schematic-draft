@@ -122,6 +122,31 @@ describe("RoutePropertyForm", () => {
     expect(render()).toContain('aria-pressed="true"');
   });
 
+  it("offers the wire's own stroke multiplier, bounded by the model's range", () => {
+    const { document, route, netLabel } = routeFixture("OUT");
+    const render = () =>
+      renderToStaticMarkup(
+        <RoutePropertyForm
+          document={document}
+          route={route}
+          netLabel={netLabel}
+          defaultColor="#000000"
+          onApply={vi.fn(() => ({ ok: true }))}
+        />,
+      );
+    const plain = render();
+    // A wire that scales nothing still shows a width: every wire has one, and
+    // the field says how far from it to draw rather than whether to draw at all.
+    expect(plain).toContain('aria-label="Wire stroke width"');
+    expect(plain).toContain('min="0.25"');
+    expect(plain).toContain('max="4"');
+    expect(plain).toContain('step="0.25"');
+    expect(plain).toContain('value="1"');
+
+    route.styleOverride = { ...route.styleOverride, strokeScale: 2.5 };
+    expect(render()).toContain('value="2.5"');
+  });
+
   it("offers no scope until the wire claims a Net name", () => {
     const { document, route } = routeFixture(null);
     const markup = renderToStaticMarkup(

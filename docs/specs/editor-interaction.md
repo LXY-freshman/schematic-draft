@@ -130,12 +130,17 @@ outside the symbol and remain upright through rotation and mirroring.
 
 Fixed colors are displayed as compact
 `[R, G, B]` tuples with integer channels 0–255; six-digit hex input remains
-accepted and persisted instance colors remain hex. Four direct line-color
-controls provide light gray, red, green, and blue, while three bounded RGB
-inputs allow any custom value. `"auto"` inherits global foreground ink;
-component background editing is not exposed. Historical background overrides
-remain readable so old Projects do not fail to open, and the next accepted
-Appearance edit retires that field. Applying valid code plans the existing typed placement,
+accepted and persisted instance colors remain hex. Eight direct line-color
+controls provide a neutral light gray and MATLAB's default color order, while
+three bounded RGB inputs allow any custom value. `"auto"` inherits global
+foreground ink; component background editing is not exposed. Historical
+background overrides remain readable so old Projects do not fail to open, and
+the next accepted Appearance edit retires that field. `appearance.strokeScale`
+sits beside the color as a number field stepping by 0.25: a free multiplier from
+0.25 to 4 over the weight this component's artwork is otherwise drawn at. It is
+always written in the code, because `1` and an absent override are the same
+drawing and only absence is stored, and it carries nothing electrical — a
+heavier symbol is the same device with the same pins. Applying valid code plans the existing typed placement,
 annotation, parameter, identity, and style edits as one transaction. Unknown
 root keys and invalid values are rejected without changing the Document.
 `parameters` contains descriptor-owned values and arbitrary model/dialect
@@ -168,8 +173,9 @@ buttons after `placement.rotation` and `placement.mirror` rotate clockwise by
 to accept all eight 45-degree orientations. Horizontal
 and vertical reflection are persisted independently; mirror actions never
 rewrite `placement.rotation`, and applying both records `"both"`. A matching color
-button after `appearance.color` opens an anchored chooser for light gray,
-red, green, blue, black, and one compact bounded RGB tuple input. `"auto"`
+button after `appearance.color` opens an anchored chooser for black, the
+neutral light gray, MATLAB's seven default colors, and one compact bounded RGB
+tuple input. `"auto"`
 remains available through direct JSON editing. These controls never enter the
 document, so selection, Copy JSON, and saving contain only authored JSON. Their
 changes edit the same draft as typing and valid edits transact immediately
@@ -250,8 +256,9 @@ Drawing is disabled for retained-unplaced instances until they are placed.
 Selecting a wire Route presents the same two surfaces as a component: a form
 with a **Net** and an **Appearance** section, and the strict JSON collapsed
 beneath it under **Code (JSON)**. Both edit one Route property value — the Net
-name the wire claims and that name's scope, plus color, line style,
-direction arrow, and the [line-jump](connectivity-and-routing.md#line-jumps)
+name the wire claims and that name's scope, plus color, stroke width, line
+style, direction arrow, and the
+[line-jump](connectivity-and-routing.md#line-jumps)
 request — and commit through one apply function, so neither surface can
 express an edit the other cannot.
 
@@ -260,6 +267,9 @@ a name; an unnamed wire says so rather than showing a control with nothing to
 act on. Naming a wire authors or renames its Net label in the same transaction
 as any style it carries, and clearing the name removes that label. Style is
 drawing only: it never changes Net membership, Junctions, or netlist output.
+`appearance.strokeScale` is the same free 0.25–4 multiplier a component carries,
+over the wire or power-rail weight the profile already gives this Route, and a
+heavier wire carries no more current.
 **Highlight Net** and **Delete wire** stay beside the sections instead of
 trailing the code. **Hop over crossings** and **Highlight Net** are buttons
 that stay held down while what they turned on is on: each keeps one fixed name
@@ -811,7 +821,7 @@ Project through one replacement boundary; they are not Edit Engine
 transactions. Replacement cancels pending recovery for the outgoing Project.
 A complete Project covered by the schema
 24→57 upgrade chain may be upgraded at the read boundary and then enters the
-editor only as schema-58; migrated files are marked as needing save.
+editor only as schema-59; migrated files are marked as needing save.
 
 Selection, viewport, active tool, and previews are
 transient and never enter Project JSON. Recovery is scheduled only after a

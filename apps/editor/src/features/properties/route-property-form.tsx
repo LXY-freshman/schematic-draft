@@ -11,6 +11,7 @@ import {
   handlePropertyInputKeyDown,
 } from "./property-input-commit";
 import { RoutePropertyCodeEditor } from "./route-property-code-editor";
+import { StrokeScaleField } from "./stroke-scale-field";
 import {
   parseRoutePropertyCode,
   routePropertyCodeValue,
@@ -193,6 +194,14 @@ export function RoutePropertyForm({
           pressed={value.appearance.lineJump}
           help={field("appearance.lineJump")?.help}
           onToggle={(lineJump) => commitAppearance({ lineJump })}
+        />
+        <StrokeScaleField
+          ariaLabel="Wire stroke width"
+          label={field("appearance.strokeScale")?.label ?? "Stroke width ×"}
+          help={field("appearance.strokeScale")?.help}
+          value={value.appearance.strokeScale}
+          resetKey={key}
+          onCommit={(strokeScale) => commitAppearance({ strokeScale })}
         />
       </PropertyDisclosure>
       {actions}

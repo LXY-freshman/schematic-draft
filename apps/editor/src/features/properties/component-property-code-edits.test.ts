@@ -39,6 +39,7 @@ describe("planComponentPropertyCodeEdits", () => {
                   ...baseline,
                   appearance: {
                     color: "auto",
+                    strokeScale: 1,
                     inputsSwapped,
                     outputsSwapped,
                     internalMark,
@@ -83,6 +84,7 @@ describe("planComponentPropertyCodeEdits", () => {
         placement: null,
         appearance: {
           color: "auto",
+          strokeScale: 1,
           inputPolarity: false,
           inputsSwapped: true,
         },
@@ -117,7 +119,7 @@ describe("planComponentPropertyCodeEdits", () => {
           mirror: "horizontal",
         },
         display: { visualAnnotation: true, value: false },
-        appearance: { color: "#DC2626" },
+        appearance: { color: "#DC2626", strokeScale: 1 },
       }),
     ).toEqual([
       {
@@ -156,7 +158,7 @@ describe("planComponentPropertyCodeEdits", () => {
           mirror: "none",
         },
         display: { visualAnnotation: true, value: false },
-        appearance: { color: "auto" },
+        appearance: { color: "auto", strokeScale: 1 },
       }),
     ).toEqual([]);
   });
@@ -181,7 +183,7 @@ describe("planComponentPropertyCodeEdits", () => {
           rotation: 0,
           mirror: "none",
         },
-        appearance: { color: "auto" },
+        appearance: { color: "auto", strokeScale: 1 },
       }),
     ).toEqual([
       {
@@ -190,6 +192,45 @@ describe("planComponentPropertyCodeEdits", () => {
         styleOverride: null,
       },
     ]);
+  });
+
+  it("stores a component stroke multiplier, and stores nothing for the default", () => {
+    const document = createEmptyDocument("main", "Main");
+    const instance = {
+      id: "R1",
+      symbolId: "resistor",
+      placement: {
+        position: { x: 100, y: 100 },
+        rotation: 0 as const,
+        mirror: "none" as const,
+      },
+    };
+    document.instances.push(instance);
+    const placement = {
+      coordinate: [100, 100] as [number, number],
+      rotation: 0 as const,
+      mirror: "none" as const,
+    };
+    expect(
+      planComponentPropertyCodeEdits(document, instance, {
+        placement,
+        appearance: { color: "auto", strokeScale: 2 },
+      }),
+    ).toEqual([
+      {
+        kind: "set_instance_style_override",
+        instanceId: "R1",
+        styleOverride: { strokeScale: 2 },
+      },
+    ]);
+    // One is the weight the symbol is already drawn at, so asking for it is
+    // asking for nothing — and an override of nothing is not written.
+    expect(
+      planComponentPropertyCodeEdits(document, instance, {
+        placement,
+        appearance: { color: "auto", strokeScale: 1 },
+      }),
+    ).toEqual([]);
   });
 
   it("updates a visual display name without renaming the electrical instance", () => {
@@ -254,7 +295,7 @@ describe("planComponentPropertyCodeEdits", () => {
     expect(
       planComponentPropertyCodeEdits(document, plain, {
         placement: null,
-        appearance: { color: "auto", internalMark: "A" },
+        appearance: { color: "auto", strokeScale: 1, internalMark: "A" },
       }),
     ).toEqual([
       {
@@ -266,7 +307,7 @@ describe("planComponentPropertyCodeEdits", () => {
     expect(
       planComponentPropertyCodeEdits(document, plain, {
         placement: null,
-        appearance: { color: "auto", internalMark: "G" },
+        appearance: { color: "auto", strokeScale: 1, internalMark: "G" },
       }),
     ).toEqual([
       {
@@ -289,7 +330,7 @@ describe("planComponentPropertyCodeEdits", () => {
     expect(
       planComponentPropertyCodeEdits(document, marked, {
         placement: null,
-        appearance: { color: "auto", internalMark: "none" },
+        appearance: { color: "auto", strokeScale: 1, internalMark: "none" },
       }),
     ).toEqual([
       {
@@ -316,7 +357,7 @@ describe("planComponentPropertyCodeEdits", () => {
     expect(
       planComponentPropertyCodeEdits(document, instance, {
         placement: null,
-        appearance: { color: "auto", inputPolarity: false },
+        appearance: { color: "auto", strokeScale: 1, inputPolarity: false },
       }),
     ).toEqual([
       {

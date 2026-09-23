@@ -25,7 +25,8 @@ function sameStyle(
 ): boolean {
   return (
     (left?.foreground ?? null) === (right?.foreground ?? null) &&
-    (left?.background ?? null) === (right?.background ?? null)
+    (left?.background ?? null) === (right?.background ?? null) &&
+    (left?.strokeScale ?? null) === (right?.strokeScale ?? null)
   );
 }
 
@@ -170,6 +171,10 @@ export function planComponentPropertyCodeEdits(
     ...(value.appearance.color === "auto"
       ? {}
       : { foreground: value.appearance.color }),
+    // One is the weight an absent field already draws, so it is not stored.
+    ...(value.appearance.strokeScale === 1
+      ? {}
+      : { strokeScale: value.appearance.strokeScale }),
   };
   const nextStyle = Object.keys(styleOverride).length ? styleOverride : null;
   if (!sameStyle(instance.styleOverride ?? null, nextStyle)) {

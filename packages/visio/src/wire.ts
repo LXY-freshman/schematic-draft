@@ -171,6 +171,12 @@ export interface WireShape {
   readonly end: WireGlue | undefined;
   /** Hops to bake into the geometry, in the order they occur along the wire. */
   readonly jumps?: readonly WireJump[];
+  /**
+   * Line weight in inches for this wire alone. Omitted when the wire is drawn
+   * at the master's weight, so a drawing that scales nothing writes the shape
+   * it always wrote and every wire keeps inheriting one cell.
+   */
+  readonly lineWeightInches?: number;
   /** Shape Data rows, already serialized by `shapeDataSection`. */
   readonly propertySection: string;
 }
@@ -273,6 +279,9 @@ export function wireShape(wire: WireShape): string {
     endpointCells("Y", "End", last.y, wire.end) +
     trigger("Beg", wire.begin) +
     trigger("End", wire.end) +
+    (wire.lineWeightInches === undefined
+      ? ""
+      : `<Cell N="LineWeight" V="${formatVisioNumber(wire.lineWeightInches)}" U="PT"/>`) +
     wire.propertySection +
     `<Section N="Geometry" IX="0">${rows.join("")}</Section>` +
     `</Shape>`

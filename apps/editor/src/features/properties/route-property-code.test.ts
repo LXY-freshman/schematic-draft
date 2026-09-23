@@ -73,6 +73,7 @@ describe("Route property code", () => {
         lineStyle: "solid",
         directionArrow: "none",
         lineJump: false,
+        strokeScale: 1,
       },
     });
     expect(serializeRoutePropertyCode(value)).toContain('"name": ""');
@@ -92,6 +93,7 @@ describe("Route property code", () => {
         lineStyle: "dashed",
         directionArrow: "middle",
         lineJump: false,
+        strokeScale: 1,
       },
     });
   });
@@ -111,6 +113,29 @@ describe("Route property code", () => {
     });
   });
 
+  it("carries the stroke multiplier both ways, and refuses one off the scale", () => {
+    const { document, route, netLabel } = fixture();
+    expect(
+      routePropertyCodeValue(document, route, netLabel).appearance.strokeScale,
+    ).toBe(1);
+    route.styleOverride = { strokeScale: 2.5 };
+    const value = routePropertyCodeValue(document, route, netLabel);
+    expect(value.appearance.strokeScale).toBe(2.5);
+    expect(
+      parseRoutePropertyCode(serializeRoutePropertyCode(value)),
+    ).toMatchObject({ ok: true, value: { appearance: { strokeScale: 2.5 } } });
+
+    // The bounds are the model's own, so a drawing cannot be authored here
+    // into a state the Project file would reject on the way back in.
+    for (const refused of [0, 0.2, 4.1]) {
+      const source = serializeRoutePropertyCode({
+        ...value,
+        appearance: { ...value.appearance, strokeScale: refused },
+      });
+      expect(parseRoutePropertyCode(source).ok).toBe(false);
+    }
+  });
+
   it("rejects invalid JSON and unsupported Route values", () => {
     expect(parseRoutePropertyCode("{").ok).toBe(false);
     expect(
@@ -122,6 +147,7 @@ describe("Route property code", () => {
             lineStyle: "solid",
             directionArrow: "none",
             lineJump: false,
+            strokeScale: 1,
           },
         }),
       ).ok,

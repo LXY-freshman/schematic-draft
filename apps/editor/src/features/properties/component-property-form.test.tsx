@@ -76,6 +76,29 @@ describe("ComponentPropertyForm", () => {
     expect(markup).not.toContain("<strong>JSON</strong>");
   });
 
+  it("offers the component's own stroke multiplier beside its colour", () => {
+    const scaled = {
+      ...RESISTOR,
+      styleOverride: { strokeScale: 0.5 as const },
+    };
+    const markup = renderToStaticMarkup(
+      <ComponentPropertyForm
+        instance={scaled}
+        revision={3}
+        referenceVisible
+        valueVisible={false}
+        onApply={vi.fn(() => ({ ok: true as const }))}
+      />,
+    );
+
+    // Paint and weight are the same kind of fact about one component, so they
+    // sit together; neither changes a pin or a netlist line.
+    expect(markup).toContain('aria-label="Component stroke width"');
+    expect(markup).toContain('value="0.5"');
+    expect(markup).toContain('min="0.25"');
+    expect(markup).toContain('max="4"');
+  });
+
   it("offers no control for a fact this component does not carry", () => {
     const markup = renderToStaticMarkup(
       <ComponentPropertyForm

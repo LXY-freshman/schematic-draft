@@ -21,10 +21,14 @@ import { SourceSpanSchema } from "./source.js";
  *   strokes) and explicit foreground fills.
  * - `background`: paints an opaque fill rectangle behind the instance's
  *   symbol artwork. The symbol's own strokes remain visible on top.
+ * - `strokeScale`: free multiplier over every stroke width the symbol's
+ *   artwork resolves to, on the same 0.25-4 range drafting objects use.
+ *   Appearance only; pin positions and connectivity are untouched.
  */
 export const InstanceStyleOverrideSchema = z.strictObject({
   foreground: HexColorSchema.optional(),
   background: HexColorSchema.optional(),
+  strokeScale: z.number().finite().min(0.25).max(4).optional(),
 });
 /**
  * Optional schematic-only Signal Flow formula metadata. These parameters are
@@ -151,10 +155,10 @@ export const InstanceSchema = z
     reference: NetlistIdentifierSchema.optional(),
     netlist: InstanceNetlistDataSchema.optional(),
     /**
-     * Optional per-instance color override. When absent, the instance renders
-     * with document profile defaults (backward compatible). Current authoring
-     * writes `foreground`; historical `background` paint stays readable until
-     * the next appearance edit retires it.
+     * Optional per-instance appearance override. When absent, the instance
+     * renders with document profile defaults (backward compatible). Current
+     * authoring writes `foreground` and `strokeScale`; historical `background`
+     * paint stays readable until the next appearance edit retires it.
      */
     styleOverride: InstanceStyleOverrideSchema.optional(),
     /**

@@ -95,6 +95,9 @@ Promised:
   more than it does in the schematic.
 - **Shape Data.** Reference designator, symbol name, device parameters, the
   owning Cell, and `icm:instanceId`; net name on a wire.
+- **Wire stroke width.** A Route that asks to be drawn heavier or lighter than
+  the profile weight writes its own `LineWeight` cell on its shape, so the run
+  Visio shows has the weight the schematic gave it.
 - **Grid.** Ten document units are 0.125 in, so pin pitch lands on Visio's
   classic eighth-inch grid, which the page grid is set to. The y axis is
   flipped, because Visio's origin is bottom-left.
@@ -122,6 +125,10 @@ Not promised, and not a defect when it happens:
   orientation the Instance was placed in. Rotating that shape inside Visio turns
   the mark with it, where the schematic would have kept it upright.
 - **Pin names** drawn by a symbol are left off the master.
+- **A component's own colour or stroke width.** Every instance of one symbol
+  instantiates one shared master, so paint asked for by a single Instance would
+  need a master per Instance. The component is drawn at the profile's ink and
+  weight instead, and the export names the Instances that lost it.
 - **Annotation ornaments** — voltage polarity marks, current arrowheads, the
   global-net badge — are not drawn; the annotation's text is.
 - **Hierarchy.** Only the open Document is exported. Cells do not become pages.

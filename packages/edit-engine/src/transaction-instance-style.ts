@@ -1,5 +1,5 @@
 import { InstanceStyleOverrideSchema } from "@icm/model";
-import type { SchematicDocument } from "@icm/model";
+import type { InstanceStyleOverride, SchematicDocument } from "@icm/model";
 
 import type { EditTransaction } from "./edit-schema.js";
 import type { EditMutationOutcome, RejectEdit } from "./transaction-domain.js";
@@ -8,6 +8,19 @@ type InstanceStyleOverrideEdit = Extract<
   EditTransaction["edits"][number],
   { kind: "set_instance_style_override" }
 >;
+
+/**
+ * A default is not an override. `strokeScale: 1` asks for exactly the profile
+ * stroke an absent field already gives, so it is dropped rather than stored as
+ * a fact about nothing.
+ */
+function withoutDefaultStrokeScale(
+  override: InstanceStyleOverride,
+): InstanceStyleOverride {
+  if (override.strokeScale !== 1) return override;
+  const { strokeScale: _default, ...rest } = override;
+  return rest;
+}
 
 export interface InstanceStyleOverrideEditContext {
   draft: SchematicDocument;
@@ -18,7 +31,7 @@ export interface InstanceStyleOverrideEditContext {
 export type InstanceStyleOverrideEditOutcome = EditMutationOutcome;
 
 /**
- * Apply a per-instance style override (color) edit.
+ * Apply a per-instance style override (colour and stroke weight) edit.
  *
  * Semantics (replacement, not merge):
  * - `styleOverride: null` → clear all overrides (remove the field).
@@ -55,7 +68,9 @@ export function applyInstanceStyleOverrideEdit(
   const override =
     edit.styleOverride === null
       ? undefined
-      : InstanceStyleOverrideSchema.parse(edit.styleOverride);
+      : withoutDefaultStrokeScale(
+          InstanceStyleOverrideSchema.parse(edit.styleOverride),
+        );
 
   // Replacement semantics: the new object replaces the current override.
   // An empty object or null clears everything.
@@ -64,7 +79,8 @@ export function applyInstanceStyleOverrideEdit(
     newOverride = undefined;
   } else if (
     override.foreground === undefined &&
-    override.background === undefined
+    override.background === undefined &&
+    override.strokeScale === undefined
   ) {
     newOverride = undefined;
   } else {

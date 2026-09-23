@@ -20,6 +20,7 @@ import {
   componentOutputsSwapped,
   NO_INTERNAL_MARK,
 } from "./component-visual-variants";
+import { STROKE_SCALE_MAX, STROKE_SCALE_MIN } from "./stroke-scale-field";
 
 type Instance = SchematicDocument["instances"][number];
 
@@ -48,6 +49,8 @@ export interface ComponentPropertyCodeValue extends ComponentPropertyDetailsValu
   display?: ComponentPropertyDisplayCode;
   appearance: {
     color: ComponentPropertyColor;
+    /** Multiplier over the profile stroke; 1 is the weight with no override. */
+    strokeScale: number;
     internalMark?: string;
     inputPolarity?: boolean;
     inputsSwapped?: boolean;
@@ -221,15 +224,27 @@ function parseAppearance(
     inputsSwapped: componentInputsSwapped(context.instance.symbolId),
     outputsSwapped: componentOutputsSwapped(context.instance.symbolId),
   };
-  const supported = new Set<string>(["color"]);
+  const supported = new Set<string>(["color", "strokeScale"]);
   if (internalMark !== undefined) supported.add("internalMark");
   for (const [key, state] of Object.entries(booleanStates))
     if (state !== undefined) supported.add(key);
   const unknown = unexpectedKey(value, supported, "appearance");
   if (unknown) throw new Error(unknown);
   if (!("color" in value)) throw new Error("appearance.color is required");
+  if (!("strokeScale" in value))
+    throw new Error("appearance.strokeScale is required");
+  if (
+    typeof value.strokeScale !== "number" ||
+    !Number.isFinite(value.strokeScale) ||
+    value.strokeScale < STROKE_SCALE_MIN ||
+    value.strokeScale > STROKE_SCALE_MAX
+  )
+    throw new Error(
+      `appearance.strokeScale must be a number from ${STROKE_SCALE_MIN} to ${STROKE_SCALE_MAX}`,
+    );
   const appearance: ComponentPropertyCodeValue["appearance"] = {
     color: parseCanvasColor(value.color, "appearance.color"),
+    strokeScale: value.strokeScale,
   };
   if (internalMark !== undefined) {
     if (!("internalMark" in value))
@@ -301,6 +316,7 @@ export function componentPropertyCodeValue(
     ...(Object.keys(display).length > 0 ? { display } : {}),
     appearance: {
       color: formattedColor(instance.styleOverride?.foreground),
+      strokeScale: instance.styleOverride?.strokeScale ?? 1,
       ...(internalMark !== undefined ? { internalMark } : {}),
       ...(inputPolarity !== undefined ? { inputPolarity } : {}),
       ...(inputsSwapped !== undefined ? { inputsSwapped } : {}),
@@ -331,6 +347,7 @@ export function serializeComponentPropertyCode(
       appearance: {
         color:
           appearance.color === "auto" ? "auto" : colorToRgb(appearance.color),
+        strokeScale: appearance.strokeScale,
         ...(appearance.internalMark !== undefined
           ? { internalMark: appearance.internalMark }
           : {}),
@@ -495,6 +512,7 @@ export function defaultComponentPropertyCode(
     value.placement = { ...value.placement, rotation: 0, mirror: "none" };
   value.appearance = {
     color: "auto",
+    strokeScale: 1,
     ...(value.appearance.internalMark !== undefined
       ? { internalMark: NO_INTERNAL_MARK }
       : {}),

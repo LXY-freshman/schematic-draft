@@ -108,8 +108,12 @@ is defined.
   yourself; `EV` remains `EV`, and `2u` is not changed to `2um`. Declared units
   appear beside their fields without becoming data. Mirror is horizontal,
   vertical, or both, and never changes the rotation value. Line color offers
-  light gray, red, green, blue, black, and one RGB tuple input such as
-  `[220,38,38]`; **Auto** inherits document ink. Components expose no background
+  black, a neutral light gray, MATLAB's seven default colors, and one RGB tuple
+  input such as `[220,38,38]`; **Auto** inherits document ink. **Stroke width ×**
+  beside it draws that one component heavier or lighter — any multiplier from
+  0.25 to 4 over its usual weight, with `1` meaning no change. It is drawing
+  only; the device and its pins are the same either way. Components expose no
+  background
   or fill color; those belong only to drawable shapes that can contain paint.
   Differential-input blocks expose **Swap inputs**; fully differential
   amplifiers also expose **Swap outputs**. They exchange the +/− positions
@@ -135,12 +139,14 @@ is defined.
 - Select a wire and press `Q` for the same arrangement: a **Net** section
   holding the Net name this wire claims and — once it has a name — whether that
   name is local to the Cell or global across Cells; an **Appearance** section
-  with wire color, line style (solid, dashed, or dotted), a direction arrow
-  (none, middle, or end), and **Hop over crossings**; then **Highlight Net** and
+  with wire color, **Stroke width ×**, line style (solid, dashed, or dotted), a
+  direction arrow (none, middle, or end), and **Hop over crossings**; then
+  **Highlight Net** and
   **Delete wire**, with **Code (JSON)** collapsed underneath. Naming a wire
   writes its electrical Net label, and clearing the name removes that label.
   Styling changes the drawing only: it never changes what is connected to what,
-  nor what the netlist exports. A MOS bulk connection belongs to its transistor
+  nor what the netlist exports. A heavier wire is still the same wire carrying
+  the same current. A MOS bulk connection belongs to its transistor
   and offers only its own delete action instead of this panel.
 - **Hop over crossings** is off for every wire until you press it, and it is a
   per-wire choice: press it on the wire you want to read as passing over, and it
