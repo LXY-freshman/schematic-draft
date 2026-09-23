@@ -97,7 +97,7 @@ test("live JSON properties update controls immediately and round-trip raw parame
   await panel.getByRole("button", { name: "Edit line color" }).click();
   await page
     .getByRole("dialog", { name: "Line color settings" })
-    .getByRole("button", { name: "Use Red for line" })
+    .getByRole("button", { name: "Use Dark red for line" })
     .click();
   await expect(page.getByTestId("revision")).toHaveText(
     String(Number(revision) + 2),
@@ -105,7 +105,7 @@ test("live JSON properties update controls immediately and round-trip raw parame
   const draft = JSON.parse(await readComponentPropertyCode(page));
   expect(draft.placement.rotation).toBe(90);
   expect(draft.display.visualAnnotation).toBe(false);
-  expect(draft.appearance.color).toEqual([220, 38, 38]);
+  expect(draft.appearance.color).toEqual([162, 20, 47]);
   expect(draft.appearance).not.toHaveProperty("foreground");
   expect(draft.appearance).not.toHaveProperty("background");
   expect(draft.appearance).not.toHaveProperty("fillColor");
@@ -130,7 +130,7 @@ test("live JSON properties update controls immediately and round-trip raw parame
   const saved = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   expect(saved.documents[0].instances[0]).toMatchObject({
     netlist: { parameters: { w: "EV", l: "L", custom: "{raw_expression}" } },
-    styleOverride: { foreground: "#dc2626" },
+    styleOverride: { foreground: "#a2142f" },
     placement: { rotation: 90 },
   });
   await clickCommand(page, "Edit", "Undo");
@@ -478,9 +478,13 @@ for (const width of [300, 540]) {
     ).toEqual([
       "Use Black for line",
       "Use Light gray for line",
-      "Use Red for line",
-      "Use Green for line",
       "Use Blue for line",
+      "Use Orange for line",
+      "Use Yellow for line",
+      "Use Purple for line",
+      "Use Green for line",
+      "Use Cyan for line",
+      "Use Dark red for line",
     ]);
     await expect(
       popover.getByRole("button", { name: "Use Light gray for line" }),
@@ -499,12 +503,12 @@ for (const width of [300, 540]) {
 
     await color.click();
     await popover
-      .getByRole("button", { name: "Use Red for line", exact: true })
+      .getByRole("button", { name: "Use Dark red for line", exact: true })
       .click();
-    await expectComponentCodeField(page, "appearance.color", [220, 38, 38]);
+    await expectComponentCodeField(page, "appearance.color", [162, 20, 47]);
 
     await color.click();
-    await expect(popover.getByLabel("Line RGB")).toHaveValue("[220,38,38]");
+    await expect(popover.getByLabel("Line RGB")).toHaveValue("[162,20,47]");
     await popover.getByLabel("Line RGB").fill("[12,38,38]");
     await expectComponentCodeField(page, "appearance.color", [12, 38, 38]);
   });
@@ -871,11 +875,11 @@ test("Select All shows one batch code surface instead of object-specific forms",
   ).toHaveCount(0);
 
   await batch.getByRole("button", { name: "Edit line color" }).click();
-  await page.getByRole("button", { name: "Use Red for line" }).click();
+  await page.getByRole("button", { name: "Use Dark red for line" }).click();
   const saved = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   expect(saved.documents[0].instances).toMatchObject([
-    { id: "R1", styleOverride: { foreground: "#dc2626" } },
-    { id: "R2", styleOverride: { foreground: "#dc2626" } },
+    { id: "R1", styleOverride: { foreground: "#a2142f" } },
+    { id: "R2", styleOverride: { foreground: "#a2142f" } },
   ]);
   expect(saved.documents[0].routes[0].styleOverride).toBeUndefined();
 });
@@ -923,7 +927,7 @@ test("Properties keeps component and Annotation text colors independent", async 
     .getByRole("dialog", { name: "Text color settings" })
     .getByRole("button", { name: "Use Blue for text", exact: true })
     .click();
-  await expect(label).toHaveAttribute("fill", "#2563eb");
+  await expect(label).toHaveAttribute("fill", "#0072bd");
   await expect(symbol).toHaveAttribute("stroke", "#dc2626");
 
   // Incomplete property code belongs only to this selection and never reaches another label.
@@ -933,7 +937,7 @@ test("Properties keeps component and Annotation text colors independent", async 
   await page
     .getByTestId("annotation-hit-instance-label-R2")
     .click({ force: true });
-  await expect(label).toHaveAttribute("fill", "#2563eb");
+  await expect(label).toHaveAttribute("fill", "#0072bd");
   await expect(secondLabel).not.toHaveAttribute("fill");
   expect(
     JSON.parse(await readComponentPropertyCode(page)).appearance.color,
@@ -947,10 +951,10 @@ test("Properties keeps component and Annotation text colors independent", async 
   });
   await expect(label).toHaveAttribute("fill", "#dc2626");
   await page.getByRole("button", { name: "Undo", exact: true }).click();
-  await expect(label).toHaveAttribute("fill", "#2563eb");
+  await expect(label).toHaveAttribute("fill", "#0072bd");
   expect(
     JSON.parse(await readComponentPropertyCode(page)).appearance.color,
-  ).toEqual([37, 99, 235]);
+  ).toEqual([0, 114, 189]);
   await page.getByRole("button", { name: "Redo", exact: true }).click();
   await expect(label).toHaveAttribute("fill", "#dc2626");
   expect(
@@ -1874,12 +1878,12 @@ test("batch Code colors different component types while rejecting incompatible v
     .getByRole("button", { name: "Edit line color", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Use Red for line", exact: true })
+    .getByRole("button", { name: "Use Dark red for line", exact: true })
     .click();
   for (const id of ["R1", "C1"])
     await expect(
       page.locator(`[data-object-id="${id}"] [data-role="instance-symbol"]`),
-    ).toHaveAttribute("stroke", "#dc2626");
+    ).toHaveAttribute("stroke", "#a2142f");
   const saved = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   expect(saved.documents[0].instances).toMatchObject([
     { id: "R1", netlist: { parameters: { value: "1k" } } },

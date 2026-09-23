@@ -1697,7 +1697,7 @@ test("fills a closed shape and moves it behind or in front of circuit artwork", 
     .click();
   await expect(
     page.locator('[data-kind="draft-rectangle"][data-object-id="box"]'),
-  ).toHaveAttribute("fill", "#2563eb");
+  ).toHaveAttribute("fill", "#0072bd");
 
   await properties.getByRole("button", { name: "Send to back" }).click();
   await expect(
@@ -1714,7 +1714,7 @@ test("fills a closed shape and moves it behind or in front of circuit artwork", 
     id: "box",
     layer: "foreground",
     zIndex: 1,
-    styleOverride: { fillColor: "#2563eb" },
+    styleOverride: { fillColor: "#0072bd" },
   });
 });
 
@@ -2080,7 +2080,7 @@ test("keeps DMOS bulk hidden until drawing an explicit bulk route", async ({
   await page
     .locator('details[aria-label="Component appearance"] > summary')
     .click();
-  await page.getByRole("button", { name: "Use Red for line" }).click();
+  await page.getByRole("button", { name: "Use Dark red for line" }).click();
   await page.getByTestId("draw-bulk-connection").click();
 
   await expect(page.getByTestId("status")).toContainText(
@@ -2098,7 +2098,7 @@ test("keeps DMOS bulk hidden until drawing an explicit bulk route", async ({
     "data-route-presentation",
     "bulk-dashed",
   );
-  await expect(bulkRoute).toHaveAttribute("stroke", "#dc2626");
+  await expect(bulkRoute).toHaveAttribute("stroke", "#a2142f");
 
   await page
     .getByTestId("schematic-canvas")
@@ -2845,9 +2845,9 @@ test("names and restyles a wire from the Route form, and the JSON agrees", async
   await properties.getByLabel("Wire line style").selectOption("dotted");
   await expect(conductor).toHaveAttribute("stroke-dasharray", "2 3");
   await properties
-    .getByRole("button", { name: "Use Red for wire color" })
+    .getByRole("button", { name: "Use Dark red for wire color" })
     .click();
-  await expect(conductor).toHaveAttribute("stroke", "#dc2626");
+  await expect(conductor).toHaveAttribute("stroke", "#a2142f");
   await properties.getByLabel("Wire direction arrow").selectOption("end");
   await expect(
     page.locator('[data-layer="routes"] [data-role="route-direction-arrow"]'),
@@ -2856,7 +2856,7 @@ test("names and restyles a wire from the Route form, and the JSON agrees", async
   expect(JSON.parse(await readComponentPropertyCode(page))).toEqual({
     net: { name: "SIGNAL", scope: "global" },
     appearance: {
-      color: [220, 38, 38],
+      color: [162, 20, 47],
       lineStyle: "dotted",
       directionArrow: "end",
       lineJump: false,
@@ -2864,7 +2864,7 @@ test("names and restyles a wire from the Route form, and the JSON agrees", async
   });
   const saved = JSON.parse((await projectFileBytes(page)).toString("utf8"));
   expect(saved.documents[0].routes[0].styleOverride).toEqual({
-    color: "#dc2626",
+    color: "#a2142f",
     lineStyle: "dotted",
     arrow: "end",
   });

@@ -10,6 +10,20 @@ hosted features some of them mention are gone.
 
 ## Unreleased
 
+### Changed
+
+- **The colour swatches in Properties are MATLAB's default colour order.** The
+  four presets became eight: the neutral light gray, then MATLAB's Blue,
+  Orange, Yellow, Purple, Green, Cyan and Dark red. A wire and the plotted
+  trace it produced can now be given the same colour without matching hex by
+  eye. Colours already saved in a Project are untouched, and any colour at all
+  is still reachable through **RGB**.
+- **The Appearance section reads as one panel.** Its captions — the colour
+  control's title, the **RGB** disclosure, the R/G/B fields — were set in three
+  sizes and two weights; they now match the labels on the selects and switches
+  beside them. **RGB** also wears the frame of a button, because it is one, and
+  each swatch has a darker outline so a pale colour is still a visible chip.
+
 ### Fixed
 
 - **Highlighting a net no longer cuts across the line jumps on it.** A wire

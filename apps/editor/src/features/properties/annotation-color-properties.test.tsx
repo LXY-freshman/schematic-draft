@@ -32,7 +32,7 @@ describe("annotation color properties", () => {
     const markup = renderToStaticMarkup(
       <AnnotationColorProperties
         annotation={annotation}
-        inheritedColor="#dc2626"
+        inheritedColor="#a2142f"
         onApply={() => ({ ok: true })}
       />,
     );
@@ -42,7 +42,7 @@ describe("annotation color properties", () => {
       '<output aria-label="Text color hex value">Automatic</output>',
     );
     // Auto shows the ink the label would draw with, not an empty swatch.
-    expect(pressedPreset(markup, "Use Red for text")).toBe(true);
+    expect(pressedPreset(markup, "Use Dark red for text")).toBe(true);
     expect(markup).toContain("Attached to the object it labels");
     expect(markup).toContain('aria-label="Annotation text alignment"');
 
@@ -61,21 +61,21 @@ describe("annotation color properties", () => {
       alignment: "middle",
       rotation: 0,
       locked: false,
-      textColor: "#2563eb",
+      textColor: "#0072bd",
     };
     const markup = renderToStaticMarkup(
       <AnnotationColorProperties
         annotation={annotation}
-        inheritedColor="#dc2626"
+        inheritedColor="#a2142f"
         onApply={() => ({ ok: true })}
       />,
     );
 
     expect(markup).toContain(
-      '<output aria-label="Text color hex value">#2563eb</output>',
+      '<output aria-label="Text color hex value">#0072bd</output>',
     );
     expect(pressedPreset(markup, "Use Blue for text")).toBe(true);
-    expect(pressedPreset(markup, "Use Red for text")).toBe(false);
+    expect(pressedPreset(markup, "Use Dark red for text")).toBe(false);
     // A free anchor is editable in the form; an attached one is not.
     expect(markup).toContain('aria-label="Annotation X position"');
   });

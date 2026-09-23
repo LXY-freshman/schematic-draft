@@ -394,7 +394,7 @@ test("drafting text owns an independent color override with Auto inheritance", a
     .getByRole("dialog", { name: "Text color settings" })
     .getByRole("button", { name: "Use Blue for text", exact: true })
     .click();
-  await expect(text).toHaveAttribute("fill", "#2563eb");
+  await expect(text).toHaveAttribute("fill", "#0072bd");
 
   const coloredProject = JSON.parse(
     (await projectFileBytes(page)).toString("utf8"),
@@ -402,7 +402,7 @@ test("drafting text owns an independent color override with Auto inheritance", a
   const coloredText = coloredProject.documents[0].drafting.objects.find(
     (object: { kind: string }) => object.kind === "text",
   );
-  expect(coloredText.styleOverride.color).toBe("#2563eb");
+  expect(coloredText.styleOverride.color).toBe("#0072bd");
 
   await properties.getByRole("button", { name: "Edit text color" }).click();
   await page.getByRole("button", { name: "Reset text color" }).click();
@@ -412,7 +412,7 @@ test("drafting text owns an independent color override with Auto inheritance", a
   ).toBe("auto");
 
   await page.getByRole("button", { name: "Undo", exact: true }).click();
-  await expect(text).toHaveAttribute("fill", "#2563eb");
+  await expect(text).toHaveAttribute("fill", "#0072bd");
   await page.getByRole("button", { name: "Redo", exact: true }).click();
   await expect(text).toHaveAttribute("fill", "#000");
 });
@@ -1975,9 +1975,9 @@ test("Properties sets precise size, stroke width, and color per shape", async ({
   await properties.getByRole("button", { name: "Edit border color" }).click();
   await page
     .getByRole("dialog", { name: "Border color settings" })
-    .getByRole("button", { name: "Use Red for border" })
+    .getByRole("button", { name: "Use Dark red for border" })
     .click();
-  await expect(rectangle).toHaveAttribute("stroke", "#dc2626");
+  await expect(rectangle).toHaveAttribute("stroke", "#a2142f");
   const rectangleStroke = Number(await rectangle.getAttribute("stroke-width"));
 
   // Circle: precise radius; its stroke stays at the profile default and is
@@ -2028,7 +2028,7 @@ test("Properties sets precise size, stroke width, and color per shape", async ({
   // The form's own Auto button reaches the same override the popover set.
   await properties.getByRole("button", { name: "Reset border" }).click();
   const stroke = await rectangle.getAttribute("stroke");
-  expect(stroke).not.toBe("#dc2626");
+  expect(stroke).not.toBe("#a2142f");
 });
 
 test("the drawing form edits size, rotation and ink with the JSON agreeing", async ({
@@ -2089,7 +2089,7 @@ test("the drawing form edits size, rotation and ink with the JSON agreeing", asy
   await properties
     .getByRole("button", { name: "Use Green for border", exact: true })
     .click();
-  await expect(rectangle).toHaveAttribute("stroke", "#059669");
+  await expect(rectangle).toHaveAttribute("stroke", "#77ac30");
   await expect(rectangle).toHaveAttribute("stroke-dasharray", "6 4");
   // A rotated square measures wider than its sides across the bounding box.
   await expect(measure()).resolves.not.toEqual({ width: 120, height: 48 });
@@ -2098,7 +2098,7 @@ test("the drawing form edits size, rotation and ink with the JSON agreeing", asy
   expect(JSON.parse(await readComponentPropertyCode(page))).toMatchObject({
     placement: { rotation: 45 },
     geometry: { width: 120, height: 48 },
-    appearance: { lineStyle: "dashed", color: [5, 150, 105] },
+    appearance: { lineStyle: "dashed", color: [119, 172, 48] },
   });
 
   // And an edit made in the JSON comes back to the form's controls.
