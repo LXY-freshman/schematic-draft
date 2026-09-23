@@ -1113,6 +1113,7 @@ export function App({ project: initialProject }: AppProps) {
   const {
     logicalNets,
     routeGeometryRecords,
+    routeLineJumps,
     highlightedTrace,
     highlightedNet,
     selectedHighlightIsActive,
@@ -5036,6 +5037,7 @@ export function App({ project: initialProject }: AppProps) {
             document,
             resolver,
             routeGeometryRecords,
+            routeLineJumps,
           }}
           wireUnderSymbol={{
             warnings: wireUnderSymbolWarnings,

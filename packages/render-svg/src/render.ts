@@ -283,8 +283,12 @@ function pathNumber(value: number): string {
  * Every vertex the polyline would have drawn is still drawn; a hop only
  * replaces the little stretch of straight line it stands on, so the Route keeps
  * its length, its ends and its connectivity.
+ *
+ * Exported because the editor's net-highlight overlay is a second painter of
+ * the same centerline: it has to trace this path, not a straight polyline, or
+ * the highlight cuts across an arc the wire below it goes around.
  */
-function routePathData(
+export function routePathData(
   centerline: ReadonlyArray<{ x: number; y: number }>,
   jumps: readonly RouteLineJump[],
 ): string {

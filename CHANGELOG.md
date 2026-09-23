@@ -8,6 +8,16 @@ Entries at and below `0.9.2` are inherited from
 this application was forked from. They describe the shared editing core; the
 hosted features some of them mention are gone.
 
+## Unreleased
+
+### Fixed
+
+- **Highlighting a net no longer cuts across the line jumps on it.** A wire
+  ticked **Hop over crossings** is drawn with a small arc at each crossing, but
+  the blue highlight was painted as a straight line over the same centerline,
+  so it ran through every arc the wire went around. Both now trace the same
+  path. Wires with no hops are drawn exactly as before.
+
 ## 1.3.0 — Native to the desktop (2026-09-23)
 
 ### Added

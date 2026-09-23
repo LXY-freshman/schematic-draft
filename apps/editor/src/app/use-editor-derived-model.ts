@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import {
   buildProjectSearchIndex,
   deriveCrossings,
+  deriveRouteLineJumps,
   endpointKey,
   isMosBulkTerminal,
   isVisibleEndpoint,
@@ -310,6 +311,19 @@ export function useEditorDerivedModel({
       ),
     [document, documentConnectivity, resolver],
   );
+  // Empty, and free, unless some Route asked to hop — the same cheap map the
+  // scene renderer builds. The overlay needs it so a highlight traces the arcs
+  // instead of cutting across them.
+  const routeLineJumps = useMemo(
+    () =>
+      deriveRouteLineJumps(document, resolver, {
+        ...(documentConnectivity
+          ? { routingGeometry: documentConnectivity.routingGeometry }
+          : {}),
+        crossings,
+      }),
+    [crossings, document, documentConnectivity, resolver],
+  );
   const visibleEndpoints = useMemo(
     () => visibleWireSources(document, resolver),
     [document, resolver],
@@ -337,6 +351,7 @@ export function useEditorDerivedModel({
     projectConnectivityIndex,
     logicalNets,
     routeGeometryRecords,
+    routeLineJumps,
     highlightedTrace,
     highlightedNet,
     highlightedNetId,
