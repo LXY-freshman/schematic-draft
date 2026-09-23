@@ -326,6 +326,46 @@ test("opens a file and then saves over it without a dialog", async ({
 });
 
 /**
+ * The window caption names the file, not the product.
+ *
+ * In the shell this string is the Windows title bar, so it is what the taskbar
+ * and Alt-Tab show. Here it is only `document.title` — whether Electron accepts
+ * it is the shell's own question, answered by
+ * `scripts/shell-style-window-check.mjs` in a launched window.
+ */
+test("the title names the open file and marks unsaved work", async ({
+  page,
+}) => {
+  const bridge = await mockFileBridge(page);
+  const path = "C:\\circuits\\amplifier.icproj.json";
+  bridge.files.set(path, minimalProjectText);
+  bridge.openPick = path;
+  await page.goto("/editor");
+
+  // Nothing is bound yet, so the Project name is all there is to show.
+  await expect(page).toHaveTitle(/^.+ — Schematic Draft$/u);
+  await expect(page).not.toHaveTitle(/\*/u);
+
+  const fileMenu = await openMenu(page, "File");
+  await fileMenu.getByTestId("open-project-file").click();
+  await expect(page.getByTestId("status")).toHaveText(`Opened ${path}`);
+  // The file's own name, extension included — a `.icproj.json` is a different
+  // file from a `.schdraft` of the same circuit.
+  await expect(page).toHaveTitle("amplifier.icproj.json — Schematic Draft");
+
+  await chooseComponent(page, "resistor");
+  await page
+    .getByTestId("schematic-canvas")
+    .click({ position: { x: 360, y: 230 } });
+  await page.keyboard.press("Escape");
+  await expect(page).toHaveTitle("amplifier.icproj.json * — Schematic Draft");
+
+  await saveAndRead(page, bridge);
+  await expect(page.getByTestId("status")).toHaveText(`Saved ${path}`);
+  await expect(page).toHaveTitle("amplifier.icproj.json — Schematic Draft");
+});
+
+/**
  * The double-click path, end to end through the renderer.
  *
  * Explorer hands the file to the shell, which queues it; the editor collects it

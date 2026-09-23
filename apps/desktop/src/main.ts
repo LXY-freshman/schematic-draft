@@ -589,7 +589,9 @@ async function createWindow(): Promise<BrowserWindow> {
     if (!url.startsWith(`${APP_ORIGIN}/`)) event.preventDefault();
   });
   guardWindowClose(window);
-  window.on("page-title-updated", (event) => event.preventDefault());
+  // The caption is deliberately left to the editor, which sets `document.title`
+  // to the file being edited. `title` above is only what the window is called
+  // before the editor has loaded.
 
   await window.loadURL(EDITOR_ROUTE);
   return window;

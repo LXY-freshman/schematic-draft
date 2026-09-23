@@ -57,6 +57,9 @@ Schematic Draft\
   - `File → Open Project…` / `Save As…` 走 Windows 原生对话框，默认从 `Projects\` 开始；
   - `File → Save`（`Ctrl+S`）直接覆盖当前打开的那个文件，不再弹窗；菜单里会显示要写入的完整路径；
   - 新建的工程还没有文件，第一次 `Save` 会问一次位置，之后就记住了；
+  - **标题栏写着正在编辑哪个文件**：`amplifier.schdraft — Schematic Draft`，有没保存的改动时
+    文件名后面多一个 `*`。还没存成文件的新工程显示工程名。任务栏、`Alt+Tab` 和窗口列表里
+    看到的也是这个，所以开着好几个窗口时不用挨个点进去认；
   - **关窗口时有没保存的改动会先问**：`X`、`Alt+F4`、`File → Exit` 都一样，弹一个
     Windows 原生对话框，三个按钮 —— `Save` 存好再关（没有文件的会先问位置），
     `Don't Save` 丢掉这次的改动直接关，`Cancel` 什么都不做。存盘被取消或者失败时窗口不会关，
