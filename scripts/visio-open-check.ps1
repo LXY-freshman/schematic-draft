@@ -29,7 +29,9 @@ param(
     # to tell a recorded `<Connect>` from a live glue: a line that is merely
     # drawn between two pins stays put when the pin moves. It also checks that
     # the wires kept the path they were given, which is the other half of the
-    # contract — a glued end must follow without Visio re-routing the run.
+    # contract — a glued end must follow without Visio re-routing the run — and
+    # then drags a seam node to check that a corner is a handle: the links glued
+    # to it move, and nothing else does.
     [switch]$GlueTest
 )
 
@@ -197,6 +199,69 @@ try {
                 }
                 Write-Output ("label test: {0} of {1} labels of that shape followed" -f `
                         $followed, $labels.Count)
+
+                # A wire is a chain of links joined at node shapes, which is the
+                # only thing that makes a corner draggable: a one-dimensional
+                # Visio shape has two ends and no handle in between. Dragging a
+                # seam has to move exactly the links glued to it, so this both
+                # proves the handle works and proves it is local — a chain that
+                # dragged a whole wire along would be no better than one shape.
+                $seam = $null
+                foreach ($shape in $page.Shapes) {
+                    if ($shape.OneD -ne 0 -or -not $shape.Master) { continue }
+                    if ($shape.Master.NameU -ne 'Node') { continue }
+                    # A node holding one link is where a wire ends, not where it
+                    # turns; two or more is a seam and therefore a handle.
+                    $on = @($page.Connects | Where-Object { $_.ToSheet.ID -eq $shape.ID })
+                    if ($on.Count -lt 2) { continue }
+                    $seam = $shape
+                    break
+                }
+                if (-not $seam) {
+                    Write-Output 'seam test: no wire on this page turns a corner'
+                }
+                else {
+                    $links = @($page.Connects | Where-Object { $_.ToSheet.ID -eq $seam.ID })
+                    $seamBefore = @{}
+                    foreach ($shape in $page.Shapes) {
+                        if ($shape.OneD -eq 0) { continue }
+                        $seamBefore[$shape.ID] = @(
+                            $shape.CellsU('BeginX').ResultIU, $shape.CellsU('BeginY').ResultIU,
+                            $shape.CellsU('EndX').ResultIU, $shape.CellsU('EndY').ResultIU)
+                    }
+                    $seam.CellsU('PinY').ResultIU = $seam.CellsU('PinY').ResultIU + $shift
+                    $heldBySeam = 0
+                    foreach ($link in $links) {
+                        $wire = $link.FromSheet
+                        $was = $seamBefore[$wire.ID]
+                        $isBegin = $link.FromPart -eq 9
+                        $y = if ($isBegin) { $wire.CellsU('BeginY').ResultIU } else { $wire.CellsU('EndY').ResultIU }
+                        $wasY = if ($isBegin) { $was[1] } else { $was[3] }
+                        if ([math]::Abs(($y - $wasY) - $shift) -lt 0.001) { $heldBySeam++ }
+                        else {
+                            Write-Output ("  seam MISSED: link {0} {1} moved {2:n4} in, expected {3:n4}" -f `
+                                    $wire.ID, $link.FromCell, ($y - $wasY), $shift)
+                        }
+                    }
+                    $strayed = 0
+                    $glued = @($links | ForEach-Object { $_.FromSheet.ID })
+                    foreach ($shape in $page.Shapes) {
+                        if ($shape.OneD -eq 0 -or $glued -contains $shape.ID) { continue }
+                        $was = $seamBefore[$shape.ID]
+                        $now = @(
+                            $shape.CellsU('BeginX').ResultIU, $shape.CellsU('BeginY').ResultIU,
+                            $shape.CellsU('EndX').ResultIU, $shape.CellsU('EndY').ResultIU)
+                        for ($i = 0; $i -lt 4; $i++) {
+                            if ([math]::Abs($now[$i] - $was[$i]) -ge 0.001) {
+                                Write-Output ("  seam STRAYED: link {0} moved with a seam it is not glued to" -f $shape.ID)
+                                $strayed++
+                                break
+                            }
+                        }
+                    }
+                    Write-Output ("seam test: moved node {0} by {1} in; {2} of {3} glued link ends followed, {4} unglued links moved" -f `
+                            $seam.ID, $shift, $heldBySeam, $links.Count, $strayed)
+                }
             }
         }
     }

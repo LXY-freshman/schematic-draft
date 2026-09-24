@@ -95,4 +95,23 @@
     </PageSheet>
     <Rel r:id="rId5"/>
   </Master>
+  <Master ID="6" NameU="Node" IsCustomNameU="1" Name="Node" IsCustomName="1" Prompt="Schematic node" IconSize="1" AlignName="2" MatchByName="0" IconUpdate="1" UniqueID="{96A3FD50-B780-4F07-9FDE-0D5E43BB030D}" BaseID="{D018F956-029B-4C21-94DF-A23882497D4B}" PatternFlags="0" Hidden="0" MasterType="2">
+    <PageSheet LineStyle="0" FillStyle="0" TextStyle="0">
+      <Cell N="PageWidth" V="0.094477"/>
+      <Cell N="PageHeight" V="0.094477"/>
+      <Cell N="PageScale" V="1" U="IN_F"/>
+      <Cell N="DrawingScale" V="1" U="IN_F"/>
+      <Cell N="DrawingSizeType" V="0"/>
+      <Cell N="DrawingScaleType" V="0"/>
+      <Cell N="DrawingResizeType" V="1"/>
+      <Cell N="InhibitSnap" V="0"/>
+      <Cell N="UIVisibility" V="0"/>
+      <Cell N="ShdwType" V="0"/>
+      <Cell N="ShdwObliqueAngle" V="0"/>
+      <Cell N="ShdwScaleFactor" V="1"/>
+      <Cell N="ShdwOffsetX" V="0"/>
+      <Cell N="ShdwOffsetY" V="0"/>
+    </PageSheet>
+    <Rel r:id="rId6"/>
+  </Master>
 </Masters>

@@ -60,6 +60,25 @@ describe("per-object stroke scale in a Visio package", () => {
     expect(Number(quadrupled[0])).toBeCloseTo(Number(doubled[0]) * 2, 6);
   });
 
+  it("carries the weight onto every link of a wire that turns", () => {
+    const document = documentWithWireAndResistor();
+    document.routes[0] = createRoutePath({
+      id: "wire",
+      netId: "net-a",
+      start: { kind: "junction", junctionId: "J1" },
+      end: { kind: "junction", junctionId: "J2" },
+      bends: [{ x: 60, y: 40 }],
+      modes: ["manual", "manual"],
+    });
+    document.routes[0]!.styleOverride = { strokeScale: 2 };
+
+    // A corner splits the Route into two shapes, and a wire drawn heavier than
+    // the rest has to stay heavier the whole way around the corner.
+    const weights = shapeLineWeights(buildVisioPage(document, resolver).body);
+    expect(weights).toHaveLength(2);
+    expect(weights[1]).toBe(weights[0]);
+  });
+
   it("says out loud that a component's own paint did not make it across", () => {
     const document = documentWithWireAndResistor();
     document.instances[0]!.styleOverride = { strokeScale: 2 };

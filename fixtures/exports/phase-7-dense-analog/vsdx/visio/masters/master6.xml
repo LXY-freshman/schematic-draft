@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<MasterContents xmlns="http://schemas.microsoft.com/office/visio/2012/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xml:space="preserve">
+  <Shapes>
+    <Shape ID="5" NameU="Node" IsCustomNameU="1" Name="Node" IsCustomName="1" Type="Shape" LineStyle="0" FillStyle="0" TextStyle="0">
+      <Cell N="PinX" V="0.047238"/>
+      <Cell N="PinY" V="0.047238"/>
+      <Cell N="Width" V="0.094477"/>
+      <Cell N="Height" V="0.094477"/>
+      <Cell N="LocPinX" V="0.047238" F="Width*0.5"/>
+      <Cell N="LocPinY" V="0.047238" F="Height*0.5"/>
+      <Cell N="Angle" V="0"/>
+      <Cell N="FlipX" V="0"/>
+      <Cell N="FlipY" V="0"/>
+      <Cell N="ResizeMode" V="0"/>
+      <Cell N="LockAspect" V="1"/>
+      <Cell N="LineWeight" V="0"/>
+      <Cell N="LineColor" V="0"/>
+      <Cell N="LinePattern" V="0"/>
+      <Cell N="FillForegnd" V="0"/>
+      <Cell N="FillBkgnd" V="0"/>
+      <Cell N="FillPattern" V="1"/>
+      <Cell N="FillForegndTrans" V="0"/>
+      <Cell N="FillBkgndTrans" V="0"/>
+      <Cell N="ShdwPattern" V="0"/>
+      <Cell N="LockTextEdit" V="1"/>
+      <Section N="Connection">
+        <Row N="Row_1">
+          <Cell N="X" V="0.047238" F="Width*0.5"/>
+          <Cell N="Y" V="0.047238" F="Height*0.5"/>
+          <Cell N="DirX" V="0"/>
+          <Cell N="DirY" V="0"/>
+          <Cell N="Type" V="0"/>
+        </Row>
+      </Section>
+      <Section N="Geometry" IX="0">
+        <Cell N="NoFill" V="0"/>
+        <Cell N="NoLine" V="1"/>
+        <Cell N="NoShow" V="0"/>
+        <Cell N="NoSnap" V="0"/>
+        <Cell N="NoQuickDrag" V="0"/>
+        <Row T="Ellipse" IX="1">
+          <Cell N="X" V="0.047238" F="Width*0.5"/>
+          <Cell N="Y" V="0.047238" F="Height*0.5"/>
+          <Cell N="A" V="0.094477" F="Width*1"/>
+          <Cell N="B" V="0.047238" F="Height*0.5"/>
+          <Cell N="C" V="0.047238" F="Width*0.5"/>
+          <Cell N="D" V="0.094477" F="Height*1"/>
+        </Row>
+      </Section>
+    </Shape>
+  </Shapes>
+</MasterContents>
