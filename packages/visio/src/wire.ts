@@ -1,22 +1,30 @@
 /**
  * Wires and nodes on the page.
  *
- * A Route becomes a one-dimensional Visio shape — a line segment — whose ends
- * are glued to the connection points of the symbols it joins. That is the whole
- * reason this export exists: a glued end follows the pin when the transistor
- * moves, so the drawing stays a circuit under editing instead of coming apart
- * into loose lines.
+ * A Route becomes a *chain* of one-dimensional Visio shapes — one straight link
+ * per run, one more for each hop over a crossing — whose ends are glued to the
+ * connection points of the symbols it joins and, in between, to invisible nodes
+ * at each seam. That is the whole reason this export exists: a glued end
+ * follows the pin when the transistor moves, so the drawing stays a circuit
+ * under editing instead of coming apart into loose lines.
+ *
+ * The chain is what makes a bend editable. A one-dimensional shape has exactly
+ * two adjustable ends, so a run written as one shape offers two handles no
+ * matter how many corners it turns; every interior bend is a number in the
+ * file rather than something the hand can reach. Give each run its own shape
+ * and glue the seams, and every corner becomes a node a user can drag with
+ * both of its links following.
  *
  * Gluing is a property of a one-dimensional shape, not of a connector, so the
  * wire is deliberately *not* routable. A routable shape is Visio's dynamic
  * connector: it treats the path as its own to recompute, and it re-routes the
  * wire the moment anything moves or is nudged. The path here is the one the
  * schematic drew, and Visio must leave it alone; the cost is that dragging one
- * end turns the last segment into a diagonal, which is what a drawn line does.
+ * end turns that link into a diagonal, which is what a drawn line does.
  *
  * The frame is defined by the endpoints — `Width` is `EndX-BeginX` and the
  * geometry is expressed in a local frame whose origin is the begin point — so
- * gluing an end moves the frame, and the line follows.
+ * gluing an end moves the frame, and the link follows.
  */
 
 import type { VisioMaster } from "./masters.js";
@@ -52,9 +60,10 @@ export const CONNECTION_POINT_PART = 100;
  * connector. `LockHeight` and `LockCalcWH` stop a user from resizing a wire by
  * its handles — the endpoints own its extent.
  *
- * The geometry is a plain segment whose far end tracks `Width`/`Height`, so a
- * straight wire needs no geometry of its own and stretches exactly with its
- * endpoints. A wire with bends overrides the section.
+ * The geometry is a plain segment whose far end tracks `Width`/`Height`, which
+ * is exactly what a straight link needs, so a link stretches with its
+ * endpoints and nothing else. A link that hops a crossing overrides the
+ * section with an arc.
  */
 export function wireMaster(id: number, strokeInches: number): VisioMaster {
   const extent = formatVisioNumber(WIRE_EXTENT_INCHES);
@@ -162,42 +171,40 @@ export interface WireGlue {
   readonly rowIndex: number;
 }
 
+/**
+ * One link of a wire chain: a straight run between two page points, or the
+ * single arc that hops a crossing.
+ *
+ * Both ends may be glued — to a pin, to a Junction's node, or to the invisible
+ * node the page puts at the seam this link shares with its neighbour.
+ */
 export interface WireShape {
   readonly id: number;
   readonly masterId: number;
-  /** Page points, begin first; at least two. */
-  readonly points: readonly PagePoint[];
+  /** Where the link begins. */
+  readonly from: PagePoint;
+  /** Where it ends. */
+  readonly to: PagePoint;
+  /**
+   * A point *on* the arc, for the link that hops a crossing. Omitted for a
+   * straight run, which is what almost every link is.
+   *
+   * Visio has no line-jump of its own, so a hop has to be drawn. Stating it as
+   * a point the arc passes through rather than as a direction and a sweep flag
+   * is what lets the same numbers survive the page frame's y-flip without a
+   * second handedness rule.
+   */
+  readonly through?: PagePoint;
   readonly begin: WireGlue | undefined;
   readonly end: WireGlue | undefined;
-  /** Hops to bake into the geometry, in the order they occur along the wire. */
-  readonly jumps?: readonly WireJump[];
   /**
-   * Line weight in inches for this wire alone. Omitted when the wire is drawn
+   * Line weight in inches for this link alone. Omitted when the wire is drawn
    * at the master's weight, so a drawing that scales nothing writes the shape
-   * it always wrote and every wire keeps inheriting one cell.
+   * it always wrote and every link keeps inheriting one cell.
    */
   readonly lineWeightInches?: number;
   /** Shape Data rows, already serialized by `shapeDataSection`. */
   readonly propertySection: string;
-}
-
-/**
- * One hop over a crossing, in page points.
- *
- * Visio has no line-jump of its own, so a hop has to be part of the wire's
- * drawn path. `through` is a point *on* the arc rather than a direction or a
- * sweep flag, which is what lets the same shape survive the page frame's
- * y-flip without a second handedness rule.
- */
-export interface WireJump {
-  /** Index of the point the hopped segment leaves, matching `points`. */
-  readonly segmentIndex: number;
-  /** Where the wire leaves the straight path. */
-  readonly from: PagePoint;
-  /** The top of the hop. */
-  readonly through: PagePoint;
-  /** Where the wire rejoins it. */
-  readonly to: PagePoint;
 }
 
 function endpointCells(
@@ -213,77 +220,59 @@ function endpointCells(
 }
 
 /**
- * A wire on the page.
+ * One link of a wire on the page.
  *
- * The geometry rows are absolute coordinates in a local frame whose origin is
- * the begin point, which is why every bend is written as an offset from it. The
- * last row carries `Width`/`Height` formulas so the far end of the line follows
- * the far end of the shape. A hop is interior to a segment by construction, so
- * it never becomes that last row and never takes the formulas away from it.
+ * The geometry is a single row in a local frame whose origin is the begin
+ * point, and it carries `Width`/`Height` formulas so the far end of the drawn
+ * line follows the far end of the shape. That is the whole point of the chain:
+ * a two-point link has nothing written into it that a moved end could
+ * contradict, so gluing an end is enough to keep the drawing honest.
+ *
+ * An arc keeps its apex as a literal local offset. A hop is a fixed-size
+ * detour around a crossing rather than a proportion of the run, so it should
+ * not scale when the link it belongs to is stretched.
  */
 export function wireShape(wire: WireShape): string {
-  const [begin, ...rest] = wire.points;
-  const last = wire.points.at(-1);
-  if (!begin || !last || wire.points.length < 2) {
-    throw new Error(
-      `A Visio wire needs at least two points (shape ${wire.id})`,
-    );
-  }
-  const width = last.x - begin.x;
-  const height = last.y - begin.y;
-  const localX = (point: PagePoint): string =>
-    formatVisioNumber(point.x - begin.x);
-  const localY = (point: PagePoint): string =>
-    formatVisioNumber(point.y - begin.y);
-  const rows: string[] = [
-    `<Row T="MoveTo" IX="1"><Cell N="X" V="0"/><Cell N="Y" V="0"/></Row>`,
-  ];
-  const lineTo = (point: PagePoint, tracksTheFarEnd: boolean): void => {
-    rows.push(
-      `<Row T="LineTo" IX="${rows.length + 1}">` +
-        `<Cell N="X" V="${localX(point)}"${tracksTheFarEnd ? ' F="Width*1"' : ""}/>` +
-        `<Cell N="Y" V="${localY(point)}"${tracksTheFarEnd ? ' F="Height*1"' : ""}/>` +
-        `</Row>`,
-    );
-  };
-  rest.forEach((point, index) => {
-    for (const jump of wire.jumps ?? []) {
-      if (jump.segmentIndex !== index) continue;
-      lineTo(jump.from, false);
-      // A, B is a point the arc passes through; C and D make it circular.
-      rows.push(
-        `<Row T="EllipticalArcTo" IX="${rows.length + 1}">` +
-          `<Cell N="X" V="${localX(jump.to)}"/><Cell N="Y" V="${localY(jump.to)}"/>` +
-          `<Cell N="A" V="${localX(jump.through)}"/><Cell N="B" V="${localY(jump.through)}"/>` +
-          `<Cell N="C" V="0"/><Cell N="D" V="1"/>` +
-          `</Row>`,
-      );
-    }
-    lineTo(point, index === rest.length - 1);
-  });
+  const { from, to } = wire;
+  const width = to.x - from.x;
+  const height = to.y - from.y;
+  const farEnd =
+    `<Cell N="X" V="${formatVisioNumber(width)}" F="Width*1"/>` +
+    `<Cell N="Y" V="${formatVisioNumber(height)}" F="Height*1"/>`;
+  const path = wire.through
+    ? // A, B is a point the arc passes through; C and D make it circular.
+      `<Row T="EllipticalArcTo" IX="2">${farEnd}` +
+      `<Cell N="A" V="${formatVisioNumber(wire.through.x - from.x)}"/>` +
+      `<Cell N="B" V="${formatVisioNumber(wire.through.y - from.y)}"/>` +
+      `<Cell N="C" V="0"/><Cell N="D" V="1"/>` +
+      `</Row>`
+    : `<Row T="LineTo" IX="2">${farEnd}</Row>`;
   const trigger = (which: "Beg" | "End", glue: WireGlue | undefined): string =>
     glue
       ? `<Cell N="${which}Trigger" V="2" F="_XFTRIGGER(Sheet.${glue.sheetId}!EventXFMod)"/>`
       : "";
   return (
     `<Shape ID="${wire.id}" Type="Shape" Master="${wire.masterId}">` +
-    `<Cell N="PinX" V="${formatVisioNumber(begin.x + width / 2)}" F="GUARD((BeginX+EndX)/2)"/>` +
-    `<Cell N="PinY" V="${formatVisioNumber(begin.y + height / 2)}" F="GUARD((BeginY+EndY)/2)"/>` +
+    `<Cell N="PinX" V="${formatVisioNumber(from.x + width / 2)}" F="GUARD((BeginX+EndX)/2)"/>` +
+    `<Cell N="PinY" V="${formatVisioNumber(from.y + height / 2)}" F="GUARD((BeginY+EndY)/2)"/>` +
     `<Cell N="Width" V="${formatVisioNumber(width)}" F="GUARD(EndX-BeginX)"/>` +
     `<Cell N="Height" V="${formatVisioNumber(height)}" F="GUARD(EndY-BeginY)"/>` +
     `<Cell N="LocPinX" V="${formatVisioNumber(width / 2)}" F="GUARD(Width*0.5)"/>` +
     `<Cell N="LocPinY" V="${formatVisioNumber(height / 2)}" F="GUARD(Height*0.5)"/>` +
-    endpointCells("X", "Begin", begin.x, wire.begin) +
-    endpointCells("Y", "Begin", begin.y, wire.begin) +
-    endpointCells("X", "End", last.x, wire.end) +
-    endpointCells("Y", "End", last.y, wire.end) +
+    endpointCells("X", "Begin", from.x, wire.begin) +
+    endpointCells("Y", "Begin", from.y, wire.begin) +
+    endpointCells("X", "End", to.x, wire.end) +
+    endpointCells("Y", "End", to.y, wire.end) +
     trigger("Beg", wire.begin) +
     trigger("End", wire.end) +
     (wire.lineWeightInches === undefined
       ? ""
       : `<Cell N="LineWeight" V="${formatVisioNumber(wire.lineWeightInches)}" U="PT"/>`) +
     wire.propertySection +
-    `<Section N="Geometry" IX="0">${rows.join("")}</Section>` +
+    `<Section N="Geometry" IX="0">` +
+    `<Row T="MoveTo" IX="1"><Cell N="X" V="0"/><Cell N="Y" V="0"/></Row>` +
+    path +
+    `</Section>` +
     `</Shape>`
   );
 }

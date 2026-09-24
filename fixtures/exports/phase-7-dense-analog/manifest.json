@@ -26,8 +26,8 @@
       "sha256": "a466adf94240f159ada43275192da79adc8eeedaf8c22d7e598b74d6f73a89e0"
     },
     "schematic.vsdx": {
-      "byteLength": 11518,
-      "sha256": "b56ca25a2533ca7829e537fc1f15c345a14dc6cb7d29b84c0c52b620d7155c3a"
+      "byteLength": 12708,
+      "sha256": "7aeecb89e30f87b533b59e1768b21bd7a882c3ba8114345f422fd69eb3124392"
     }
   },
   "visio": {
@@ -36,20 +36,21 @@
       "widthInches": 5.2437072,
       "heightInches": 2.7858975
     },
-    "masterCount": 5,
+    "masterCount": 6,
     "counts": {
       "instanceShapes": 5,
       "nodeShapes": 0,
-      "wireShapes": 4,
+      "seamNodeShapes": 5,
+      "wireShapes": 9,
       "textShapes": 2,
       "formulaShapes": 0,
-      "glue": 8
+      "glue": 18
     },
     "caveats": {},
     "parts": {
       "vsdx/[Content_Types].xml": {
-        "byteLength": 1379,
-        "sha256": "ddbd7020e64f127b4d1018ca678709e8c4ec8a0f08001762fc42eae9ea618358"
+        "byteLength": 1478,
+        "sha256": "50165cdf06f09946a223e169081202c466f3a4a3edc0df55b5443e567d0075b2"
       },
       "vsdx/_rels/.rels": {
         "byteLength": 423,
@@ -68,12 +69,12 @@
         "sha256": "029b4bb30de6940178386485f321a28786acf527cf304b09a396d6c1023a8000"
       },
       "vsdx/visio/masters/masters.xml": {
-        "byteLength": 4415,
-        "sha256": "e4ec6be04722ed167229437493d9a7804823257a000d3968f57bfde7aa8e7c79"
+        "byteLength": 5261,
+        "sha256": "f872ea9a60faf854b2e6fb98ca031ad347811f7f46235d5b8d11a11609880462"
       },
       "vsdx/visio/masters/_rels/masters.xml.rels": {
-        "byteLength": 725,
-        "sha256": "929c8eed9c1c65549f7ef82e612851d93bf31bcf9804c9c11394d8c3eb7cc84b"
+        "byteLength": 839,
+        "sha256": "8eaa19dd8a62be43aa3cb3ea54ac1fac28fdc711af70bb2e95e43d968c082216"
       },
       "vsdx/visio/masters/master1.xml": {
         "byteLength": 4220,
@@ -95,6 +96,10 @@
         "byteLength": 1615,
         "sha256": "7308a0995cfe897ed349a087f981dac189d7989b97e8a91037d8f0c1fd253578"
       },
+      "vsdx/visio/masters/master6.xml": {
+        "byteLength": 1667,
+        "sha256": "440c16d846b7c1d63820f661a4b2a4172d2c5049fa92855e545a6018609e2248"
+      },
       "vsdx/visio/pages/pages.xml": {
         "byteLength": 1101,
         "sha256": "22c1b36cf3e29f2c45c86bea7146929c11751c85011548f3fd2a75a4bd59deb1"
@@ -104,8 +109,8 @@
         "sha256": "a5394b9c470747b1be9c8ccfd93fa6e9277eea31b3bbcba778b3bd20b34fc5b4"
       },
       "vsdx/visio/pages/page1.xml": {
-        "byteLength": 13570,
-        "sha256": "403131cf10891efead824fbfac7baa689851aa4d4e9992715d09797a918ab699"
+        "byteLength": 21862,
+        "sha256": "c56fc7ae50de0589edee22ec91798475f5f7eacdc951d881d2e600152a12399e"
       },
       "vsdx/visio/windows.xml": {
         "byteLength": 655,

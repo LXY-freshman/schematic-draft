@@ -73,35 +73,51 @@ bytes from the same Document.
 Promised:
 
 - **Topology.** One shape per placed Instance, backed by a master keyed by
-  symbol and variant; one one-dimensional line shape per Route; one shape
-  per visible Junction. Shape counts equal object counts. A symbol whose
+  symbol and variant; one shape per visible Junction; a chain of
+  one-dimensional line shapes per Route. A symbol whose
   artwork a Document can reach more than one way yields one master per reachable
   drawing: the drawing it resolves to by default is named after the device, and
   each other one appends its variant — `NMOS` and `NMOS (four-terminal)`. A
   drawing no default lets a Document reach gets no master at all.
+- **A handle at every corner.** A one-dimensional Visio shape has exactly two
+  ends a hand can reach, so a Route written as one shape would offer two handles
+  however many times it turns. A Route is written instead as one straight link
+  per run, plus one more for each hop, joined at invisible node shapes the links
+  on either side are both glued to. Drag a seam node and both of its links
+  follow; drag a link's free end and only that end moves. The shape count of a
+  Route is therefore its runs plus twice its hops, and the seam nodes come on
+  top of the Junction shapes the schematic asked for.
 - **Glue.** A wire end that lands on a pin is glued to that pin's connection
   point, through a `PAR(PNT(…))` formula and a matching `<Connect>` record.
   Moving a device in Visio moves the wire ends with it. Every `<Connect>` names
-  a connection row that exists.
-- **The path.** A wire is a drawn line segment, explicitly marked non-routable,
-  so Visio never recomputes the run it was given: the bends are the ones the
-  schematic drew and they stay put for as long as nobody drags them. Glue and
-  routing are separate things — an end follows its pin because the shape is
-  one-dimensional and glued, not because Visio is routing it.
+  a connection row that exists. A seam node is glued the same way, and it reuses
+  the Junction or dotted contact already sitting on that point when there is
+  one — so dragging a branch dot keeps every wire through it attached. Two
+  Routes that merely corner on the same point each keep their own seam: that is
+  a crossing, not a connection, and the export does not invent one.
+- **The path.** A wire link is a drawn line segment, explicitly marked
+  non-routable, so Visio never recomputes the run it was given: the corners are
+  the ones the schematic drew and they stay put for as long as nobody drags
+  them. Glue and routing are separate things — an end follows its pin because
+  the shape is one-dimensional and glued, not because Visio is routing it.
 - **Line jumps.** Visio draws none of its own, so a Route that asked for
-  [line jumps](connectivity-and-routing.md#line-jumps) carries each hop in its
-  own geometry, as an `EllipticalArcTo` row between the two `LineTo` rows that
-  approach and leave the crossing. The same derivation answers for the canvas,
-  the formal SVG scene and this file, so the three agree about which wire hops
-  and where. A hop is interior to its segment by construction, so the last row
-  keeps the `Width`/`Height` formulas that make the far end follow its glue.
-  The arc is drawing: it neither states nor implies a connection in Visio any
-  more than it does in the schematic.
+  [line jumps](connectivity-and-routing.md#line-jumps) writes each hop as a link
+  of its own: one `EllipticalArcTo` row between the two straight links that
+  approach and leave the crossing, glued to each of them at a seam. The same
+  derivation answers for the canvas, the formal SVG scene and this file, so the
+  three agree about which wire hops and where. A hop is interior to its segment
+  by construction, so a run always survives on both sides of it. The arc's apex
+  is given as a point the arc passes through, which survives the page's flipped
+  y axis without a second rule; its far end keeps the `Width`/`Height` formulas
+  that make it follow its glue. The arc is drawing: it neither states nor
+  implies a connection in Visio any more than it does in the schematic.
 - **Shape Data.** Reference designator, symbol name, device parameters, the
-  owning Cell, and `icm:instanceId`; net name on a wire.
+  owning Cell, and `icm:instanceId`; net name on a wire. Every link of a Route
+  carries the same net name, so clicking any piece of a wire names the net it
+  belongs to.
 - **Wire stroke width.** A Route that asks to be drawn heavier or lighter than
-  the profile weight writes its own `LineWeight` cell on its shape, so the run
-  Visio shows has the weight the schematic gave it.
+  the profile weight writes its own `LineWeight` cell on every one of its links,
+  so the whole run Visio shows has the weight the schematic gave it.
 - **Grid.** Ten document units are 0.125 in, so pin pitch lands on Visio's
   classic eighth-inch grid, which the page grid is set to. The y axis is
   flipped, because Visio's origin is bottom-left.
@@ -113,13 +129,24 @@ Not promised, and not a defect when it happens:
 - **Text metrics.** Visio measures, wraps and substitutes fonts itself, so a
   label sits a fraction of a character from where the schematic put it. Its
   position relative to the device is still right.
+- **A wire selected in one click.** A Route is a chain, so selecting all of it
+  takes a rubber band or `Ctrl`-clicking each link. That is the cost of every
+  corner being a handle, and it is a cost the export accepts deliberately: a
+  wire is edited far more often than it is selected whole. The `.vsdx` is
+  correspondingly larger.
+- **The wire closing up after a hop is deleted.** Delete the arc and the gap it
+  spanned stays a gap, because the runs either side end where the hop began.
+  Nothing straightens itself behind the user's back; dragging the two ends back
+  together is the move to make. The drawing says a piece is missing, which it
+  is.
 - **Right angles after a device moves.** Dragging one end of a wire drags that
-  end and nothing else, so the last segment becomes a diagonal. That is what a
-  line segment does, and it is the price of Visio never rearranging the run on
-  its own; straightening it is the user's move to make.
+  end and nothing else, so the link it belongs to becomes a diagonal while the
+  links beyond the next seam stay square. That is what a line segment does, and
+  it is the price of Visio never rearranging the run on its own; straightening
+  it is the user's move to make.
 - **A hop still over its crossing after the drawing is edited in Visio.** The
-  arc is geometry written at the offset the crossing had when the file was
-  written, like every bend beside it. Move either wire in Visio and the hop
+  arc is a link written at the offset the crossing had when the file was
+  written, like every run beside it. Move either wire in Visio and the hop
   stays where it was put; Visio is not recomputing crossings any more than it
   is recomputing routes.
 - **Formulas.** A math run is written as its source text, a stacked fraction is
@@ -171,7 +198,9 @@ is stated when the file is written rather than discovered in Visio.
   move separates a recorded `<Connect>` from a live glue, or a drawn segment
   from a connector Visio feels free to re-route. A path is compared cell by
   cell, so a hop Visio flattened or shifted reads as a rewritten path rather
-  than an unchanged one.
+  than an unchanged one. The same check drags a seam node and confirms that
+  both links glued to it followed and that nothing else on the page moved —
+  which is the only way to prove a corner is a handle rather than a number.
 
 ## Delivery
 

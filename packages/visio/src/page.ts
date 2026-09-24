@@ -3,10 +3,11 @@
  *
  * This is where the export stops being a drawing and becomes a circuit: each
  * instance is a shape that carries its own connection points, each Route is a
- * line segment glued to two of them, and each branch is a node those segments
- * hold on to. Move a transistor in Visio and its wires follow, because Visio is
- * reading the same electrical facts the schematic does — not because anything
- * here tried to redraw them.
+ * chain of line segments glued to two of them and to a node at every corner in
+ * between, and each branch is a node those segments hold on to. Move a
+ * transistor in Visio and its wires follow, because Visio is reading the same
+ * electrical facts the schematic does — not because anything here tried to
+ * redraw them.
  *
  * What the page cannot say yet is recorded as a caveat rather than dropped.
  */
@@ -81,6 +82,7 @@ import type { VisioMasterCaveat, VisioSymbolMaster } from "./symbol-master.js";
 import { textShape, visioTextContent } from "./text.js";
 import type { VisioTextCaveat } from "./text.js";
 import { inchesFromUnits } from "./units.js";
+import { planWireChain } from "./wire-chain.js";
 import {
   connectRecord,
   nodeMaster,
@@ -88,7 +90,7 @@ import {
   wireMaster,
   wireShape,
 } from "./wire.js";
-import type { WireGlue, WireJump } from "./wire.js";
+import type { WireGlue } from "./wire.js";
 import { formatVisioNumber } from "./xml.js";
 
 /**
@@ -123,7 +125,11 @@ export type VisioPageCaveat =
 /** What the page holds, for the structural assertions the tests make. */
 export interface VisioPageCounts {
   readonly instanceShapes: number;
+  /** Nodes the schematic itself has: Junctions and dotted contacts. */
   readonly nodeShapes: number;
+  /** Invisible nodes added at the corners a wire chain is glued along. */
+  readonly seamNodeShapes: number;
+  /** Links, not Routes: a Route is one shape per run plus one per hop. */
   readonly wireShapes: number;
   readonly textShapes: number;
   /** Shapes drawn for a block's body text, its fraction bar included. */
@@ -335,6 +341,17 @@ function planNodes(
   return [...junctions, ...derived].sort((left, right) =>
     left.id.localeCompare(right.id, "en"),
   );
+}
+
+/**
+ * A point as a map key.
+ *
+ * Document coordinates land on the connection grid, so two objects that share
+ * a point share it exactly; rounding guards only against a float that arrived
+ * by a different route to the same place.
+ */
+function pointKey(point: DocumentPoint): string {
+  return `${point.x.toFixed(4)},${point.y.toFixed(4)}`;
 }
 
 function netShapeDataRows(
@@ -555,6 +572,19 @@ export function buildVisioPage(
     document,
     visibleContacts(document, contactEvidence.contacts),
   );
+  // Visio draws no line jumps of its own, so a Route that asked for them has
+  // to carry each hop in its own geometry. The same derivation the canvas and
+  // the SVG scene use answers here, which is what keeps the three drawings of
+  // one Document agreeing about where a wire hops.
+  const lineJumps = deriveRouteLineJumps(document, resolver, {
+    routingGeometry,
+  });
+  // Every Route's chain is planned before a shape ID is handed out: a link
+  // glues to the node at its seam, so the nodes have to be numbered first.
+  const chains = routes.map((route) => ({
+    route,
+    links: planWireChain(route.centerline, lineJumps.get(route.routeId) ?? []),
+  }));
   const logicalNets = resolveDocumentLogicalNets(document);
   const annotations = planAnnotations(
     document,
@@ -634,11 +664,30 @@ export function buildVisioPage(
   });
 
   const nodeIdsToShapeId = new Map<string, number>();
+  const nodeShapeIdByPoint = new Map<string, number>();
   const nodeShapes = nodes.map((node) => {
     const shapeId = nextShapeId++;
     if (node.junctionId) nodeIdsToShapeId.set(node.junctionId, shapeId);
+    nodeShapeIdByPoint.set(pointKey(node.at), shapeId);
     return { node, shapeId };
   });
+
+  // One invisible node per seam, except where a Junction or a dotted contact
+  // already put a node on that exact point: a wire that corners on a branch
+  // should hold on to the branch, not to a second node hiding under it. Only
+  // those electrical nodes are shared — two Routes that happen to corner on the
+  // same point are a crossing, not a connection, and each keeps its own seam.
+  const seamNodes: { readonly at: DocumentPoint; readonly shapeId: number }[] =
+    [];
+  const seamShapeIds = chains.map(({ links }) =>
+    links.slice(0, -1).map((link) => {
+      const existing = nodeShapeIdByPoint.get(pointKey(link.to));
+      if (existing !== undefined) return existing;
+      const shapeId = nextShapeId++;
+      seamNodes.push({ at: link.to, shapeId });
+      return shapeId;
+    }),
+  );
 
   const glueFor = (
     endpoint: RouteEndpoint,
@@ -662,53 +711,52 @@ export function buildVisioPage(
   };
 
   const connects: string[] = [];
-  // Visio draws no line jumps of its own, so a Route that asked for them has
-  // to carry each hop in its own geometry. The same derivation the canvas and
-  // the SVG scene use answers here, which is what keeps the three drawings of
-  // one Document agreeing about where a wire hops.
-  const lineJumps = deriveRouteLineJumps(document, resolver, {
-    routingGeometry,
-  });
-  const wireShapes = routes.map((route) => {
-    const shapeId = nextShapeId++;
+  const wireShapes = chains.flatMap(({ route, links }, chainIndex) => {
     const begin = glueFor(
       route.endpointConnections.from.endpoint,
       route.routeId,
     );
     const end = glueFor(route.endpointConnections.to.endpoint, route.routeId);
-    if (begin) connects.push(connectRecord(shapeId, "begin", begin));
-    if (end) connects.push(connectRecord(shapeId, "end", end));
     const documentRoute = document.routes.find(
       (candidate) => candidate.id === route.routeId,
     )!;
-    const jumps: WireJump[] = (lineJumps.get(route.routeId) ?? []).map(
-      (jump) => ({
-        segmentIndex: jump.segmentIndex,
-        from: frame.point(jump.from),
-        through: frame.point(jump.apex),
-        to: frame.point(jump.to),
-      }),
-    );
     // The master carries the ordinary wire weight, so only a wire that asks
     // for a different one writes a cell of its own.
     const strokeScale = documentRoute.styleOverride?.strokeScale ?? 1;
-    return wireShape({
-      id: shapeId,
-      masterId: wireMasterId,
-      points: route.centerline.map((point) => frame.point(point)),
-      begin,
-      end,
-      ...(jumps.length > 0 ? { jumps } : {}),
-      ...(strokeScale === 1
-        ? {}
-        : {
-            lineWeightInches: inchesFromUnits(
-              profile.strokes.wire * strokeScale,
-            ),
-          }),
-      propertySection: shapeDataSection(
-        netShapeDataRows(document, documentRoute),
-      ),
+    // Every link of one Route answers for the same Net, so each carries the
+    // same Shape Data. Click any piece of a wire in Visio and it names its net.
+    const propertySection = shapeDataSection(
+      netShapeDataRows(document, documentRoute),
+    );
+    const seams = seamShapeIds[chainIndex]!;
+    const seamGlue = (index: number): WireGlue => ({
+      sheetId: seams[index]!,
+      rowName: "Row_1",
+      rowIndex: 0,
+    });
+    return links.map((link, index) => {
+      const shapeId = nextShapeId++;
+      const linkBegin = index === 0 ? begin : seamGlue(index - 1);
+      const linkEnd = index === links.length - 1 ? end : seamGlue(index);
+      if (linkBegin) connects.push(connectRecord(shapeId, "begin", linkBegin));
+      if (linkEnd) connects.push(connectRecord(shapeId, "end", linkEnd));
+      return wireShape({
+        id: shapeId,
+        masterId: wireMasterId,
+        from: frame.point(link.from),
+        to: frame.point(link.to),
+        ...(link.through ? { through: frame.point(link.through) } : {}),
+        begin: linkBegin,
+        end: linkEnd,
+        ...(strokeScale === 1
+          ? {}
+          : {
+              lineWeightInches: inchesFromUnits(
+                profile.strokes.wire * strokeScale,
+              ),
+            }),
+        propertySection,
+      });
     });
   });
 
@@ -865,7 +913,7 @@ export function buildVisioPage(
       wireMaster(wireMasterId, inchesFromUnits(profile.strokes.wire)),
     );
   }
-  if (nodeShapes.length > 0) {
+  if (nodeShapes.length > 0 || seamNodes.length > 0) {
     masters.push(
       nodeMaster(nodeMasterId, inchesFromUnits(profile.nodes.junctionRadius)),
     );
@@ -877,6 +925,11 @@ export function buildVisioPage(
     nodeShapes
       .map(({ node, shapeId }) =>
         nodeShape(shapeId, nodeMasterId, frame.point(node.at), node.visible),
+      )
+      .join("") +
+    seamNodes
+      .map(({ at, shapeId }) =>
+        nodeShape(shapeId, nodeMasterId, frame.point(at), false),
       )
       .join("") +
     wireShapes.join("") +
@@ -898,6 +951,7 @@ export function buildVisioPage(
     counts: {
       instanceShapes: instanceShapes.length,
       nodeShapes: nodeShapes.length,
+      seamNodeShapes: seamNodes.length,
       wireShapes: wireShapes.length,
       textShapes: textShapes.length,
       formulaShapes: formulaShapes.length,

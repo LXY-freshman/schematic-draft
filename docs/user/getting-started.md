@@ -369,15 +369,20 @@ stays sharp when enlarged.
 The same menu offers **Visio** and **Visio stencil**. These are for editing
 rather than looking: **Visio** writes a `.vsdx` in which every device is a
 Visio shape carrying its reference, parameters and pins, and every wire is a
-line segment whose ends are glued to the pins it joins. Drag a transistor in
-Visio and its wire ends come along; the wires themselves keep exactly the path
-you drew, because Visio is told not to re-route them. The cost of that is worth
-knowing: dragging one end of a wire moves that end only, so the last stretch
-becomes a diagonal until you straighten it. A wire you ticked **Hop over
-crossings** for arrives with its arcs drawn into the line, since Visio has no
-line jump of its own; they sit where the crossings were when the file was
-written and, like the bends beside them, stay there if you move things
-afterwards. **Visio stencil** writes a `.vssx`
+chain of line segments whose ends are glued to the pins it joins and, at every
+corner in between, to a small invisible node. Drag a transistor in Visio and
+its wire ends come along; drag a corner node and the two stretches meeting
+there move together; the wires themselves keep exactly the path you drew,
+because Visio is told not to re-route them. The corner nodes are what give you
+a handle at every bend instead of only two at the ends, and they are worth two
+costs: a wire takes a rubber band or a few `Ctrl`-clicks to select whole, and
+dragging one end of one stretch still leaves that stretch diagonal until you
+straighten it. A wire you ticked **Hop over crossings** for arrives with each
+arc as its own small shape in the chain, since Visio has no line jump of its
+own; the arcs sit where the crossings were when the file was written and, like
+the corners beside them, stay there if you move things afterwards — and
+deleting one leaves the gap it spanned, for you to pull closed. **Visio
+stencil** writes a `.vssx`
 of the symbol library alone, with no drawing, for building a schematic in Visio
 by hand. Neither file is read back — the `.schdraft` you opened stays the real
 Project, and edits made in Visio stay in Visio. Whatever the package could not

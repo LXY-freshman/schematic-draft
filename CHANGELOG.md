@@ -71,6 +71,26 @@ hosted features some of them mention are gone.
 
 ### Changed
 
+- **A wire exported to Visio now has a handle at every corner.** A Visio wire
+  used to be one shape, and a one-dimensional Visio shape has exactly two ends
+  you can grab — so a wire that turned four corners still offered two handles,
+  and the corners themselves were numbers you could only reach by retyping
+  geometry. Each wire is now a chain: one straight piece per run, joined at
+  small invisible nodes that both neighbouring pieces are glued to. Drag a node
+  and the two pieces meeting there move together; everything else about the
+  export is unchanged — the ends are still glued to their pins, and Visio is
+  still told not to re-route anything. Two costs come with it, both deliberate:
+  a wire takes a rubber band or a few `Ctrl`-clicks to select whole, and the
+  file is larger. Where a wire branches or a contact is dotted, the chain hangs
+  on that node instead of adding one, so dragging a junction still takes every
+  wire through it along.
+- **A line jump exported to Visio is its own shape.** The arc used to be baked
+  into the middle of the wire's geometry, which is why it could not be selected,
+  moved or removed on its own. Each hop is now a link in the chain like any
+  other, glued to the run on each side, carrying the same net name so clicking
+  it still tells you which wire it belongs to. Delete one and the gap it spanned
+  stays a gap for you to pull closed — nothing straightens itself behind your
+  back.
 - **The depletion and DMOS parts sit with the transistors.** D-NMOS, D-PMOS and
   the two DMOS entries were four sections down the Library, under **Extended
   Devices**, because that is the catalog they are authored in. Someone reaching

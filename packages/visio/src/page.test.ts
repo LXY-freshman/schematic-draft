@@ -48,6 +48,38 @@ function resistor(
 }
 
 /**
+ * Two resistors joined by one wire that turns a right angle on the way: the
+ * smallest document whose Route has a corner Visio has to hold open.
+ */
+function cornerDocument(): SchematicDocument {
+  const document = createEmptyDocument("doc-corner", "Corner");
+  const left = resistor("R1", "R1", 0, 0);
+  const right = resistor("R2", "R2", 120, 80);
+  document.instances.push(left, right);
+  document.nets.push({
+    id: "net-corner",
+    terminals: [
+      { instanceId: "R1", pinName: "2" },
+      { instanceId: "R2", pinName: "1" },
+    ],
+  });
+  const from = pinPoint(left, "2");
+  const to = pinPoint(right, "1");
+  document.routes.push(
+    createRoutePath({
+      id: "route-corner",
+      netId: "net-corner",
+      start: { kind: "terminal", instanceId: "R1", pinName: "2" },
+      end: { kind: "terminal", instanceId: "R2", pinName: "1" },
+      // Along, then down: neither leg is degenerate, so the corner is real.
+      bends: [{ x: to.x, y: from.y }],
+      modes: ["manual", "manual"],
+    }),
+  );
+  return document;
+}
+
+/**
  * Three resistors meeting at one Junction: the smallest document with a branch
  * in it, which is what makes a junction dot, three glued wire ends at one node,
  * and a bend all appear at once.
@@ -178,9 +210,12 @@ function shapeXml(body: string, id: number): string {
 
 describe("buildVisioPage", () => {
   it("puts one shape on the page for every drawn object", () => {
+    // Every Route here runs straight, so every Route is one link and no seam
+    // node is needed to hold a corner together.
     expect(built.counts).toEqual({
       instanceShapes: 3,
       nodeShapes: 1,
+      seamNodeShapes: 0,
       wireShapes: 3,
       textShapes: 0,
       formulaShapes: 0,
@@ -335,15 +370,16 @@ describe("buildVisioPage", () => {
     expect(cell(node, "FillPattern")).toBeUndefined();
   });
 
-  it("gives a wire the bends the Route was drawn with", () => {
-    // Wires follow the instances and the node, in Route ID order: route-bottom,
-    // route-side, route-top.
-    const side = shapeXml(built.body, 13);
-    const rows = [...side.matchAll(/<Row T="(MoveTo|LineTo)" IX="\d+"/g)];
-    expect(rows.map((row) => row[1])).toEqual(["MoveTo", "LineTo", "LineTo"]);
-    // A straight wire keeps the two rows its master already has.
-    const straight = shapeXml(built.body, 12);
-    expect([...straight.matchAll(/<Row T="(MoveTo|LineTo)"/g)]).toHaveLength(2);
+  it("writes every link as the two-point segment its master already is", () => {
+    // No link carries a bend, so none of them has a coordinate that a moved
+    // end could contradict; each far end tracks the shape's own frame.
+    for (const id of [12, 13, 14]) {
+      const link = shapeXml(built.body, id);
+      const rows = [...link.matchAll(/<Row T="([^"]+)"/g)].map((row) => row[1]);
+      expect(rows).toEqual(["MoveTo", "LineTo"]);
+      expect(link).toContain('F="Width*1"');
+      expect(link).toContain('F="Height*1"');
+    }
   });
 
   it("publishes the electrical facts as Shape Data", () => {
@@ -357,6 +393,68 @@ describe("buildVisioPage", () => {
 
   it("has nothing to apologise for in a document it can draw", () => {
     expect(built.caveats).toEqual([]);
+  });
+});
+
+describe("a wire that turns a corner", () => {
+  const corner = buildVisioPage(cornerDocument(), resolver);
+
+  it("breaks the Route at the corner and hangs both links on one node", () => {
+    // The corner is a shape to drag rather than a number inside a longer wire.
+    // That is the whole point of the chain: a one-dimensional Visio shape has
+    // two ends a hand can reach, so a Route written as one shape offers two
+    // handles however many times it turns.
+    expect(corner.counts).toEqual({
+      instanceShapes: 2,
+      nodeShapes: 0,
+      seamNodeShapes: 1,
+      wireShapes: 2,
+      textShapes: 0,
+      formulaShapes: 0,
+      glue: 4,
+    });
+    // A page with no Junction on it still needs the node master now.
+    expect(corner.masters.map((master) => master.name)).toEqual([
+      "Resistor",
+      "Wire",
+      "Node",
+    ]);
+    const seam = shapeXml(corner.body, 9);
+    expect(attribute(seam, "Master")).toBe("3");
+    // Invisible: the schematic draws no dot where a wire merely turns.
+    expect(cell(seam, "FillPattern")).toBe("0");
+    for (const axis of ["X", "Y"] as const) {
+      const at = Number(cell(seam, `Pin${axis}`));
+      expect(Number(cell(shapeXml(corner.body, 10), `End${axis}`))).toBe(at);
+      expect(Number(cell(shapeXml(corner.body, 11), `Begin${axis}`))).toBe(at);
+    }
+  });
+
+  it("glues both links to the seam node rather than to each other", () => {
+    // Visio glues a one-dimensional shape to a connection point, never to
+    // another wire. The node is what lets two links hold the same corner, and
+    // moving it moves both of them.
+    const connects = [...corner.body.matchAll(/<Connect [^>]*>/g)]
+      .map((match) => match[0])
+      .filter((connect) => attribute(connect, "ToSheet") === "9");
+    expect(
+      connects.map((connect) => [
+        attribute(connect, "FromSheet"),
+        attribute(connect, "FromPart"),
+        attribute(connect, "ToCell"),
+      ]),
+    ).toEqual([
+      ["10", "12", "Connections.Row_1.X"],
+      ["11", "9", "Connections.Row_1.X"],
+    ]);
+  });
+
+  it("gives every link of a Route the same Shape Data", () => {
+    for (const id of [10, 11]) {
+      expect(shapeXml(corner.body, id)).toContain(
+        '<Row N="IcmRouteId"><Cell N="Value" V="route-corner"',
+      );
+    }
   });
 });
 
@@ -634,6 +732,7 @@ describe("a document with nothing in it", () => {
     expect(empty.counts).toEqual({
       instanceShapes: 0,
       nodeShapes: 0,
+      seamNodeShapes: 0,
       wireShapes: 0,
       textShapes: 0,
       formulaShapes: 0,

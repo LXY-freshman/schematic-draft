@@ -5,13 +5,14 @@ import { describe, expect, it } from "vitest";
 
 import { buildVisioPage } from "./page.js";
 import { CONNECTION_GRID_INCHES } from "./units.js";
-import { wireShape } from "./wire.js";
 import { formatVisioNumber } from "./xml.js";
 
 const resolver = new InMemorySymbolResolver([]);
 
-/** One inch of page per eight document grid steps; a hop of 4 units is this. */
-const RADIUS_INCHES = (CONNECTION_GRID_INCHES / 10) * 4;
+/** Page inches for a length in document units. */
+function inches(units: number): string {
+  return formatVisioNumber((CONNECTION_GRID_INCHES / 10) * units);
+}
 
 /**
  * A horizontal wire on one Net crossed at (50, 0) by a vertical wire on
@@ -52,15 +53,19 @@ function crossingDocument(lineJump: boolean): SchematicDocument {
   return document;
 }
 
-/** The geometry rows of the one shape that has an arc in it. */
-function hoppedGeometry(body: string): string {
-  const shapes = body.split('<Shape ID="').filter((part) => part.includes("<"));
-  const hopped = shapes.filter((shape) => shape.includes("EllipticalArcTo"));
-  expect(hopped).toHaveLength(1);
-  return /<Section N="Geometry" IX="0">(.*?)<\/Section>/u.exec(hopped[0]!)![1]!;
+/** Every page shape, as its XML minus the `<Shape ID="` that opened it. */
+function shapeParts(body: string): string[] {
+  return body.split('<Shape ID="').slice(1);
 }
 
-function rows(geometry: string): string[] {
+function shapeId(part: string): number {
+  return Number(/^\d+/u.exec(part)![0]);
+}
+
+function rows(shape: string): string[] {
+  const geometry = /<Section N="Geometry" IX="0">(.*?)<\/Section>/u.exec(
+    shape,
+  )![1]!;
   return [...geometry.matchAll(/<Row [^>]*>.*?<\/Row>/gu)].map(
     (match) => match[0],
   );
@@ -68,89 +73,76 @@ function rows(geometry: string): string[] {
 
 describe("a wire that hops in Visio", () => {
   it("writes no arc for a Document that asked for none", () => {
-    const body = buildVisioPage(crossingDocument(false), resolver).body;
-    expect(body).not.toContain("EllipticalArcTo");
+    const built = buildVisioPage(crossingDocument(false), resolver);
+    expect(built.body).not.toContain("EllipticalArcTo");
+    // Two straight Routes, no corners: nothing is broken up that need not be.
+    expect(built.counts.wireShapes).toBe(2);
+    expect(built.counts.seamNodeShapes).toBe(0);
   });
 
-  it("bakes the hop into the wire's own geometry", () => {
-    const body = buildVisioPage(crossingDocument(true), resolver).body;
-    const drawn = rows(hoppedGeometry(body));
-    // Leave the line before the crossing, arc over it, carry on to the far end.
-    expect(drawn).toHaveLength(4);
-    const inches = (units: number) =>
-      formatVisioNumber((CONNECTION_GRID_INCHES / 10) * units);
-    expect(drawn[0]).toBe(
-      '<Row T="MoveTo" IX="1"><Cell N="X" V="0"/><Cell N="Y" V="0"/></Row>',
+  it("gives the hop a shape of its own inside the chain", () => {
+    const built = buildVisioPage(crossingDocument(true), resolver);
+    // The hopped Route becomes run, arc, run; the Route it hops over is still
+    // one piece. Two seam nodes hold the three links together.
+    expect(built.counts.wireShapes).toBe(4);
+    expect(built.counts.seamNodeShapes).toBe(2);
+    const arcs = shapeParts(built.body).filter((shape) =>
+      shape.includes("EllipticalArcTo"),
     );
-    expect(drawn[1]).toBe(
-      `<Row T="LineTo" IX="2"><Cell N="X" V="${inches(46)}"/><Cell N="Y" V="0"/></Row>`,
-    );
+    expect(arcs).toHaveLength(1);
     // A and B are a point the arc passes through, so the page frame's y-flip
     // needs no second handedness rule: up in the drawing is up on the page.
-    expect(drawn[2]).toBe(
-      `<Row T="EllipticalArcTo" IX="3">` +
-        `<Cell N="X" V="${inches(54)}"/><Cell N="Y" V="0"/>` +
-        `<Cell N="A" V="${inches(50)}"/><Cell N="B" V="${formatVisioNumber(RADIUS_INCHES)}"/>` +
+    // X and Y still track the frame, so a moved end drags the arc with it.
+    expect(rows(arcs[0]!)).toEqual([
+      '<Row T="MoveTo" IX="1"><Cell N="X" V="0"/><Cell N="Y" V="0"/></Row>',
+      `<Row T="EllipticalArcTo" IX="2">` +
+        `<Cell N="X" V="${inches(8)}" F="Width*1"/>` +
+        `<Cell N="Y" V="0" F="Height*1"/>` +
+        `<Cell N="A" V="${inches(4)}"/><Cell N="B" V="${inches(4)}"/>` +
         `<Cell N="C" V="0"/><Cell N="D" V="1"/>` +
         `</Row>`,
-    );
-    // The far end still tracks the shape, so gluing still drags the wire.
-    expect(drawn[3]).toBe(
-      `<Row T="LineTo" IX="4">` +
-        `<Cell N="X" V="${inches(100)}" F="Width*1"/>` +
-        `<Cell N="Y" V="0" F="Height*1"/>` +
-        `</Row>`,
-    );
-  });
-
-  it("leaves the wire it hops over, and every glue, alone", () => {
-    const body = buildVisioPage(crossingDocument(true), resolver).body;
-    const flat = body
-      .split('<Shape ID="')
-      .filter(
-        (shape) =>
-          shape.includes('<Row T="LineTo"') &&
-          !shape.includes("EllipticalArcTo"),
-      );
-    expect(flat).toHaveLength(1);
-    expect(buildVisioPage(crossingDocument(true), resolver).counts).toEqual(
-      buildVisioPage(crossingDocument(false), resolver).counts,
-    );
-  });
-
-  it("keeps a hop interior when one sits on a bend's segment", () => {
-    // wireShape is handed page points, so this states the row contract on its
-    // own: a hop never becomes the last row and never takes Width/Height away.
-    const shape = wireShape({
-      id: 9,
-      masterId: 2,
-      points: [
-        { x: 0, y: 0 },
-        { x: 1, y: 0 },
-        { x: 1, y: 1 },
-      ],
-      begin: undefined,
-      end: undefined,
-      jumps: [
-        {
-          segmentIndex: 1,
-          from: { x: 1, y: 0.4 },
-          through: { x: 1.05, y: 0.5 },
-          to: { x: 1, y: 0.6 },
-        },
-      ],
-      propertySection: "",
-    });
-    const drawn = rows(shape);
-    expect(drawn.map((row) => /T="([^"]+)"/u.exec(row)![1])).toEqual([
-      "MoveTo",
-      "LineTo",
-      "LineTo",
-      "EllipticalArcTo",
-      "LineTo",
     ]);
-    expect(drawn.at(-1)).toContain('F="Width*1"');
-    expect(drawn.at(-1)).toContain('F="Height*1"');
-    expect(drawn[1]).not.toContain("F=");
+    // The arc answers for the same Net as the runs either side of it, so
+    // clicking the hop in Visio names the wire it belongs to.
+    expect(arcs[0]).toContain(
+      '<Row N="IcmRouteId"><Cell N="Value" V="horizontal"',
+    );
+  });
+
+  it("holds the arc to its runs at both seams", () => {
+    const built = buildVisioPage(crossingDocument(true), resolver);
+    const connects = [...built.body.matchAll(/<Connect [^>]*>/gu)].map(
+      (match) => match[0],
+    );
+    const attribute = (connect: string, name: string): string =>
+      new RegExp(`${name}="([^"]*)"`, "u").exec(connect)![1]!;
+    const arc = shapeId(
+      shapeParts(built.body).find((shape) =>
+        shape.includes("EllipticalArcTo"),
+      )!,
+    );
+    // Both of the arc's ends are glued, and each seam node is held twice: once
+    // by the arc and once by the run beside it. Drag a seam in Visio and the
+    // hop travels with the wire instead of being left behind.
+    const arcEnds = connects.filter(
+      (connect) => Number(attribute(connect, "FromSheet")) === arc,
+    );
+    expect(arcEnds).toHaveLength(2);
+    for (const end of arcEnds) {
+      const seam = attribute(end, "ToSheet");
+      expect(
+        connects.filter((connect) => attribute(connect, "ToSheet") === seam),
+      ).toHaveLength(2);
+      expect(attribute(end, "ToCell")).toBe("Connections.Row_1.X");
+    }
+  });
+
+  it("leaves the wire it hops over alone", () => {
+    const built = buildVisioPage(crossingDocument(true), resolver);
+    const crossed = shapeParts(built.body).filter((shape) =>
+      shape.includes('<Cell N="Value" V="vertical"'),
+    );
+    expect(crossed).toHaveLength(1);
+    expect(crossed[0]).not.toContain("EllipticalArcTo");
   });
 });
