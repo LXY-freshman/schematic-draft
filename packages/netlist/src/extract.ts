@@ -1,6 +1,7 @@
 import {
   deriveStableId,
   foldNetName,
+  powerMarkerContract,
   projectCellInterface,
   routeEndpoints,
 } from "@icm/model";
@@ -239,12 +240,8 @@ function withNetlistPowerMarkerClaims(
   );
   const additions: ConnectivityEvidence[] = [];
   for (const instance of document.instances) {
-    const ground = instance.symbolId === "ground";
-    if (
-      (!ground && instance.symbolId !== "vdd-port") ||
-      claimedMarkers.has(instance.id)
-    )
-      continue;
+    const contract = powerMarkerContract(instance.symbolId);
+    if (!contract || claimedMarkers.has(instance.id)) continue;
     const pinName = deviceDescriptor(instance.symbolId)?.pinOrder[0];
     if (!pinName) continue;
     const nets = document.nets.filter((net) =>
@@ -271,9 +268,9 @@ function withNetlistPowerMarkerClaims(
       ),
       kind: "name-claim",
       netId: nets[0]!.id,
-      name: ground ? "0" : "VDD",
-      scope: "global",
-      powerDomain: ground ? "ground" : "vdd",
+      name: contract.name,
+      scope: contract.scope,
+      powerDomain: contract.domain,
       owner: { kind: "power-marker", objectId: instance.id },
     });
   }
@@ -1130,6 +1127,21 @@ function extractDeviceInstance(
         document.id,
         "INVALID_NET_MARKER",
         `VDD Port ${instance.id} must connect to an explicitly classified VDD Net`,
+        [instance.id, markerNet.id],
+      );
+    } else if (
+      // A dedicated analog or digital ground names its own rail, so there is
+      // no fixed node number to check it against. The one unambiguous mistake
+      // is landing it on a supply: refuse that rather than export a deck whose
+      // ground glyph sits on VDD.
+      powerMarkerContract(instance.symbolId)?.domain === "ground" &&
+      markerNet.powerDomain === "vdd"
+    ) {
+      diagnostic(
+        diagnostics,
+        document.id,
+        "INVALID_NET_MARKER",
+        `Ground marker ${instance.id} cannot connect to VDD Net ${markerNet.name}`,
         [instance.id, markerNet.id],
       );
     }

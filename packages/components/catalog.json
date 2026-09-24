@@ -88,9 +88,11 @@
     }
   ],
   "extendedEntries": [
+    "analog-ground",
     "depletion-nmos",
     "depletion-pmos",
     "dgan",
+    "digital-ground",
     "egan",
     "igbt",
     "ndmos",
@@ -113,6 +115,8 @@
     "egan",
     "dgan",
     "igbt",
+    "analog-ground",
+    "digital-ground",
     "diode",
     "zener-diode",
     "npn",

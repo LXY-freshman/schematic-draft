@@ -16,6 +16,7 @@ import { JunctionSchema, RouteBranchSchema } from "./routing.js";
 import { AnnotationSchema } from "./annotations.js";
 import { DraftingLayerSchema } from "./drafting.js";
 import { flattenRichText } from "../rich-text.js";
+import { isPowerMarkerSymbol } from "../power-marker.js";
 import { boundAnnotationSemanticText } from "./bound-annotation-text.js";
 import {
   LayoutConstraintSchema,
@@ -385,7 +386,7 @@ export const SchematicDocumentSchema = SchematicDocumentBaseSchema.superRefine(
         });
       }
       if (
-        (instance.symbolId === "ground" || instance.symbolId === "vdd-port") &&
+        isPowerMarkerSymbol(instance.symbolId) &&
         instance.reference !== undefined
       ) {
         context.addIssue({

@@ -6,6 +6,7 @@ import {
   EXTENDED_DEVICE_CATEGORY,
   HIGH_VOLTAGE_DEVICE_SUBCATEGORY,
   MOS_VARIANT_SUBCATEGORY,
+  SUPPLY_MARKER_SUBCATEGORY,
 } from "./expanded-device-catalog.js";
 import { razaviProductSymbols } from "./razavi-catalog.js";
 import { SymbolDefinitionSchema } from "./schema.js";
@@ -13,6 +14,11 @@ import { SymbolDefinitionSchema } from "./schema.js";
 describe("Extended Devices catalog", () => {
   it("keeps optional MOS families outside the Razavi authority boundary", () => {
     expect(expandedDeviceCatalogEntries).toEqual([
+      {
+        symbolId: "analog-ground",
+        category: EXTENDED_DEVICE_CATEGORY,
+        subcategory: SUPPLY_MARKER_SUBCATEGORY,
+      },
       {
         symbolId: "depletion-nmos",
         category: EXTENDED_DEVICE_CATEGORY,
@@ -27,6 +33,11 @@ describe("Extended Devices catalog", () => {
         symbolId: "dgan",
         category: EXTENDED_DEVICE_CATEGORY,
         subcategory: HIGH_VOLTAGE_DEVICE_SUBCATEGORY,
+      },
+      {
+        symbolId: "digital-ground",
+        category: EXTENDED_DEVICE_CATEGORY,
+        subcategory: SUPPLY_MARKER_SUBCATEGORY,
       },
       {
         symbolId: "egan",

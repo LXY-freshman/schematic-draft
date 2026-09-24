@@ -18,6 +18,8 @@ function referencePrefix(symbolId: string): string {
 
 /** Prefixes used only to allocate stable object IDs for schematic markers. */
 const instanceIdPrefixOverrides: Record<string, string> = {
+  "analog-ground": "AGND",
+  "digital-ground": "DGND",
   ground: "GND",
   port: "P",
   "port-filled": "P",

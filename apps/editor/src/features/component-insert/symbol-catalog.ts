@@ -75,6 +75,12 @@ export function symbolCategory(symbolId: string): string {
   ) {
     return "Transistors";
   }
+  // A dedicated analog or digital ground is placed alongside Ground and the
+  // VDD Power marker, not four sections below them. The catalog entry keeps
+  // saying `extended`: neither has Reference evidence.
+  if (["analog-ground", "digital-ground"].includes(symbolId)) {
+    return "Power and Ports";
+  }
   const expanded = expandedDeviceCatalogEntry(symbolId);
   if (expanded) return expanded.category;
   if (["nmos", "pmos", "npn", "pnp"].includes(symbolId)) {
@@ -178,8 +184,12 @@ const LIBRARY_DISPLAY_NAMES: Readonly<Record<string, string>> = {
 
 /** One line saying what an entry does, where the name alone leaves a doubt. */
 const LIBRARY_DESCRIPTIONS: Readonly<Record<string, string>> = {
+  "analog-ground":
+    "A separate analog ground rail named AGND, kept off SPICE node 0",
   "d-flip-flop-reset":
     "Rising-edge D flip-flop with an active-high asynchronous reset",
+  "digital-ground":
+    "A separate digital ground rail named DGND, kept off SPICE node 0",
   dgan: "Normally-on GaN HEMT: D/G/S, no body. Drawn and wired; a netlist needs a vendor subcircuit",
   egan: "Normally-off GaN HEMT: D/G/S, no body. Drawn and wired; a netlist needs a vendor subcircuit",
   igbt: "Insulated-gate bipolar transistor: C/G/E. Drawn and wired; a netlist needs a vendor subcircuit",
@@ -260,6 +270,8 @@ const SYMBOL_ORDER: readonly string[] = [
   "vdd-port",
   "vdd",
   "ground",
+  "analog-ground",
+  "digital-ground",
   // Signal-flow blocks in signal-chain order, not alphabetical.
   "adder",
   "multiplier",

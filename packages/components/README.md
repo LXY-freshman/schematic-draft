@@ -191,6 +191,21 @@ netlist reaches them by binding the Instance to an imported vendor `.subckt`,
 which extraction dispatches ahead of the device path. Unbound, extraction
 reports `NON_NETLISTABLE_DEVICE` rather than printing a card it cannot justify.
 
+`analog-ground` and `digital-ground` are dedicated ground rails in that same
+Extended Devices catalog, drawn as a filled and a hollow triangle so neither
+reads as the three-bar Ground. They are markers rather than devices:
+`deviceClass: "net-marker"` with a null reference prefix and
+`targetPolicy: "none"`, so one prints no card and takes no designator, and the
+Net name underneath it is its entire electrical content. Ground remains the one
+glyph that carries SPICE node `0`; these two are ordinary global rails whose
+`AGND` and `DGND` names are defaults rather than fixed node numbers, so each
+takes whatever ground-side name its Net already carries and a Net Label may
+name that rail something else.
+`packages/model/src/power-marker.ts` holds the table every layer reads — pin
+name, default Net name, domain, scope, and whether the marker is its domain's
+canonical node — and `packages/symbols/src/power-marker-contract.test.ts` gates
+that table against the definitions authored here.
+
 The catalog records only runtime electrical pin order and visual authority.
 It does not read or cite VSS/Visio. Historic VSS material is archival evidence
 outside this runtime contract and cannot determine geometry, typography, or

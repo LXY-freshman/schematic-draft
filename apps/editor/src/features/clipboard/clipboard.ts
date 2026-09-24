@@ -10,7 +10,6 @@ import {
   createRoutingOperationPlan,
   executeTransaction,
   gridAlignmentDiagnostics,
-  powerConnectionForSymbol,
   type OperationIdRemap,
   type RoutingOperationPlan,
 } from "@icm/edit-engine";
@@ -37,6 +36,7 @@ import type {
 import type { SymbolResolver } from "@icm/symbols";
 import {
   createRoutePath,
+  powerMarkerContract,
   rewriteRichTextPlainText,
   routeBends,
   routeEnd,
@@ -1374,12 +1374,17 @@ export function proposePaste(
         ? document.mosBulkDefaults?.nmosNetId
         : document.mosBulkDefaults?.pmosNetId;
     if (configured) continue;
-    const marker = clipboard.instances.find(
-      (instance) =>
-        powerConnectionForSymbol(instance.symbolId)?.domain === domain,
+    const markers = clipboard.instances.filter(
+      (instance) => powerMarkerContract(instance.symbolId)?.domain === domain,
     );
+    // Ground and VDD Power define the domain's node; a dedicated AGND/DGND
+    // rail supplies the body default only when neither was pasted with it.
+    const marker =
+      markers.find(
+        (instance) => powerMarkerContract(instance.symbolId)!.canonical,
+      ) ?? markers[0];
     const connection = marker
-      ? powerConnectionForSymbol(marker.symbolId)
+      ? powerMarkerContract(marker.symbolId)
       : undefined;
     const markerNet = connection
       ? clipboard.nets.find((net) =>

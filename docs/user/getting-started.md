@@ -72,6 +72,13 @@ is defined.
   reports them as non-netlistable unless you bind the instance to a `.subckt`
   you imported from the vendor, after which it prints as an ordinary subcircuit
   call.
+- **Power and Ports** gains two dedicated ground rails beside Ground: **AGND**,
+  a filled triangle, and **DGND**, a hollow one. Ground still carries SPICE node
+  `0`; these two are separate global rails, so a mixed-signal design can keep
+  its analog and digital returns apart on the drawing and in the netlist alike.
+  Like Ground, each one names its rail by being placed — `AGND` and `DGND` —
+  and a Net Label on the same Net names it something else if your house style
+  differs. Dropping either glyph on a supply is refused rather than exported.
 - Click to select, `Shift`/`Ctrl`-click to extend the selection, or drag blank
   canvas to box-select. Dragging one selected instance moves the whole
   selection atomically.
