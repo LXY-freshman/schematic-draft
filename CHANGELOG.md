@@ -12,6 +12,15 @@ hosted features some of them mention are gone.
 
 ### Added
 
+- **Separate analog and digital grounds.** **Power and Ports** now offers
+  **AGND** and **DGND** beside Ground, drawn as a filled and a hollow triangle
+  so no two of the three are mistaken for each other at a glance. Ground keeps
+  SPICE node `0` to itself; the new pair are ordinary global rails, which is
+  what a mixed-signal design wants when its analog return has to stay off the
+  digital one all the way through to the netlist — the deck declares each rail
+  `.global` and the markers themselves print nothing, because a ground glyph is
+  a name, not a device. Putting either one on a supply is refused rather than
+  exported, and Ground is still rejected anywhere other than node `0`.
 - **Three power switches join Transistors: E-GaN, D-GaN and IGBT.** The two GaN
   HEMTs are the normally-off and normally-on parts, drawn with D/G/S and no
   body lead — a GaN HEMT has no body diode, and the symbol does not pretend

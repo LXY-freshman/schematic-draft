@@ -1,5 +1,5 @@
 import { resolveDocumentLogicalNets } from "@icm/derived";
-import { deriveStableId } from "@icm/model";
+import { deriveStableId, powerMarkerContract } from "@icm/model";
 import type { ConnectivityEvidence, SchematicDocument } from "@icm/model";
 
 /**
@@ -25,8 +25,8 @@ export function missingPowerMarkerClaims(
   );
   const claims: ConnectivityEvidence[] = [];
   for (const instance of document.instances) {
-    if (instance.symbolId !== "ground" && instance.symbolId !== "vdd-port")
-      continue;
+    const contract = powerMarkerContract(instance.symbolId);
+    if (!contract) continue;
     if (
       document.netlist?.terminals.some((terminal) =>
         terminal.interfaceInstanceIds.includes(instance.id),
@@ -52,9 +52,10 @@ export function missingPowerMarkerClaims(
     if (logical.conflicts.length > 0) continue;
     let name = logical.name;
     let scope = logical.scope;
-    const ground = instance.symbolId === "ground";
+    const ground = contract.domain === "ground";
     if (
       ground &&
+      contract.canonical &&
       !name &&
       options.recoverImportedGround &&
       logical.powerDomain === "none" &&
@@ -65,13 +66,19 @@ export function missingPowerMarkerClaims(
           groundSources.has(evidence.sourceNetId),
       )
     ) {
-      name = "0";
-      scope = "global";
+      name = contract.name;
+      scope = contract.scope;
     }
     if (!name || !scope) continue;
+    // Ground owns SPICE node `0` itself, so a Ground marker on any other Net
+    // is a mistake rather than a rename. A dedicated AGND/DGND rail carries no
+    // such fixed node number: it takes whatever ground-side identity the Net
+    // already has.
     if (
       ground
-        ? name !== "0" || scope !== "global" || logical.powerDomain === "vdd"
+        ? logical.powerDomain === "vdd" ||
+          (contract.canonical &&
+            (name !== contract.name || scope !== contract.scope))
         : logical.powerDomain !== "vdd"
     )
       continue;
@@ -101,7 +108,7 @@ export function missingPowerMarkerClaims(
       netId: net.id,
       name,
       scope,
-      powerDomain: ground ? "ground" : "vdd",
+      powerDomain: contract.domain,
       owner: { kind: "power-marker", objectId: instance.id },
     });
   }

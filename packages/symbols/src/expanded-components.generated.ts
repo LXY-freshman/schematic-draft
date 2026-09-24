@@ -5,6 +5,42 @@ import type { ExpandedDeviceCatalogEntry } from "./expanded-device-catalog.js";
 export const expandedComponentSymbols: readonly SymbolDefinition[] = [
   {
     schemaVersion: 1,
+    id: "analog-ground",
+    name: "Analog Ground",
+    viewBox: { x: -12, y: -14, width: 24, height: 31 },
+    pins: [
+      {
+        name: "AGND",
+        role: "ground",
+        at: { x: 0, y: -10 },
+        direction: "north",
+        presentation: { visibility: "visible", leadLength: 10 },
+      },
+    ],
+    primitives: [
+      {
+        kind: "line",
+        from: { x: 0, y: -10 },
+        to: { x: 0, y: 0 },
+        style: { strokeRole: "normal", lineCap: "butt", lineJoin: "miter" },
+      },
+      {
+        kind: "polygon",
+        points: [
+          { x: -8, y: 0 },
+          { x: 8, y: 0 },
+          { x: 0, y: 12 },
+        ],
+        fill: "foreground",
+        stroke: "none",
+        part: "ground-plane",
+      },
+    ],
+    variants: [],
+    labelVisibility: "hidden",
+  },
+  {
+    schemaVersion: 1,
     id: "depletion-nmos",
     name: "Depletion NMOS",
     viewBox: { x: -24, y: -24, width: 48, height: 48 },
@@ -394,6 +430,43 @@ export const expandedComponentSymbols: readonly SymbolDefinition[] = [
       },
     ],
     variants: [],
+  },
+  {
+    schemaVersion: 1,
+    id: "digital-ground",
+    name: "Digital Ground",
+    viewBox: { x: -12, y: -14, width: 24, height: 31 },
+    pins: [
+      {
+        name: "DGND",
+        role: "ground",
+        at: { x: 0, y: -10 },
+        direction: "north",
+        presentation: { visibility: "visible", leadLength: 10 },
+      },
+    ],
+    primitives: [
+      {
+        kind: "line",
+        from: { x: 0, y: -10 },
+        to: { x: 0, y: 0 },
+        style: { strokeRole: "normal", lineCap: "butt", lineJoin: "miter" },
+      },
+      {
+        kind: "polygon",
+        points: [
+          { x: -8, y: 0 },
+          { x: 8, y: 0 },
+          { x: 0, y: 12 },
+        ],
+        fill: "none",
+        stroke: "foreground",
+        part: "ground-plane",
+        style: { strokeRole: "ground", lineCap: "butt", lineJoin: "miter" },
+      },
+    ],
+    variants: [],
+    labelVisibility: "hidden",
   },
   {
     schemaVersion: 1,
@@ -885,6 +958,11 @@ export const expandedComponentSymbols: readonly SymbolDefinition[] = [
 export const expandedComponentCatalogEntries: readonly ExpandedDeviceCatalogEntry[] =
   [
     {
+      symbolId: "analog-ground",
+      category: "Extended Devices",
+      subcategory: "Supply markers",
+    },
+    {
       symbolId: "depletion-nmos",
       category: "Extended Devices",
       subcategory: "MOS variants",
@@ -898,6 +976,11 @@ export const expandedComponentCatalogEntries: readonly ExpandedDeviceCatalogEntr
       symbolId: "dgan",
       category: "Extended Devices",
       subcategory: "High-voltage devices",
+    },
+    {
+      symbolId: "digital-ground",
+      category: "Extended Devices",
+      subcategory: "Supply markers",
     },
     {
       symbolId: "egan",

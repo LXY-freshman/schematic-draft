@@ -26,35 +26,13 @@ import type {
   ElectricalContactCandidate,
   ElectricalContactTarget,
 } from "@icm/derived";
-import { deriveStableId, routeEndpoints } from "@icm/model";
+import {
+  deriveStableId,
+  powerMarkerContract,
+  routeEndpoints,
+} from "@icm/model";
 import type { Instance, RouteEndpoint, SchematicDocument } from "@icm/model";
 import type { SymbolResolver } from "@icm/symbols";
-
-const POWER_CONNECTION_BY_SYMBOL = {
-  ground: {
-    name: "0",
-    pinName: "0",
-    domain: "ground",
-    scope: "global",
-  },
-  "vdd-port": {
-    name: "VDD",
-    pinName: "P",
-    domain: "vdd",
-    scope: "global",
-  },
-} as const;
-
-export type SymbolPowerConnection =
-  (typeof POWER_CONNECTION_BY_SYMBOL)[keyof typeof POWER_CONNECTION_BY_SYMBOL];
-
-export function powerConnectionForSymbol(
-  symbolId: string,
-): SymbolPowerConnection | undefined {
-  return POWER_CONNECTION_BY_SYMBOL[
-    symbolId as keyof typeof POWER_CONNECTION_BY_SYMBOL
-  ];
-}
 
 export interface PlacementContactProposal {
   edits: readonly SchematicEdit[];
@@ -360,9 +338,7 @@ export function proposePlacementContact(
   const power =
     options.mode === "move" || options.powerMarker === false
       ? undefined
-      : POWER_CONNECTION_BY_SYMBOL[
-          instance.symbolId as keyof typeof POWER_CONNECTION_BY_SYMBOL
-        ];
+      : powerMarkerContract(instance.symbolId);
   const edits: SchematicEdit[] = [];
   // Fold all contact membership edits through the transaction's own mutations
   // before compiling any split. Later contacts must see prior Net merges, but
@@ -501,10 +477,7 @@ export function proposedStandalonePowerConnection(
   document: SchematicDocument,
   instance: Instance,
 ): PlacementContactProposal {
-  const power =
-    POWER_CONNECTION_BY_SYMBOL[
-      instance.symbolId as keyof typeof POWER_CONNECTION_BY_SYMBOL
-    ];
+  const power = powerMarkerContract(instance.symbolId);
   if (!power) return { edits: [], matched: false, ambiguous: false };
   const endpoint: RouteEndpoint = {
     kind: "terminal",

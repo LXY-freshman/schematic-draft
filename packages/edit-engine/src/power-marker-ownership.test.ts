@@ -96,6 +96,63 @@ describe("power marker ownership across physical editing", () => {
     expect(missingPowerMarkerClaims(document)).toEqual([]);
   });
 
+  it("lets a dedicated rail own its ground name where Ground may not", () => {
+    const document = createEmptyDocument("rails", "Rails");
+    document.instances.push(
+      { id: "AGND1", symbolId: "analog-ground", placement: null },
+      { id: "GND1", symbolId: "ground", placement: null },
+    );
+    document.nets.push({
+      id: "net-agnd",
+      terminals: [
+        { instanceId: "AGND1", pinName: "AGND" },
+        { instanceId: "GND1", pinName: "0" },
+      ],
+    });
+    document.annotations.push({
+      id: "label-agnd",
+      kind: "power-label",
+      binding: { kind: "net-name", netId: "net-agnd" },
+      netId: "net-agnd",
+      anchor: { kind: "free", position: { x: 0, y: 0 } },
+      alignment: "start",
+      rotation: 0,
+      locked: false,
+    });
+    document.connectivityEvidence.push({
+      id: "claim-agnd",
+      kind: "name-claim",
+      netId: "net-agnd",
+      name: "AGND",
+      scope: "global",
+      powerDomain: "ground",
+      owner: { kind: "net-label", annotationId: "label-agnd" },
+    });
+
+    // AGND is an ordinary named rail, so its marker simply carries the name the
+    // Net already has. Ground carries SPICE node `0` instead, and a Ground
+    // marker on a Net named anything else is a mistake, not a rename.
+    expect(missingPowerMarkerClaims(document)).toEqual([
+      expect.objectContaining({
+        netId: "net-agnd",
+        name: "AGND",
+        scope: "global",
+        powerDomain: "ground",
+        owner: { kind: "power-marker", objectId: "AGND1" },
+      }),
+    ]);
+
+    // The one unambiguous mistake for either glyph is landing on a supply.
+    const supply = document.connectivityEvidence.find(
+      (evidence) => evidence.id === "claim-agnd",
+    )!;
+    if (supply.kind === "name-claim") {
+      supply.name = "VDD";
+      supply.powerDomain = "vdd";
+    }
+    expect(missingPowerMarkerClaims(document)).toEqual([]);
+  });
+
   it("keeps untouched ground branches logically joined but releases the actually cut pin", () => {
     const document = fixture();
     const before = structuredClone(document);

@@ -1,4 +1,9 @@
-import { flattenRichText, routeEnd, transformPoint } from "@icm/model";
+import {
+  flattenRichText,
+  powerMarkerContract,
+  routeEnd,
+  transformPoint,
+} from "@icm/model";
 import type { Point, Rect, RouteEndpoint, SchematicDocument } from "@icm/model";
 import { resolveAdaptiveSignalFlowBlockLayout } from "@icm/symbols";
 import type {
@@ -147,7 +152,7 @@ function samePoint(left: Point, right: Point): boolean {
 }
 
 function powerPinName(symbolId: string): string | undefined {
-  return symbolId === "vdd" ? "P" : symbolId === "ground" ? "0" : undefined;
+  return powerMarkerContract(symbolId)?.pinName;
 }
 
 function terminalSharesNet(

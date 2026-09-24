@@ -6,6 +6,7 @@ export * from "./geometry.js";
 export * from "./ids.js";
 export * from "./net-name.js";
 export * from "./orientation-reflect.js";
+export * from "./power-marker.js";
 export * from "./route-path.js";
 export * from "./rich-text.js";
 export * from "./semantic-text.js";

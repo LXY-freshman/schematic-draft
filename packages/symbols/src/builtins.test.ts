@@ -70,9 +70,11 @@ describe("built-in Symbol libraries", () => {
       PRODUCT_IDS,
     );
     expect(expandedDeviceSymbols.map((symbol) => symbol.id)).toEqual([
+      "analog-ground",
       "depletion-nmos",
       "depletion-pmos",
       "dgan",
+      "digital-ground",
       "egan",
       "igbt",
       "ndmos",

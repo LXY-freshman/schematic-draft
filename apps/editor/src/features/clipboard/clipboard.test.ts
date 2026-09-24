@@ -1,5 +1,10 @@
-import { createRoutePath, routeBends, routeEnd } from "@icm/model";
-import { executeTransaction, powerConnectionForSymbol } from "@icm/edit-engine";
+import {
+  createRoutePath,
+  powerMarkerContract,
+  routeBends,
+  routeEnd,
+} from "@icm/model";
+import { executeTransaction } from "@icm/edit-engine";
 import {
   resolveAnnotationText,
   resolveDocumentLogicalNets,
@@ -1591,10 +1596,9 @@ describe("captureDocumentComposition", () => {
     // body stays unresolved and the netlist cannot export the fourth node.
     const supplyNetId = (domain: "ground" | "vdd") => {
       const marker = fragment.instances.find(
-        (instance) =>
-          powerConnectionForSymbol(instance.symbolId)?.domain === domain,
+        (instance) => powerMarkerContract(instance.symbolId)?.domain === domain,
       )!;
-      const pinName = powerConnectionForSymbol(marker.symbolId)!.pinName;
+      const pinName = powerMarkerContract(marker.symbolId)!.pinName;
       const net = fragment.nets.find((candidate) =>
         candidate.terminals.some(
           (terminal) =>

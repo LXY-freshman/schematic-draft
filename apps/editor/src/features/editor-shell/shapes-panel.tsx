@@ -22,12 +22,14 @@ import {
  * dialog, where there is room to read it.
  */
 const COMPACT_LIBRARY_LABELS: Readonly<Record<string, string>> = {
+  "analog-ground": "AGND",
   capacitor: "Cap",
   "closed-switch": "Closed",
   "current-source": "I Src",
   "d-flip-flop": "DFF",
   "d-flip-flop-reset": "DFF R",
   "d-flip-flop-q": "DFQ",
+  "digital-ground": "DGND",
   "ideal-switch": "Open",
   "simple-switch": "Simple",
   "spdt-switch": "SPDT",

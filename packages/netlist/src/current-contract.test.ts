@@ -1971,3 +1971,93 @@ describe("drawing-only power switches", () => {
     );
   });
 });
+
+describe("dedicated analog and digital ground rails", () => {
+  function railProject(markers: readonly [string, string]) {
+    const project = createEmptyProject("project", "Project");
+    const document = project.documents[0]!;
+    document.instances.push(
+      {
+        id: "R1",
+        symbolId: "resistor",
+        placement: null,
+        reference: "R1",
+        netlist: {
+          binding: { kind: "primitive", deviceClass: "resistor" },
+          parameters: { value: "1k" },
+        },
+      },
+      ...markers.map((symbolId, index) => ({
+        id: `M${index}`,
+        symbolId,
+        placement: null,
+        netlist: { parameters: {} },
+      })),
+    );
+    markers.forEach((symbolId, index) => {
+      document.nets.push({
+        id: `net-${index}`,
+        terminals: [
+          { instanceId: "R1", pinName: index === 0 ? "1" : "2" },
+          {
+            instanceId: `M${index}`,
+            pinName:
+              symbolId === "ground"
+                ? "0"
+                : symbolId === "analog-ground"
+                  ? "AGND"
+                  : "DGND",
+          },
+        ],
+      });
+    });
+    return project;
+  }
+
+  // The marker is the whole electrical statement: an unnamed Net under an
+  // AGND glyph becomes the AGND rail, global so the same rail in a child Cell
+  // is the same rail, and the glyph itself still prints nothing.
+  it("names and globalizes its rail without printing a card", () => {
+    const analysis = analyzeDesignNetlist(
+      railProject(["analog-ground", "digital-ground"]),
+    );
+
+    expect(
+      analysis.diagnostics.filter(
+        (diagnostic) => diagnostic.severity === "error",
+      ),
+    ).toEqual([]);
+    const text = printSpiceNetlist(analysis.ir!);
+    expect(text).toContain(".global AGND DGND");
+    expect(text).toContain("R1 AGND DGND 1k");
+    expect(analysis.ir!.cells[0]!.instances.map((item) => item.id)).toEqual([
+      "R1",
+    ]);
+  });
+
+  // Separate rails are the point. Node 0 stays Ground's alone, so a resistor
+  // between Ground and AGND is a real two-node element rather than a short
+  // the extractor quietly collapses.
+  it("keeps AGND off SPICE node 0", () => {
+    const analysis = analyzeDesignNetlist(
+      railProject(["ground", "analog-ground"]),
+    );
+
+    expect(printSpiceNetlist(analysis.ir!)).toContain("R1 0 AGND 1k");
+  });
+
+  // A ground glyph sitting on a supply is the one unambiguous mistake these
+  // markers can make, and the deck must not be written as though it were fine.
+  it("refuses a ground marker on a VDD Net", () => {
+    const project = railProject(["analog-ground", "digital-ground"]);
+    const document = project.documents[0]!;
+    claimNet(document, "net-0", "VDD", "global", "vdd");
+
+    const analysis = analyzeDesignNetlist(project);
+
+    expect(analysis.diagnostics.map((diagnostic) => diagnostic.code)).toContain(
+      "INVALID_NET_MARKER",
+    );
+    expect(analysis.ir).toBeNull();
+  });
+});

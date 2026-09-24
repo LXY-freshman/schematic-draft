@@ -1,4 +1,5 @@
 import { createReferenceIndex, referenceIssuesForInstance } from "@icm/devices";
+import { isPowerMarkerSymbol } from "@icm/model";
 import type { SchematicDocument } from "@icm/model";
 
 import type { EditTransaction } from "./edit-schema.js";
@@ -201,7 +202,7 @@ export function applyInstanceNetlistEdit(
           ),
         };
       }
-      if (instance.symbolId === "ground" || instance.symbolId === "vdd-port") {
+      if (isPowerMarkerSymbol(instance.symbolId)) {
         return {
           ok: false,
           rejection: reject(

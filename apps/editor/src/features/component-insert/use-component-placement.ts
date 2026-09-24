@@ -28,7 +28,7 @@ import type {
   RouteEndpoint,
   SchematicDocument,
 } from "@icm/model";
-import { defaultDraftTextDocument } from "@icm/model";
+import { defaultDraftTextDocument, powerMarkerContract } from "@icm/model";
 import { hierarchicalSymbolId, type SymbolResolver } from "@icm/symbols";
 
 import type { ComponentInsertRequest } from "./component-insert-request";
@@ -38,7 +38,6 @@ import type {
   InsertScope,
 } from "./insert-launch";
 import {
-  powerConnectionForSymbol,
   proposePlacementContact,
   proposedStandalonePowerConnection,
   type PlacementContactProposal,
@@ -218,7 +217,7 @@ export function useComponentPlacement(options: UseComponentPlacementOptions) {
       return;
     }
     const powerNetId = standalonePower.powerNetId ?? contact.powerNetId;
-    const powerConnection = powerConnectionForSymbol(symbolId);
+    const powerConnection = powerMarkerContract(symbolId);
     const initialBulkDefaultEdits =
       powerConnection && powerNetId
         ? planInitialMosBulkDefault(
