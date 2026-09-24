@@ -1,10 +1,11 @@
 # Schematic Draft
 
 Schematic Draft is an offline, connectivity-aware schematic editor for analog
-circuits, packaged as a Windows desktop application. Draw and organize
-hierarchical circuits, import structural SPICE, and export deterministic
-SPICE/Spectre netlists and vector SVG/PDF — without your circuits ever leaving
-the machine.
+circuits, packaged as a Windows desktop application. Draw hierarchical circuits
+whose connectivity is an explicit fact rather than a guess about geometry, from
+a component library calibrated against a published reference, and take the
+result out as a deterministic SPICE or Spectre netlist, a publication-ready
+SVG/PDF/PNG, or a `.vsdx` you can go on editing in Visio.
 
 It is a fork of [Analog Canvas](https://github.com/cascode-ai/analog-canvas)
 (AGPL-3.0-only) with the hosted half removed: no accounts, no cloud projects, no
@@ -31,7 +32,8 @@ Both files are the same program; pick whichever suits you:
 
 Either way the program writes nothing outside its own folder except the per-user
 registry entries that let Explorer open a `.schdraft` file by double-click, which
-**Help → Open .schdraft Files With This Copy** turns off. Both copies can coexist;
+the **Open `.schdraft` files with this copy** checkbox in **Help → About**
+turns off. Both copies can coexist;
 they do not share data. The build is not code-signed, so Windows SmartScreen may
 warn about an unknown publisher — **More info → Run anyway**.
 
@@ -40,22 +42,43 @@ To build it yourself, see [Build it](#build-it).
 
 ## Highlights
 
-- **Connectivity-aware editing:** place devices, route wires, distinguish
-  Crossings from Junctions, label Nets, and make undoable multi-object edits
-  without treating drawing geometry as electrical truth.
-- **Reusable hierarchy:** author each schematic as a Cell, define independent
-  Cell Pins, place reusable hierarchical blocks, and navigate between callers
-  and child Cells.
-- **Real files:** **Open** and **Save As…** use the operating system's dialogs;
-  **Save** and Ctrl+S overwrite the file you opened, in place, without asking.
-  Import structural `.cir`, `.sp`, `.spi`, and `.scs` files, and export
-  deterministic structural SPICE or Spectre.
-- **Publication-ready output:** SVG and PDF exports stay vector graphics; PNG is
-  rendered at 3× raster scale. LaTeX formulas in rich-text annotations are
-  typeset locally.
-- **Offline by construction:** the Electron main process blocks every network
+- **Connectivity is an electrical fact, not a drawing accident.** Net
+  membership, Junctions, Cell terminals and typed Instance terminals are
+  recorded; geometry never silently creates a connection, and a Crossing is
+  never quietly promoted to a Junction. An ambiguous intersection is rejected
+  rather than guessed at. Every edit goes through one typed transaction, so
+  multi-object changes undo as one.
+- **Reusable hierarchy.** Author each schematic as a Cell, give it independent
+  Cell Pins, place it as a block inside another, and navigate between callers
+  and child Cells. The Cell interface is derived from the drawing, so a block's
+  pins cannot drift from what is inside it.
+- **A component library calibrated against a reference.** Built-in symbol
+  artwork is generated from a manifest of measurements taken from a published
+  analog-design text, which is the sole visual authority for it; parts with no
+  such evidence live in a separate Extended Devices library and say so. Each
+  component carries its symbol, its electrical rules and its catalog metadata
+  in one file.
+- **Deterministic netlists.** Export structural SPICE or Spectre — to the
+  clipboard or straight to a file — and get the same text for the same circuit
+  every time. Structural `.cir`, `.sp`, `.spi` and `.scs` import back in, and a
+  block can be bound to a `.subckt` you brought with you.
+- **Publication-ready drawings.** SVG and PDF stay vector; PNG renders at 3×.
+  LaTeX formulas in rich-text annotations are typeset locally, with no web font
+  and no service.
+- **A Visio file you can keep editing.** `.vsdx` export writes real Visio
+  shapes: devices carrying their reference, parameters and pins, and wires as
+  chains of segments glued to those pins and to a draggable node at every
+  corner. A `.vssx` stencil of the symbol library alone is there too. Whatever
+  the package could not carry is counted in the status line as the file is
+  written, not left for you to find later.
+- **Real files, plus a net underneath.** **Open** and **Save As…** use the
+  operating system's dialogs; **Save** and Ctrl+S overwrite the file you opened,
+  in place, without asking. Alongside that, a bounded crash-safety copy lives in
+  local storage — a net, never the authority.
+- **Offline by construction.** The Electron main process blocks every network
   request, serves the editor from a privileged local scheme, and hands an
-  external link to your system browser instead of loading it in-app.
+  external link to your system browser instead of loading it in-app. There is
+  no account to make and no telemetry to turn off.
 
 ## How your work is stored
 
@@ -136,6 +159,9 @@ warrants), and commit. There is no CI, no PR gate, and no deployment — see
   device facts, symbol semantics, and deterministic design-netlist export.
 - `packages/exporters/` and `packages/render-svg/`: formal SVG, PNG, and PDF
   output.
+- `packages/visio/`: `.vsdx` drawings and `.vssx` stencils — a sibling
+  projection of the document, not of the flat SVG scene, because Visio needs
+  shapes, pins and glue a picture no longer carries.
 - `packages/math-typesetting/`: bounded LaTeX formula typesetting for rich-text
   annotations.
 - `netlists/`: one circuit per directory, the SPICE import and export corpus.
