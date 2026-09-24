@@ -86,9 +86,15 @@ export function wireMaster(id: number, strokeInches: number): VisioMaster {
     `<Cell N="ObjType" V="1"/>` +
     `<Cell N="LineWeight" V="${formatVisioNumber(strokeInches)}" U="PT"/>` +
     `<Cell N="LineColor" V="0"/><Cell N="LinePattern" V="1"/><Cell N="Rounding" V="0"/>` +
-    // Visio has no butt cap; square ends the stroke at the endpoint too, and a
-    // wire meets a pin exactly on it.
-    `<Cell N="LineCap" V="1"/>` +
+    // Round, where a symbol's artwork is square. A wire is a chain, so every
+    // corner and every foot of a hop arc is two strokes meeting at an angle in
+    // separate shapes, with no line join between them to fill the outside of
+    // that angle. A cap that stops dead at the endpoint leaves a square hole
+    // there, half a line weight on a side. The round cap fills it, and it fills
+    // it at whatever weight the drawing is later set to. What it costs is half
+    // a line weight of overhang at the two ends of the whole wire, which is a
+    // hundredth of an inch, landing on the pin the wire is drawn to meet.
+    `<Cell N="LineCap" V="0"/>` +
     `<Cell N="BeginArrow" V="0"/><Cell N="EndArrow" V="0"/>` +
     `<Cell N="FillPattern" V="0"/><Cell N="ShdwPattern" V="0"/>` +
     `<Section N="Geometry" IX="0">` +

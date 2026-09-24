@@ -8,6 +8,20 @@ Entries at and below `0.9.2` are inherited from
 this application was forked from. They describe the shared editing core; the
 hosted features some of them mention are gone.
 
+## Unreleased
+
+### Fixed
+
+- **A wire in a Visio export no longer has a hole at every corner.** A Route
+  goes to Visio as a chain — one shape per straight run, one more for each hop
+  over a crossing — so that every corner is a handle a hand can reach. What the
+  chain also meant was two separate strokes meeting at each corner, with no
+  line join between them to fill the outside of the angle: the wire came apart
+  into a small square notch at every corner it turned, and at both feet of
+  every hop arc. Wires now cap round, which fills the notch at whatever line
+  weight the drawing is set to, and keeps filling it after the weight is
+  changed inside Visio.
+
 ## 1.3.1 — Within reach (2026-09-24)
 
 ### Added
