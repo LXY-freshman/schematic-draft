@@ -43,6 +43,29 @@ hosted features some of them mention are gone.
   merely undotted: a click there placed nothing and started no wire, because
   the layer the pointer draws on ended with the dots. Both now cover the whole
   canvas, and keep covering it while the window is resized.
+- **An IGBT's reference designator sits beside it, like every other
+  transistor's.** An IGBT is a MOS gate on a bipolar output, so its pins are a
+  gate with a collector and an emitter — neither of the two transistor shapes
+  the label placement knew, and a symbol it does not recognise gets its name
+  underneath. Underneath an IGBT is directly under the emitter lead, where `Q1`
+  reads as the name of whatever the emitter is wired to rather than of the
+  device. It is now labelled on its right side, where the MOS and BJT families
+  around it are.
+- **A four-terminal MOS keeps its polarity arrow beside the channel.**
+  Switching a MOSFET to the four-terminal variant used to carry the
+  transistor's only arrowhead out to the body pin, 24 units away: it read as a
+  mark on the bulk wire instead of as the device's polarity, and the channel it
+  left behind was bare. The arrow now stays where it states something, beside
+  the channel, and the body is one plain lead out to B — the simpler of the two
+  drawings the reference sheet shows side by side. The three-terminal default
+  is unchanged, so an existing schematic that uses it is drawn exactly as
+  before.
+- **The enhancement GaN HEMT has three channel segments.** An E-GaN is
+  normally off: it has no channel until the gate induces one, and the symbol
+  says so with three separated segments. Ours drew two, which is not the
+  convention for anything — it read as a depletion bar with a piece missing.
+  D-GaN keeps its continuous bar, correct for a normally-on device, so the two
+  symbols now differ by exactly the thing they exist to distinguish.
 
 ## 1.3.1 — Within reach (2026-09-24)
 
