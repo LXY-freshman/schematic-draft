@@ -9,8 +9,10 @@
 #   Schematic Draft/   ready-to-run program folder (schematic-draft.exe), which
 #                      also holds the Projects/ and AppData/ it writes, so the
 #                      whole folder can be moved or copied as one installation
-#   release/           the two published downloads: the same program folder as a
-#                      zip, and the per-user installer (installer needs Wine)
+#   release/           the downloadable forms of that folder: a zip of it and
+#                      the per-user installer (installer needs Wine). This
+#                      mirrors output/desktop/, which keeps every build ever
+#                      made, so past versions accumulate here too
 #   source/            the source tree (no node_modules, no dist)
 #   README.md          how to use, what is guaranteed, how to rebuild
 set -euo pipefail
@@ -77,8 +79,11 @@ fi
 mkdir -p "$program"
 cp -r output/desktop/win-unpacked/. "$program/"
 
-# The published downloads, side by side: the same program folder as a zip, and
-# the installer that lays it down with shortcuts.
+# The downloadable forms of that folder: a zip of it, and the installer that
+# lays it down with shortcuts. The globs mirror output/desktop/ rather than
+# picking out one version, and nothing prunes output/desktop/, so every build
+# still sitting there lands here -- deliberately, to keep the older downloads
+# reachable. Prune there, not here: clearing release/ is undone on the next run.
 rm -f "$target/release"/*.zip "$target/release"/*-setup.exe
 cp output/desktop/*-win-x64.zip "$target/release/"
 if [ -n "$installer" ]; then
