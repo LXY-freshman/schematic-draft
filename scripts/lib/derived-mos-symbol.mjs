@@ -61,6 +61,10 @@ export function deriveDepletionMosSymbol(base, id, name) {
   const upperY = Math.min(...branchYs);
   const lowerY = Math.max(...branchYs);
   const wireHalfWidth = 0.8;
+  // The branch ys are pixel-mapped, so the overhang lands a few ulps off a
+  // clean six-decimal coordinate. Symbol geometry is written as literal JSON,
+  // where that tail is what a reader sees; quantize it like the generators do.
+  const rounded = (value) => Math.round(value * 1_000_000) / 1_000_000;
   // One third of the way back from the NMOS arrow tail (x=1.27907) toward
   // the channel edge (x=-3.662791), matching the approved visual placement.
   const depletionChannelX = -0.368217;
@@ -72,8 +76,8 @@ export function deriveDepletionMosSymbol(base, id, name) {
       ...base.primitives,
       {
         kind: "line",
-        from: { x: depletionChannelX, y: upperY - wireHalfWidth },
-        to: { x: depletionChannelX, y: lowerY + wireHalfWidth },
+        from: { x: depletionChannelX, y: rounded(upperY - wireHalfWidth) },
+        to: { x: depletionChannelX, y: rounded(lowerY + wireHalfWidth) },
         part: "depletion-channel",
         style: {
           strokeRole: "normal",

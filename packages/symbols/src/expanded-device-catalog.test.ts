@@ -66,11 +66,15 @@ describe("Extended Devices catalog", () => {
   });
 
   it.each([
-    ["depletion-nmos", "Depletion NMOS", "nmos"],
-    ["depletion-pmos", "Depletion PMOS", "pmos"],
+    ["depletion-nmos", "Depletion NMOS", "nmos", -7.776744],
+    // The mark clears whichever channel lead it reaches, and the PMOS source
+    // lead is measured from its own screenshot panel: it sits 0.145 above the
+    // NMOS channel the rest of the body is drawn from, so the mark starts
+    // that much higher.
+    ["depletion-pmos", "Depletion PMOS", "pmos", -7.922093],
   ] as const)(
     "keeps %s identical to %s except for one wire-width depletion channel",
-    (id, name, baseId) => {
+    (id, name, baseId, topY) => {
       const symbol = expandedDeviceSymbols.find(
         (candidate) => candidate.id === id,
       );
@@ -89,7 +93,7 @@ describe("Extended Devices catalog", () => {
       expect(symbol?.variants).toEqual(base?.variants);
       expect(symbol?.primitives.at(-1)).toMatchObject({
         kind: "line",
-        from: { x: -0.368217, y: -7.776744 },
+        from: { x: -0.368217, y: topY },
         to: { x: -0.368217, y: 7.776744 },
         part: "depletion-channel",
         style: { strokeRole: "normal", lineCap: "butt" },
@@ -115,7 +119,7 @@ describe("Extended Devices catalog", () => {
           {
             id: "standard-3terminal",
             hiddenPinNames: ["B"],
-            hiddenPrimitiveParts: ["bulk-lead", "source-arrow-host"],
+            hiddenPrimitiveParts: ["bulk-lead"],
           },
           // B is a terminal in both drawings; this one simply draws its lead.
           { id: "four-terminal", hiddenPinNames: [] },

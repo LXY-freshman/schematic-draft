@@ -88,29 +88,6 @@
         }
       },
       {
-        "kind": "polyline",
-        "points": [
-          {
-            "x": -4.244186,
-            "y": -6.976744
-          },
-          {
-            "x": 10,
-            "y": -6.976744
-          },
-          {
-            "x": 10,
-            "y": -20
-          }
-        ],
-        "part": "source-arrow-host",
-        "style": {
-          "strokeRole": "normal",
-          "lineCap": "butt",
-          "lineJoin": "miter"
-        }
-      },
-      {
         "kind": "polygon",
         "points": [
           {
@@ -175,16 +152,22 @@
         }
       },
       {
-        "kind": "line",
-        "from": {
-          "x": -3.662791,
-          "y": 0
-        },
-        "to": {
-          "x": 13.604651,
-          "y": 0
-        },
-        "part": "bulk-lead",
+        "kind": "polyline",
+        "points": [
+          {
+            "x": 5.639535,
+            "y": -7.122093
+          },
+          {
+            "x": 10,
+            "y": -7.122093
+          },
+          {
+            "x": 10,
+            "y": -20
+          }
+        ],
+        "part": "source-arrow",
         "style": {
           "strokeRole": "normal",
           "lineCap": "butt",
@@ -195,27 +178,44 @@
         "kind": "polygon",
         "points": [
           {
-            "x": 20,
-            "y": 0
+            "x": -3.662791,
+            "y": -7.122093
           },
           {
-            "x": 13.604651,
-            "y": -3.77907
+            "x": 5.639535,
+            "y": -11.19186
           },
           {
-            "x": 13.604651,
-            "y": 3.77907
+            "x": 5.639535,
+            "y": -3.052326
           }
         ],
         "fill": "foreground",
         "stroke": "none",
-        "part": "bulk-lead"
+        "part": "source-arrow"
+      },
+      {
+        "kind": "line",
+        "from": {
+          "x": -3.662791,
+          "y": 0
+        },
+        "to": {
+          "x": 20,
+          "y": 0
+        },
+        "part": "bulk-lead",
+        "style": {
+          "strokeRole": "normal",
+          "lineCap": "butt",
+          "lineJoin": "miter"
+        }
       },
       {
         "kind": "line",
         "from": {
           "x": -0.368217,
-          "y": -7.776744
+          "y": -7.922093
         },
         "to": {
           "x": -0.368217,
@@ -250,52 +250,7 @@
             }
           }
         ],
-        "hiddenPrimitiveParts": ["bulk-lead", "source-arrow-host"],
-        "additionalPrimitives": [
-          {
-            "kind": "polyline",
-            "points": [
-              {
-                "x": 5.639535,
-                "y": -7.122093
-              },
-              {
-                "x": 10,
-                "y": -7.122093
-              },
-              {
-                "x": 10,
-                "y": -20
-              }
-            ],
-            "part": "source-arrow",
-            "style": {
-              "strokeRole": "normal",
-              "lineCap": "butt",
-              "lineJoin": "miter"
-            }
-          },
-          {
-            "kind": "polygon",
-            "points": [
-              {
-                "x": -3.662791,
-                "y": -7.122093
-              },
-              {
-                "x": 5.639535,
-                "y": -11.19186
-              },
-              {
-                "x": 5.639535,
-                "y": -3.052326
-              }
-            ],
-            "fill": "foreground",
-            "stroke": "none",
-            "part": "source-arrow"
-          }
-        ]
+        "hiddenPrimitiveParts": ["bulk-lead"]
       },
       {
         "id": "four-terminal",

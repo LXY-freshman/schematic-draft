@@ -181,7 +181,13 @@ describe("one-file component library", () => {
   });
 
   it("derives depletion MOS devices by adding only one wire-width channel mark", async () => {
-    for (const id of ["depletion-nmos", "depletion-pmos"]) {
+    // The mark clears whichever channel lead it reaches. The PMOS source lead
+    // is measured from its own screenshot panel and sits 0.145 above the NMOS
+    // channel the rest of the body is drawn from, so its mark starts higher.
+    for (const [id, topY] of [
+      ["depletion-nmos", -7.776744],
+      ["depletion-pmos", -7.922093],
+    ]) {
       const derived = await component(id);
       const base = await component(derived.catalog.derivedFrom);
       expect(
@@ -193,7 +199,7 @@ describe("one-file component library", () => {
       );
       expect(derived.symbol.primitives.at(-1)).toMatchObject({
         kind: "line",
-        from: { x: -0.368217, y: -7.776744 },
+        from: { x: -0.368217, y: topY },
         to: { x: -0.368217, y: 7.776744 },
         part: "depletion-channel",
         style: { strokeRole: "normal", lineCap: "butt" },
