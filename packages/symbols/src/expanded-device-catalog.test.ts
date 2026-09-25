@@ -101,6 +101,42 @@ describe("Extended Devices catalog", () => {
     },
   );
 
+  it("splits the enhancement GaN channel into three segments and leaves the depletion one whole", () => {
+    const channelOf = (id: "egan" | "dgan", part: string) =>
+      expandedDeviceSymbols
+        .find((candidate) => candidate.id === id)
+        ?.primitives.filter(
+          (primitive) => primitive.kind === "line" && primitive.part === part,
+        );
+
+    // An enhancement device has no channel until the gate induces one, which
+    // is what the three separated segments say; a depletion device conducts
+    // at zero bias and gets the continuous bar below. The two GaN symbols are
+    // otherwise the same drawing, so this is the whole distinction.
+    expect(channelOf("egan", "channel-segment")).toEqual([
+      expect.objectContaining({
+        from: { x: -6, y: -13.5 },
+        to: { x: -6, y: -6.5 },
+      }),
+      expect.objectContaining({
+        from: { x: -6, y: -3.5 },
+        to: { x: -6, y: 3.5 },
+      }),
+      expect.objectContaining({
+        from: { x: -6, y: 6.5 },
+        to: { x: -6, y: 13.5 },
+      }),
+    ]);
+    expect(channelOf("egan", "channel-bar")).toEqual([]);
+    expect(channelOf("dgan", "channel-bar")).toEqual([
+      expect.objectContaining({
+        from: { x: -6, y: -14 },
+        to: { x: -6, y: 14 },
+      }),
+    ]);
+    expect(channelOf("dgan", "channel-segment")).toEqual([]);
+  });
+
   it.each([
     ["ndmos", "N-channel DMOS"],
     ["pdmos", "P-channel DMOS"],
