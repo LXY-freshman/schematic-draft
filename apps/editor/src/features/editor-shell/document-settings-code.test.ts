@@ -31,6 +31,7 @@ function editableValue(): DocumentSettingsCodeValue {
       symbolStrokeScale: 1,
       annotationStrokeScale: 1,
       junctionRadiusScale: 1,
+      lineJumpRadiusScale: 1,
     },
     bulkDefaults: { nmosNet: null, pmosNet: null },
     canvas: { ...canvas },
@@ -148,7 +149,7 @@ describe("document Style code", () => {
     const source = serializeDocumentSettingsCode(editableValue());
     const spans = documentSettingsCodeSpans(source, document);
 
-    expect(spans).toHaveLength(12);
+    expect(spans).toHaveLength(13);
     expect(
       spans.find((span) => span.field.path === "appearance.fontScale")?.field
         .options,

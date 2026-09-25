@@ -1738,6 +1738,7 @@ test("changes wire line style while preserving color, arrow, export and undo", a
     lineStyle: "solid",
     directionArrow: "none",
     lineJump: false,
+    strokeScale: 1,
   });
   await editComponentPropertyCode(page, (code) => {
     code.appearance = {
@@ -1745,6 +1746,7 @@ test("changes wire line style while preserving color, arrow, export and undo", a
       lineStyle: "dashed",
       directionArrow: "end",
       lineJump: false,
+      strokeScale: 1,
     };
   });
   await expect(conductor).toHaveAttribute("stroke-dasharray", "6 4");
@@ -2773,6 +2775,7 @@ test("applies Route name, scope, and appearance from one JSON edit", async ({
       lineStyle: "solid",
       directionArrow: "none",
       lineJump: false,
+      strokeScale: 1,
     },
   });
   const revision = Number(await page.getByTestId("revision").textContent());
@@ -2783,6 +2786,7 @@ test("applies Route name, scope, and appearance from one JSON edit", async ({
       lineStyle: "dotted",
       directionArrow: "end",
       lineJump: false,
+      strokeScale: 1,
     };
   });
   await expect(page.getByTestId("revision")).toHaveText(String(revision + 1));
@@ -2812,6 +2816,7 @@ test("applies Route name, scope, and appearance from one JSON edit", async ({
       lineStyle: "solid",
       directionArrow: "none",
       lineJump: false,
+      strokeScale: 1,
     },
   });
 });
@@ -2860,6 +2865,7 @@ test("names and restyles a wire from the Route form, and the JSON agrees", async
       lineStyle: "dotted",
       directionArrow: "end",
       lineJump: false,
+      strokeScale: 1,
     },
   });
   const saved = JSON.parse((await projectFileBytes(page)).toString("utf8"));
@@ -2953,6 +2959,60 @@ test("hops a marked wire over the wire it crosses, and nothing else", async ({
       (route: { id: string }) => route.id === "route-ui-1",
     ).styleOverride ?? null,
   ).toBe(null);
+});
+
+test("resizes every hop in the document from one Style knob", async ({
+  page,
+}) => {
+  await page.goto("/editor");
+  await page.getByTestId("project-file").setInputFiles({
+    name: "routing-example.icproj.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(createRoutingDemoProject())),
+  });
+  await clickDrawTool(page, "wire");
+  await page.getByTestId("terminal-A-P").click();
+  await page.getByTestId("terminal-B-P").click();
+  await clickDrawTool(page, "wire");
+  await page.getByTestId("terminal-C-P").click();
+  await page.getByTestId("terminal-D-P").click();
+  await page.keyboard.press("Escape");
+
+  await clickRoute(page, "route-ui-1", 0.25);
+  await openSelectionShelf(page);
+  await page
+    .getByRole("complementary", { name: "Properties" })
+    .getByRole("button", { name: "Hop over crossings" })
+    .click();
+  const hopped = page.locator(
+    '[data-layer="routes"] path[data-object-id="route-ui-1"]',
+  );
+  // "A <rx> <ry>" is the arc's radius in Document units, so the drawn hop can
+  // be read straight off the path the canvas renders.
+  const drawnRadius = async () =>
+    Number(/ A (\d+(?:\.\d+)?) /u.exec((await hopped.getAttribute("d"))!)![1]);
+  expect(await drawnRadius()).toBe(4);
+
+  await clickDrawTool(page, "document-style");
+  const settings = page.getByLabel("Document settings");
+  await settings.getByLabel("Line jump size options").selectOption("1.5");
+  await expect(page.getByTestId("status")).toContainText("Updated Style code");
+  expect(await drawnRadius()).toBe(6);
+
+  // The knob belongs to the document, so it is saved with it and nothing about
+  // the wire's own override changes.
+  const saved = JSON.parse((await projectFileBytes(page)).toString("utf8"));
+  expect(saved.documents[0].presentation.styleOverrides).toEqual({
+    lineJumpRadiusScale: 1.5,
+  });
+  expect(
+    saved.documents[0].routes.find(
+      (route: { id: string }) => route.id === "route-ui-1",
+    ).styleOverride,
+  ).toEqual({ lineJump: true });
+
+  await settings.getByRole("button", { name: "Defaults", exact: true }).click();
+  expect(await drawnRadius()).toBe(4);
 });
 
 test("edits instance, electrical Net, and free text with bounded label handles", async ({
@@ -5243,8 +5303,9 @@ test("docked Style JSON offers bounded choices, scales fonts, and resets appeara
   await expect(
     settings.getByLabel("Editable document Style code"),
   ).toBeVisible();
-  await expect(settings.locator(".cm-netlist-target-select")).toHaveCount(12);
+  await expect(settings.locator(".cm-netlist-target-select")).toHaveCount(13);
   await expect(settings.getByLabel("Font size options")).toBeVisible();
+  await expect(settings.getByLabel("Line jump size options")).toBeVisible();
   await expect(
     settings.getByLabel("Default NMOS bulk Net options"),
   ).toBeVisible();

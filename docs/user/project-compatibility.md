@@ -1,6 +1,6 @@
 # Project File Compatibility
 
-The current Project schema version is `59`. It retains schematic-only
+The current Project schema version is `60`. It retains schematic-only
 hierarchy integrity, a Project structural revision, stable formal Cell ports,
 and definition-level Cell symbol presentation. It also has one typed Instance
 netlist authority, formal Cell parameters, and Project-local external
@@ -77,7 +77,7 @@ arrowheads, dots, no head, and legacy open arrowheads. Unset ends preserve the
 previous head style, placement, and scale; v54 content changes only its stamp.
 These additions do not invent intent while upgrading an older Project.
 The original file is never overwritten silently. Schemas older than v24 and
-versions newer than v59 are rejected by the project-file boundary.
+versions newer than v60 are rejected by the project-file boundary.
 
 Simulation setups and folders (v37 through v50 above) are still read, upgraded,
 and written back unchanged. This edition has no simulator, so nothing acts on
@@ -144,3 +144,16 @@ Saving in 1.3.1 stamps every Project schema 59, and older builds reject a
 schema newer than the one they know — this is true whether or not the drawing
 actually sets a thickness. Keep a copy of anything that has to stay readable
 by an older installation.
+
+Schema 60 adds an optional `presentation.styleOverrides.lineJumpRadiusScale`
+to each document — a factor between 0.5 and 2 over the 4-unit radius a line
+jump is drawn with, alongside the five appearance factors already there. It is
+appearance only: a wider hop crosses the same wires without connecting to them
+and changes no netlist output. The schema 59 upgrade changes only the version
+stamp, so a Project opened from an older file hops exactly as wide as it did
+before.
+
+**A Project stamped schema 60 cannot be opened by 1.3.1 or earlier.** Older
+builds reject a schema newer than the one they know — this is true whether or
+not the drawing sets a jump size. Keep a copy of anything that has to stay
+readable by an older installation.

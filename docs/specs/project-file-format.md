@@ -2,7 +2,7 @@
 
 Status: `accepted`
 
-Project schema: `59`
+Project schema: `60`
 
 Primary owners: `packages/model` (current shape) and
 `packages/project-protocol` (file boundary)
@@ -14,9 +14,9 @@ portable interchange name `.icproj.json` — what the browser build downloads an
 what this repository's fixtures and examples use — is the same bytes and opens
 the same way, as do `.icproj` (what earlier builds saved) and a plain `.json`
 file. Nothing in the format depends on the
-name. The current-only model validates schema 59. The public `parseProject`
-boundary accepts schemas 24 through 59, runs the explicit contiguous upgrade
-chain, and returns only the current shape. Serialization writes only schema 59.
+name. The current-only model validates schema 60. The public `parseProject`
+boundary accepts schemas 24 through 60, runs the explicit contiguous upgrade
+chain, and returns only the current shape. Serialization writes only schema 60.
 Versions outside that range are rejected.
 
 [The loader](../../packages/project-protocol/src/load.ts) and its adjacent
@@ -135,8 +135,8 @@ an unsolicited bulk conversion of other files or recovery data.
 ## Read and write
 
 ```text
-import text -> parse JSON -> require Project schema 24 through 59
--> converge to schema 59 -> strict schema-59 validation -> install unbound
+import text -> parse JSON -> require Project schema 24 through 60
+-> converge to schema 60 -> strict schema-60 validation -> install unbound
 save -> strict validation -> canonical key ordering -> bytes handed to the shell
 ```
 
@@ -160,7 +160,7 @@ recovery remain exact.
 Canonical serialization ends with one newline and is byte-stable across
 serialize/parse/serialize. The current corpus is listed in
 `fixtures/projects/compatibility-corpus.json`; its `current` entries must all be
-already canonical Project schema 59. Explicit `migrated` witnesses retain their
+already canonical Project schema 60. Explicit `migrated` witnesses retain their
 source bytes and declared source version; loading and saving must produce a
 byte-stable current Project. The rejected corpus names expected validation
 failures. These are test inventory categories, not new Project fields.

@@ -32,7 +32,10 @@ describe("schematic style profiles", () => {
     expect(strokeWidthForRole(razaviTextbookProfile, "normal")).toBe(1.6);
     expect(strokeWidthForRole(razaviTextbookProfile, "emphasis")).toBe(2.4);
     expect(strokeWidthForRole(razaviTextbookProfile, "ground")).toBe(2.906977);
-    expect(razaviTextbookProfile.nodes).toEqual({ junctionRadius: 3.77907 });
+    expect(razaviTextbookProfile.nodes).toEqual({
+      junctionRadius: 3.77907,
+      lineJumpRadius: 4,
+    });
     expect(razaviTextbookProfile.annotations).toEqual({
       supplyBarWidth: 20,
       currentArrowLength: 53.488372,
@@ -74,6 +77,7 @@ describe("resolveDocumentStyleProfile", () => {
         symbolStrokeScale: 0.5,
         annotationStrokeScale: 1.25,
         junctionRadiusScale: 2,
+        lineJumpRadiusScale: 0.5,
       }),
     );
     expect(profile.typography.annotationFontSize).toBeCloseTo(
@@ -97,6 +101,9 @@ describe("resolveDocumentStyleProfile", () => {
     expect(profile.nodes.junctionRadius).toBeCloseTo(
       razaviTextbookProfile.nodes.junctionRadius * 2,
     );
+    expect(profile.nodes.lineJumpRadius).toBeCloseTo(
+      razaviTextbookProfile.nodes.lineJumpRadius * 0.5,
+    );
     // Untouched families keep their base values.
     expect(profile.typography.subscriptScale).toBe(
       razaviTextbookProfile.typography.subscriptScale,
@@ -110,6 +117,24 @@ describe("resolveDocumentStyleProfile", () => {
     expect(profile.nodes.junctionRadius).toBe(
       razaviTextbookProfile.nodes.junctionRadius,
     );
+    expect(profile.nodes.lineJumpRadius).toBe(
+      razaviTextbookProfile.nodes.lineJumpRadius,
+    );
+  });
+
+  // The hop has to stay narrower than a grid step and wider than the Wire it
+  // interrupts, or it stops reading as a hop. Those bounds are what makes the
+  // shared 0.5-2 range safe for this knob.
+  it("keeps the scaled hop between the Wire stroke and one grid step", () => {
+    for (const lineJumpRadiusScale of [0.5, 2]) {
+      const { lineJumpRadius } = resolveDocumentStyleProfile(
+        presentation({ lineJumpRadiusScale }),
+      ).nodes;
+      expect(lineJumpRadius).toBeGreaterThan(
+        razaviTextbookProfile.strokes.wire,
+      );
+      expect(lineJumpRadius).toBeLessThan(10);
+    }
   });
 
   it("stays referentially stable for one persisted overrides object", () => {

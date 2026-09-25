@@ -94,4 +94,19 @@ describe("route line jumps in the formal scene", () => {
     }).formalBody;
     expect(shared).toBe(buildSvgScene(doc, resolver).formalBody);
   });
+
+  it.each([0.5, 1.5, 2])(
+    "draws the hop at the document's %sx line-jump radius",
+    (scale) => {
+      const doc = crossingDocument({ lineJump: true });
+      doc.presentation.styleOverrides = { lineJumpRadiusScale: scale };
+      const radius = ROUTE_LINE_JUMP_RADIUS * scale;
+      const conductor = buildSvgScene(doc, resolver).formalBody.match(
+        /<path data-object-id="horizontal"[^>]*\/>/u,
+      )![0];
+      expect(conductor).toContain(
+        `d="M 0 0 L ${50 - radius} 0 A ${radius} ${radius} 0 0 1 ${50 + radius} 0 L 100 0"`,
+      );
+    },
+  );
 });

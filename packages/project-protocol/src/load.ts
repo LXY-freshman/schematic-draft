@@ -51,6 +51,7 @@ import { upgradeSchema55To56 } from "./transforms/route-line-style.js";
 import { upgradeSchema56To57 } from "./transforms/power-rail-terminals.js";
 import { upgradeSchema57To58 } from "./transforms/route-line-jump.js";
 import { upgradeSchema58To59 } from "./transforms/per-object-stroke-scale.js";
+import { upgradeSchema59To60 } from "./transforms/line-jump-radius-scale.js";
 
 /**
  * One upgrade step per historical version, oldest first: entry N carries a
@@ -96,6 +97,7 @@ const UPGRADE_CHAIN: ReadonlyArray<
   upgradeSchema56To57,
   upgradeSchema57To58,
   upgradeSchema58To59,
+  upgradeSchema59To60,
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {

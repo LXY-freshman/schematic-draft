@@ -145,4 +145,19 @@ describe("a wire that hops in Visio", () => {
     expect(crossed).toHaveLength(1);
     expect(crossed[0]).not.toContain("EllipticalArcTo");
   });
+
+  // Visio bakes the hop into exported geometry, so a Document that widened its
+  // jumps has to arrive in Visio at the width it was drawn at on the canvas.
+  it("bakes the document's line-jump radius into the arc", () => {
+    const document = crossingDocument(true);
+    document.presentation.styleOverrides = { lineJumpRadiusScale: 1.5 };
+    const built = buildVisioPage(document, resolver);
+    const arc = shapeParts(built.body).find((shape) =>
+      shape.includes("EllipticalArcTo"),
+    )!;
+    expect(rows(arc)[1]).toContain(
+      `<Cell N="A" V="${inches(6)}"/><Cell N="B" V="${inches(6)}"/>`,
+    );
+    expect(rows(arc)[1]).toContain(`<Cell N="X" V="${inches(12)}"`);
+  });
 });

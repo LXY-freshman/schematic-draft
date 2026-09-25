@@ -27,9 +27,11 @@ import {
 } from "./segment-geometry.js";
 
 /**
- * Arc radius in Document units. Smaller than a grid step (10) so a hop stays
- * inside the cell it happens in, and larger than the Wire stroke (1.6) so it
- * reads as a hop rather than a thickening.
+ * Default arc radius in Document units. Smaller than a grid step (10) so a hop
+ * stays inside the cell it happens in, and larger than the Wire stroke (1.6) so
+ * it reads as a hop rather than a thickening. A Document may scale it through
+ * `styleOverrides.lineJumpRadiusScale`, whose 0.5–2 range keeps both bounds:
+ * the smallest hop is 2 and the largest 8.
  */
 export const ROUTE_LINE_JUMP_RADIUS = 4;
 
@@ -58,6 +60,12 @@ export interface RouteLineJumpOptions {
   routingGeometry?: ResolvedDocumentRoutingGeometry;
   /** Crossings already derived from the same geometry. */
   crossings?: readonly Crossing[];
+  /**
+   * Arc radius, normally the resolved profile's `nodes.lineJumpRadius`. A
+   * larger radius needs more straight Wire around a crossing, so raising it
+   * silently drops the hops that no longer fit; that is the same rule a
+   * crossing near a bend has always been held to, not a new one.
+   */
   radius?: number;
 }
 

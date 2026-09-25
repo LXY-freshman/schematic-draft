@@ -93,7 +93,7 @@ async function shell() {
   return { handle, request, post, dialogs, requested, workspace };
 }
 
-const PROJECT_TEXT = '{"schemaVersion":59,"name":"Low-pass filter"}';
+const PROJECT_TEXT = '{"schemaVersion":60,"name":"Low-pass filter"}';
 
 describe("desktop app protocol", () => {
   it("serves the editor with a hash-based CSP and a SPA fallback", async () => {

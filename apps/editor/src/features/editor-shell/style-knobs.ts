@@ -11,7 +11,7 @@ export interface StyleKnob {
   description: string;
 }
 
-/** The five document knobs, in display order. */
+/** The six document knobs, in display order. */
 export const STYLE_KNOBS: readonly StyleKnob[] = [
   {
     key: "fontScale",
@@ -37,6 +37,11 @@ export const STYLE_KNOBS: readonly StyleKnob[] = [
     key: "junctionRadiusScale",
     label: "Junction dot size",
     description: "Connection dot radius",
+  },
+  {
+    key: "lineJumpRadiusScale",
+    label: "Line jump size",
+    description: "Hop radius where a wire crosses without connecting",
   },
 ];
 
@@ -68,5 +73,6 @@ export function styleOverrideDraft(
     symbolStrokeScale: overrides?.symbolStrokeScale ?? 1,
     annotationStrokeScale: overrides?.annotationStrokeScale ?? 1,
     junctionRadiusScale: overrides?.junctionRadiusScale ?? 1,
+    lineJumpRadiusScale: overrides?.lineJumpRadiusScale ?? 1,
   };
 }
