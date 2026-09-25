@@ -8,7 +8,7 @@ Entries at and below `0.9.2` are inherited from
 this application was forked from. They describe the shared editing core; the
 hosted features some of them mention are gone.
 
-## Unreleased
+## 1.3.2 — Right on the page (2026-09-25)
 
 ### Added
 
@@ -25,6 +25,10 @@ hosted features some of them mention are gone.
   crossing, so at the larger sizes a crossing that sits close to a corner is
   drawn flat instead of distorted — the same rule that has always decided
   whether a hop fits.
+  **This changes the Project file.** A Project that sets a line jump size is
+  written at schema 60 and **Schematic Draft 1.3.1 will refuse to open it**.
+  Files that leave the size alone are unaffected and open in either version,
+  and 1.3.2 opens everything older as before.
 
 ### Fixed
 
