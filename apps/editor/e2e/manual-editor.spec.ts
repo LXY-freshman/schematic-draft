@@ -1738,6 +1738,7 @@ test("changes wire line style while preserving color, arrow, export and undo", a
     lineStyle: "solid",
     directionArrow: "none",
     lineJump: false,
+    strokeScale: 1,
   });
   await editComponentPropertyCode(page, (code) => {
     code.appearance = {
@@ -1745,6 +1746,7 @@ test("changes wire line style while preserving color, arrow, export and undo", a
       lineStyle: "dashed",
       directionArrow: "end",
       lineJump: false,
+      strokeScale: 1,
     };
   });
   await expect(conductor).toHaveAttribute("stroke-dasharray", "6 4");
@@ -2773,6 +2775,7 @@ test("applies Route name, scope, and appearance from one JSON edit", async ({
       lineStyle: "solid",
       directionArrow: "none",
       lineJump: false,
+      strokeScale: 1,
     },
   });
   const revision = Number(await page.getByTestId("revision").textContent());
@@ -2783,6 +2786,7 @@ test("applies Route name, scope, and appearance from one JSON edit", async ({
       lineStyle: "dotted",
       directionArrow: "end",
       lineJump: false,
+      strokeScale: 1,
     };
   });
   await expect(page.getByTestId("revision")).toHaveText(String(revision + 1));
@@ -2812,6 +2816,7 @@ test("applies Route name, scope, and appearance from one JSON edit", async ({
       lineStyle: "solid",
       directionArrow: "none",
       lineJump: false,
+      strokeScale: 1,
     },
   });
 });
@@ -2860,6 +2865,7 @@ test("names and restyles a wire from the Route form, and the JSON agrees", async
       lineStyle: "dotted",
       directionArrow: "end",
       lineJump: false,
+      strokeScale: 1,
     },
   });
   const saved = JSON.parse((await projectFileBytes(page)).toString("utf8"));
