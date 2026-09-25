@@ -9,8 +9,9 @@ SVG/PDF/PNG, or a `.vsdx` you can go on editing in Visio.
 
 It is a fork of [Analog Canvas](https://github.com/cascode-ai/analog-canvas)
 (AGPL-3.0-only) with the hosted half removed: no accounts, no cloud projects, no
-Gallery, no Agent API, no analytics, no simulation service. The desktop shell
-refuses every outbound request, so "offline" is enforced rather than promised.
+hosted Gallery, no Agent API, no analytics, no simulation service. The desktop
+shell refuses every outbound request, so "offline" is enforced rather than
+promised.
 
 [Download](#download) · [Documentation](docs/README.md) · [中文说明](apps/desktop/README.md) · [Upstream project](https://github.com/cascode-ai/analog-canvas)
 
@@ -57,20 +58,38 @@ To build it yourself, see [Build it](#build-it).
   analog-design text, which is the sole visual authority for it; parts with no
   such evidence live in a separate Extended Devices library and say so. Each
   component carries its symbol, its electrical rules and its catalog metadata
-  in one file.
+  in one file. Transistors holds the MOS and BJT pairs with the depletion-mode
+  and DMOS variants, two GaN HEMTs and an IGBT beside them; Power and Ports
+  keeps Ground, a dedicated analog and digital ground, and supply rails. Five
+  worked circuits ship in the toolbar's Gallery panel — starter Projects inside
+  the application, nothing fetched.
 - **Deterministic netlists.** Export structural SPICE or Spectre — to the
   clipboard or straight to a file — and get the same text for the same circuit
   every time. Structural `.cir`, `.sp`, `.spi` and `.scs` import back in, and a
-  block can be bound to a `.subckt` you brought with you.
+  block can be bound to a `.subckt` you brought with you. A part no standard
+  SPICE card describes — a GaN HEMT, an IGBT — is reported as non-netlistable
+  rather than dressed up as a MOSFET and handed silicon model parameters; bind
+  it to a vendor `.subckt` and it prints as an ordinary subcircuit call.
+- **The drawing is yours to set for the page it goes on.** Six document-wide
+  factors — font size, wire, symbol and drawing thickness, junction dot size,
+  and line jump size — scale between half and twice the size the drawing was
+  tuned at, and the set is one copyable Style code that carries to the next
+  document. Over that, any one wire or component takes its own colour and its
+  own stroke weight, from a quarter to four times. A MOSFET can be drawn three-
+  or four-terminal without the device changing underneath it, a wire can be told
+  to hop over the wires it crosses, and the background grid can mark every
+  seventh dot so a distance is read rather than counted.
 - **Publication-ready drawings.** SVG and PDF stay vector; PNG renders at 3×.
   LaTeX formulas in rich-text annotations are typeset locally, with no web font
   and no service.
 - **A Visio file you can keep editing.** `.vsdx` export writes real Visio
   shapes: devices carrying their reference, parameters and pins, and wires as
   chains of segments glued to those pins and to a draggable node at every
-  corner. A `.vssx` stencil of the symbol library alone is there too. Whatever
-  the package could not carry is counted in the status line as the file is
-  written, not left for you to find later.
+  corner. Each hop over a crossing is a link in that chain rather than geometry
+  baked into the wire, so it can be selected, moved or deleted on its own. A
+  `.vssx` stencil of the symbol library alone is there too. Whatever the
+  package could not carry is counted in the status line as the file is written,
+  not left for you to find later.
 - **Real files, plus a net underneath.** **Open** and **Save As…** use the
   operating system's dialogs; **Save** and Ctrl+S overwrite the file you opened,
   in place, without asking. Alongside that, a bounded crash-safety copy lives in
