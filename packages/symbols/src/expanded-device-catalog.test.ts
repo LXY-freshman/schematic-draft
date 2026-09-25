@@ -66,11 +66,15 @@ describe("Extended Devices catalog", () => {
   });
 
   it.each([
-    ["depletion-nmos", "Depletion NMOS", "nmos"],
-    ["depletion-pmos", "Depletion PMOS", "pmos"],
+    ["depletion-nmos", "Depletion NMOS", "nmos", -7.776744],
+    // The mark clears whichever channel lead it reaches, and the PMOS source
+    // lead is measured from its own screenshot panel: it sits 0.145 above the
+    // NMOS channel the rest of the body is drawn from, so the mark starts
+    // that much higher.
+    ["depletion-pmos", "Depletion PMOS", "pmos", -7.922093],
   ] as const)(
     "keeps %s identical to %s except for one wire-width depletion channel",
-    (id, name, baseId) => {
+    (id, name, baseId, topY) => {
       const symbol = expandedDeviceSymbols.find(
         (candidate) => candidate.id === id,
       );
@@ -89,13 +93,49 @@ describe("Extended Devices catalog", () => {
       expect(symbol?.variants).toEqual(base?.variants);
       expect(symbol?.primitives.at(-1)).toMatchObject({
         kind: "line",
-        from: { x: -0.368217, y: -7.776744 },
+        from: { x: -0.368217, y: topY },
         to: { x: -0.368217, y: 7.776744 },
         part: "depletion-channel",
         style: { strokeRole: "normal", lineCap: "butt" },
       });
     },
   );
+
+  it("splits the enhancement GaN channel into three segments and leaves the depletion one whole", () => {
+    const channelOf = (id: "egan" | "dgan", part: string) =>
+      expandedDeviceSymbols
+        .find((candidate) => candidate.id === id)
+        ?.primitives.filter(
+          (primitive) => primitive.kind === "line" && primitive.part === part,
+        );
+
+    // An enhancement device has no channel until the gate induces one, which
+    // is what the three separated segments say; a depletion device conducts
+    // at zero bias and gets the continuous bar below. The two GaN symbols are
+    // otherwise the same drawing, so this is the whole distinction.
+    expect(channelOf("egan", "channel-segment")).toEqual([
+      expect.objectContaining({
+        from: { x: -6, y: -13.5 },
+        to: { x: -6, y: -6.5 },
+      }),
+      expect.objectContaining({
+        from: { x: -6, y: -3.5 },
+        to: { x: -6, y: 3.5 },
+      }),
+      expect.objectContaining({
+        from: { x: -6, y: 6.5 },
+        to: { x: -6, y: 13.5 },
+      }),
+    ]);
+    expect(channelOf("egan", "channel-bar")).toEqual([]);
+    expect(channelOf("dgan", "channel-bar")).toEqual([
+      expect.objectContaining({
+        from: { x: -6, y: -14 },
+        to: { x: -6, y: 14 },
+      }),
+    ]);
+    expect(channelOf("dgan", "channel-segment")).toEqual([]);
+  });
 
   it.each([
     ["ndmos", "N-channel DMOS"],
@@ -115,7 +155,7 @@ describe("Extended Devices catalog", () => {
           {
             id: "standard-3terminal",
             hiddenPinNames: ["B"],
-            hiddenPrimitiveParts: ["bulk-lead", "source-arrow-host"],
+            hiddenPrimitiveParts: ["bulk-lead"],
           },
           // B is a terminal in both drawings; this one simply draws its lead.
           { id: "four-terminal", hiddenPinNames: [] },

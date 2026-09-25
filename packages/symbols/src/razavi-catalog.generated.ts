@@ -991,7 +991,7 @@ export const razaviSymbolCatalogEntries: readonly RazaviSymbolCatalogEntry[] = [
     automaticMappings: ["spice:M:nmos", "pdk:model-type:nmos"],
     assetPath: "nmos.json",
     assetHash:
-      "0341a2d4c4b7db8256fc40e0e50f338f72078009f095f33bcd3b44fc9ae6d6a0",
+      "7e624cf3eb57d36ffeca3b8ad72d0cfe55867eb77f41ef1d5edaff8cb7da025c",
   },
   {
     symbolId: "nor-gate",
@@ -1507,7 +1507,7 @@ export const razaviSymbolCatalogEntries: readonly RazaviSymbolCatalogEntry[] = [
     automaticMappings: ["spice:M:pmos", "pdk:model-type:pmos"],
     assetPath: "pmos.json",
     assetHash:
-      "0be494471aa6cbd4c09728276f23d00aca5b1887e675db8dcdb33d54355e800d",
+      "fd016698aca5decce2a1a27fe0e0fe471476570fd9fc9fceaf39b1bc8a3b7fa6",
   },
   {
     symbolId: "pnp",
@@ -6569,29 +6569,6 @@ export const razaviCatalogSymbols: readonly SymbolDefinition[] = [
         },
       },
       {
-        kind: "polyline",
-        points: [
-          {
-            x: -4.244186,
-            y: 6.976744,
-          },
-          {
-            x: 10,
-            y: 6.976744,
-          },
-          {
-            x: 10,
-            y: 20,
-          },
-        ],
-        part: "source-arrow-host",
-        style: {
-          strokeRole: "normal",
-          lineCap: "butt",
-          lineJoin: "miter",
-        },
-      },
-      {
         kind: "polygon",
         points: [
           {
@@ -6656,16 +6633,22 @@ export const razaviCatalogSymbols: readonly SymbolDefinition[] = [
         },
       },
       {
-        kind: "line",
-        from: {
-          x: -3.662791,
-          y: 0,
-        },
-        to: {
-          x: 10,
-          y: 0,
-        },
-        part: "bulk-lead",
+        kind: "polyline",
+        points: [
+          {
+            x: -3.662791,
+            y: 6.976744,
+          },
+          {
+            x: 10,
+            y: 6.976744,
+          },
+          {
+            x: 10,
+            y: 20,
+          },
+        ],
+        part: "source-arrow",
         style: {
           strokeRole: "normal",
           lineCap: "butt",
@@ -6673,9 +6656,29 @@ export const razaviCatalogSymbols: readonly SymbolDefinition[] = [
         },
       },
       {
+        kind: "polygon",
+        points: [
+          {
+            x: 10.581395,
+            y: 6.976744,
+          },
+          {
+            x: 1.27907,
+            y: 2.906977,
+          },
+          {
+            x: 1.27907,
+            y: 11.046512,
+          },
+        ],
+        fill: "foreground",
+        stroke: "none",
+        part: "source-arrow",
+      },
+      {
         kind: "line",
         from: {
-          x: 16.395349,
+          x: -3.662791,
           y: 0,
         },
         to: {
@@ -6688,26 +6691,6 @@ export const razaviCatalogSymbols: readonly SymbolDefinition[] = [
           lineCap: "butt",
           lineJoin: "miter",
         },
-      },
-      {
-        kind: "polygon",
-        points: [
-          {
-            x: 10,
-            y: 0,
-          },
-          {
-            x: 16.395349,
-            y: -3.488372,
-          },
-          {
-            x: 16.395349,
-            y: 3.488372,
-          },
-        ],
-        fill: "foreground",
-        stroke: "none",
-        part: "bulk-lead",
       },
     ],
     variants: [
@@ -6731,52 +6714,7 @@ export const razaviCatalogSymbols: readonly SymbolDefinition[] = [
             },
           },
         ],
-        hiddenPrimitiveParts: ["bulk-lead", "source-arrow-host"],
-        additionalPrimitives: [
-          {
-            kind: "polyline",
-            points: [
-              {
-                x: -3.662791,
-                y: 6.976744,
-              },
-              {
-                x: 10,
-                y: 6.976744,
-              },
-              {
-                x: 10,
-                y: 20,
-              },
-            ],
-            part: "source-arrow",
-            style: {
-              strokeRole: "normal",
-              lineCap: "butt",
-              lineJoin: "miter",
-            },
-          },
-          {
-            kind: "polygon",
-            points: [
-              {
-                x: 10.581395,
-                y: 6.976744,
-              },
-              {
-                x: 1.27907,
-                y: 2.906977,
-              },
-              {
-                x: 1.27907,
-                y: 11.046512,
-              },
-            ],
-            fill: "foreground",
-            stroke: "none",
-            part: "source-arrow",
-          },
-        ],
+        hiddenPrimitiveParts: ["bulk-lead"],
       },
       {
         id: "four-terminal",
@@ -10058,29 +9996,6 @@ export const razaviCatalogSymbols: readonly SymbolDefinition[] = [
         },
       },
       {
-        kind: "polyline",
-        points: [
-          {
-            x: -4.244186,
-            y: -6.976744,
-          },
-          {
-            x: 10,
-            y: -6.976744,
-          },
-          {
-            x: 10,
-            y: -20,
-          },
-        ],
-        part: "source-arrow-host",
-        style: {
-          strokeRole: "normal",
-          lineCap: "butt",
-          lineJoin: "miter",
-        },
-      },
-      {
         kind: "polygon",
         points: [
           {
@@ -10145,16 +10060,22 @@ export const razaviCatalogSymbols: readonly SymbolDefinition[] = [
         },
       },
       {
-        kind: "line",
-        from: {
-          x: -3.662791,
-          y: 0,
-        },
-        to: {
-          x: 13.604651,
-          y: 0,
-        },
-        part: "bulk-lead",
+        kind: "polyline",
+        points: [
+          {
+            x: 5.639535,
+            y: -7.122093,
+          },
+          {
+            x: 10,
+            y: -7.122093,
+          },
+          {
+            x: 10,
+            y: -20,
+          },
+        ],
+        part: "source-arrow",
         style: {
           strokeRole: "normal",
           lineCap: "butt",
@@ -10165,21 +10086,38 @@ export const razaviCatalogSymbols: readonly SymbolDefinition[] = [
         kind: "polygon",
         points: [
           {
-            x: 20,
-            y: 0,
+            x: -3.662791,
+            y: -7.122093,
           },
           {
-            x: 13.604651,
-            y: -3.77907,
+            x: 5.639535,
+            y: -11.19186,
           },
           {
-            x: 13.604651,
-            y: 3.77907,
+            x: 5.639535,
+            y: -3.052326,
           },
         ],
         fill: "foreground",
         stroke: "none",
+        part: "source-arrow",
+      },
+      {
+        kind: "line",
+        from: {
+          x: -3.662791,
+          y: 0,
+        },
+        to: {
+          x: 20,
+          y: 0,
+        },
         part: "bulk-lead",
+        style: {
+          strokeRole: "normal",
+          lineCap: "butt",
+          lineJoin: "miter",
+        },
       },
     ],
     variants: [
@@ -10203,52 +10141,7 @@ export const razaviCatalogSymbols: readonly SymbolDefinition[] = [
             },
           },
         ],
-        hiddenPrimitiveParts: ["bulk-lead", "source-arrow-host"],
-        additionalPrimitives: [
-          {
-            kind: "polyline",
-            points: [
-              {
-                x: 5.639535,
-                y: -7.122093,
-              },
-              {
-                x: 10,
-                y: -7.122093,
-              },
-              {
-                x: 10,
-                y: -20,
-              },
-            ],
-            part: "source-arrow",
-            style: {
-              strokeRole: "normal",
-              lineCap: "butt",
-              lineJoin: "miter",
-            },
-          },
-          {
-            kind: "polygon",
-            points: [
-              {
-                x: -3.662791,
-                y: -7.122093,
-              },
-              {
-                x: 5.639535,
-                y: -11.19186,
-              },
-              {
-                x: 5.639535,
-                y: -3.052326,
-              },
-            ],
-            fill: "foreground",
-            stroke: "none",
-            part: "source-arrow",
-          },
-        ],
+        hiddenPrimitiveParts: ["bulk-lead"],
       },
       {
         id: "four-terminal",

@@ -6,6 +6,7 @@ import {
   defaultInstanceLabelPlacement,
   hasDifferentialInputs,
   isBjtSymbol,
+  isIgbtSymbol,
   isMosSymbol,
 } from "./instance-label-placement.js";
 import type { InstanceLabelSlot } from "./instance-label-placement.js";
@@ -106,6 +107,29 @@ describe("instance label placement", () => {
       defaultInstanceLabelPlacement(instance, resolved, profile, 10)!.position
         .y,
     ).toBeGreaterThan(instance.placement.position.y);
+  });
+
+  it("names an IGBT beside it, not under its emitter lead", () => {
+    const resolved = resolver.resolve("igbt");
+    if (!resolved) throw new Error("missing igbt");
+
+    // A gate on a bipolar output answers to neither transistor predicate, and
+    // a symbol that answers to none of them falls through to the label under
+    // the symbol — where the name reads as belonging to whatever the emitter
+    // is wired to rather than to the device.
+    expect(isIgbtSymbol(resolved)).toBe(true);
+    expect(isMosSymbol(resolved)).toBe(false);
+    expect(isBjtSymbol(resolved)).toBe(false);
+
+    const bounds = visibleSymbolInkBounds(resolved);
+    const label = placedDefaultLabel("igbt");
+    expect(label).toMatchObject({
+      alignment: "start",
+      position: {
+        x: Math.round((100 + bounds.x + bounds.width + 10) / 10) * 10,
+      },
+    });
+    expect(label.position.y).toBeLessThan(100 + bounds.y + bounds.height);
   });
 
   it("places passive, source, and Port labels on their semantic sides", () => {

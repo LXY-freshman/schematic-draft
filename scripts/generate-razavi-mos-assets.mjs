@@ -112,23 +112,23 @@ function rectangleFromPixels(measurement, rectangle, part) {
   };
 }
 
-function arrowFromPixels(measurement, arrow, part) {
-  return [
-    ...(arrow.supports ?? [arrow.support]).map((support) =>
-      lineFromPixels(measurement, support, part),
-    ),
-    {
-      kind: "polygon",
-      points: [
-        logicalPoint(measurement, arrow.tip),
-        logicalPoint(measurement, arrow.baseTop),
-        logicalPoint(measurement, arrow.baseBottom),
-      ],
-      fill: "foreground",
-      stroke: "none",
-      ...(part ? { part } : {}),
-    },
-  ];
+/**
+ * Plain body lead: one straight stroke from the channel edge the reference
+ * measured to the B pin. The reference also draws a body arrowhead out by the
+ * pin, but a four-terminal MOS then carries its only triangle far from the
+ * channel, which reads as an annotation on the wire rather than as the
+ * device's polarity. The source arrow beside the channel already states the
+ * polarity, so the body stays an unmarked terminal.
+ */
+function bulkLeadPrimitive(measurement) {
+  const extension = measurement.bulkExtensionPx;
+  const support = (extension.supports ?? [extension.support])[0];
+  if (!support) fail("the body extension has no measured support segment");
+  return lineFromPixels(
+    measurement,
+    { from: support.from, to: measurement.pinsPx.B },
+    "bulk-lead",
+  );
 }
 
 function sourceArrowPrimitives(measurement, polarity) {
@@ -185,23 +185,13 @@ function pins(measurement, polarity, threeTerminal) {
     });
 }
 
-function basePrimitives(measurement, polarity, threeTerminal) {
-  const sourceChannel = polarity === "nmos" ? "lower" : "upper";
+function basePrimitives(measurement, polarity) {
   const otherChannel = polarity === "nmos" ? "upper" : "lower";
   return [
     channelLeadPolylineFromPixels(
       measurement,
       measurement.channelsPx[otherChannel],
     ),
-    ...(!threeTerminal
-      ? [
-          channelLeadPolylineFromPixels(
-            measurement,
-            measurement.channelsPx[sourceChannel],
-            "source-arrow-host",
-          ),
-        ]
-      : []),
     ...measurement.gateBarsPx.map((rectangle) =>
       rectangleFromPixels(measurement, rectangle, "gate-bar"),
     ),
@@ -245,14 +235,11 @@ function viewBoxFor(symbol) {
 
 function symbol(polarity, measurement, threeTerminal, bodyMeasurement) {
   const id = `${polarity}${threeTerminal ? "3" : ""}`;
-  const primitives = basePrimitives(bodyMeasurement, polarity, threeTerminal);
-  if (threeTerminal) {
-    primitives.push(...sourceArrowPrimitives(measurement, polarity));
-  } else {
-    primitives.push(
-      ...arrowFromPixels(measurement, measurement.bulkExtensionPx, "bulk-lead"),
-    );
-  }
+  const primitives = basePrimitives(bodyMeasurement, polarity);
+  // The source arrow is the device, not a variant of it: both drawings show
+  // it, so it belongs to the body rather than to whichever variant is active.
+  primitives.push(...sourceArrowPrimitives(measurement, polarity));
+  if (!threeTerminal) primitives.push(bulkLeadPrimitive(measurement));
   const result = {
     schemaVersion: 1,
     id,
@@ -279,12 +266,11 @@ function symbol(polarity, measurement, threeTerminal, bodyMeasurement) {
                 },
               },
             ],
-            hiddenPrimitiveParts: ["bulk-lead", "source-arrow-host"],
-            additionalPrimitives: sourceArrowPrimitives(measurement, polarity),
+            hiddenPrimitiveParts: ["bulk-lead"],
           },
-          // The calibrated artwork drawn whole: the bulk lead the reference
-          // shows, with no pin hidden. B is a terminal in both drawings, so
-          // this changes what is drawn and nothing electrical.
+          // The same transistor with its body terminal drawn: one lead more,
+          // and no pin hidden. B is a terminal in both drawings, so this
+          // changes what is drawn and nothing electrical.
           {
             id: "four-terminal",
             hiddenPinNames: [],

@@ -18,6 +18,7 @@ import {
   razaviSymbolCatalogIdentity,
 } from "./razavi-catalog.js";
 import { SymbolDefinitionSchema } from "./schema.js";
+import type { SymbolPrimitive } from "./schema.js";
 
 const assetRoot = resolve(process.cwd(), "packages/components/definitions");
 const mosGeometry = JSON.parse(
@@ -54,6 +55,16 @@ const mosGeometry = JSON.parse(
           to: { x: number; y: number };
         }
       >;
+      pinsPx: Record<"D" | "G" | "S" | "B", { x: number; y: number }>;
+      bulkExtensionPx: {
+        supports: Array<{
+          from: { x: number; y: number };
+          to: { x: number; y: number };
+        }>;
+        tip: { x: number; y: number };
+        baseTop: { x: number; y: number };
+        baseBottom: { x: number; y: number };
+      };
       sourceArrowPx: {
         support: {
           from: { x: number; y: number };
@@ -133,13 +144,23 @@ const logicalPoint = (
     ) / 1_000_000,
 });
 
-const canonicalMosBodyPrimitives = (symbolId: "nmos" | "pmos") =>
-  requireRazaviCatalogSymbol(symbolId)
-    .primitives.filter((primitive) => primitive.part !== "bulk-lead")
-    .map(({ part: _part, ...primitive }) => primitive)
-    .sort((left, right) =>
-      JSON.stringify(left).localeCompare(JSON.stringify(right)),
-    );
+// The source arrow is the one lead measured from each polarity's own panel;
+// everything else in the body comes from the NMOS pixel map.
+const mosBodyPrimitives = (symbolId: "nmos" | "pmos") =>
+  requireRazaviCatalogSymbol(symbolId).primitives.filter(
+    (primitive) => primitive.part !== "source-arrow",
+  );
+
+const mirroredAcrossTheGate = (primitive: SymbolPrimitive): SymbolPrimitive =>
+  primitive.kind === "polyline"
+    ? {
+        ...primitive,
+        points: primitive.points.map((point) => ({
+          ...point,
+          y: point.y === 0 ? 0 : -point.y,
+        })),
+      }
+    : primitive;
 
 describe("Razavi symbol catalog", () => {
   it("publishes the versioned catalog identity and visual authority", () => {
@@ -1394,8 +1415,12 @@ describe("Razavi symbol catalog", () => {
   });
 
   it("uses NMOS canonical geometry for every non-arrow PMOS body primitive", () => {
-    expect(canonicalMosBodyPrimitives("pmos")).toEqual(
-      canonicalMosBodyPrimitives("nmos"),
+    // The channel lead is the only body primitive the drain/source swap
+    // moves, and it moves by reflection. The gate plate, the channel bar, the
+    // gate lead, and the body lead are all centred on the gate, so a PMOS
+    // drawn from the NMOS pixel map reproduces them unchanged.
+    expect(mosBodyPrimitives("pmos").map(mirroredAcrossTheGate)).toEqual(
+      mosBodyPrimitives("nmos"),
     );
   });
 
@@ -1916,11 +1941,12 @@ describe("Razavi symbol catalog", () => {
       const variant = mos.variants.find(
         (candidate) => candidate.id === "textbook-3terminal",
       );
-      expect(variant?.hiddenPrimitiveParts).toEqual([
-        "bulk-lead",
-        "source-arrow-host",
-      ]);
-      expect(variant?.additionalPrimitives).toEqual(
+      // The body lead is the whole difference between the two drawings. The
+      // source arrow belongs to the transistor, so it is body artwork that
+      // neither variant adds and neither hides.
+      expect(variant?.hiddenPrimitiveParts).toEqual(["bulk-lead"]);
+      expect(variant?.additionalPrimitives).toBeUndefined();
+      expect(mos.primitives).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
             kind: "polyline",
@@ -1975,16 +2001,14 @@ describe("Razavi symbol catalog", () => {
 
   it("derives each textbook MOS arrow from its screenshot pixel map", () => {
     for (const symbolId of ["nmos", "pmos"] as const) {
-      const variant = requireRazaviCatalogSymbol(symbolId).variants.find(
-        (candidate) => candidate.id === "textbook-3terminal",
-      );
+      const mos = requireRazaviCatalogSymbol(symbolId);
       const measurement = mosGeometry.symbols[symbolId];
       const arrow = measurement.sourceArrowPx;
-      const support = variant?.additionalPrimitives?.find(
+      const support = mos.primitives.find(
         (primitive) =>
           primitive.kind === "polyline" && primitive.part === "source-arrow",
       );
-      const head = variant?.additionalPrimitives?.find(
+      const head = mos.primitives.find(
         (primitive) =>
           primitive.kind === "polygon" && primitive.part === "source-arrow",
       );
@@ -2017,6 +2041,41 @@ describe("Razavi symbol catalog", () => {
           logicalPoint(measurement, arrow.baseBottom),
         ],
       });
+    }
+  });
+
+  it("draws the four-terminal body as one unmarked lead to the B pin", () => {
+    for (const symbolId of ["nmos", "pmos"] as const) {
+      const mos = requireRazaviCatalogSymbol(symbolId);
+      const measurement = mosGeometry.symbols[symbolId];
+      const bodyParts = mos.primitives.filter(
+        (primitive) => primitive.part === "bulk-lead",
+      );
+      // One stroke, from the channel edge the reference measured straight out
+      // to the terminal. An arrowhead here lands out by the pin, far from the
+      // channel, and reads as a mark on the wire rather than on the device --
+      // the source arrow beside the channel is what states the polarity.
+      expect(bodyParts).toEqual([
+        expect.objectContaining({
+          kind: "line",
+          from: logicalPoint(
+            measurement,
+            measurement.bulkExtensionPx.supports[0]!.from,
+          ),
+          to: logicalPoint(measurement, measurement.pinsPx.B),
+        }),
+      ]);
+      expect(
+        mos.primitives.some(
+          (primitive) =>
+            primitive.kind === "polygon" && primitive.part === "bulk-lead",
+        ),
+      ).toBe(false);
+      const variant = mos.variants.find(
+        (candidate) => candidate.id === "four-terminal",
+      );
+      expect(variant).toMatchObject({ hiddenPinNames: [] });
+      expect(variant?.hiddenPrimitiveParts).toBeUndefined();
     }
   });
 
