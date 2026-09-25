@@ -456,6 +456,21 @@ describe("a wire that turns a corner", () => {
       );
     }
   });
+
+  it("caps a wire round, so no corner of the chain is left with a hole", () => {
+    // Two links meet at the corner as two separate shapes, with no line join
+    // between them. A cap that stops at the endpoint leaves the outside of the
+    // angle uncovered — a square hole, half a line weight on a side, at every
+    // corner and at both feet of every hop arc. Round is the only other cap
+    // Visio has, and it fills that hole at whatever weight the wire is set to.
+    const wire = corner.masters.find((master) => master.name === "Wire")!;
+    expect(wire.shapes).toContain('<Cell N="LineCap" V="0"/>');
+    // Only the master says it: a link that overrode the cell would reopen the
+    // hole on one side of its own corner.
+    for (const id of [10, 11]) {
+      expect(shapeXml(corner.body, id)).not.toContain('N="LineCap"');
+    }
+  });
 });
 
 describe("labels on the page", () => {

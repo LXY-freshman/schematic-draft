@@ -26,8 +26,8 @@
       "sha256": "a466adf94240f159ada43275192da79adc8eeedaf8c22d7e598b74d6f73a89e0"
     },
     "schematic.vsdx": {
-      "byteLength": 12708,
-      "sha256": "7aeecb89e30f87b533b59e1768b21bd7a882c3ba8114345f422fd69eb3124392"
+      "byteLength": 12706,
+      "sha256": "8310d8bc5e6a4aaaab28256f4f88102951c3e794234ae15e5c496521109907a0"
     }
   },
   "visio": {
@@ -94,7 +94,7 @@
       },
       "vsdx/visio/masters/master5.xml": {
         "byteLength": 1615,
-        "sha256": "7308a0995cfe897ed349a087f981dac189d7989b97e8a91037d8f0c1fd253578"
+        "sha256": "119c4a16a6e30146422b8ed6a9561a0776a9e8977840e1ad3ecb3c1a22e6f804"
       },
       "vsdx/visio/masters/master6.xml": {
         "byteLength": 1667,

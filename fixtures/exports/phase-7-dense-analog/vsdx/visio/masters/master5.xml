@@ -25,7 +25,7 @@
       <Cell N="LineColor" V="0"/>
       <Cell N="LinePattern" V="1"/>
       <Cell N="Rounding" V="0"/>
-      <Cell N="LineCap" V="1"/>
+      <Cell N="LineCap" V="0"/>
       <Cell N="BeginArrow" V="0"/>
       <Cell N="EndArrow" V="0"/>
       <Cell N="FillPattern" V="0"/>
