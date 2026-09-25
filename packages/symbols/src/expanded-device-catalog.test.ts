@@ -73,7 +73,7 @@ describe("Extended Devices catalog", () => {
     // that much higher.
     ["depletion-pmos", "Depletion PMOS", "pmos", -7.922093],
   ] as const)(
-    "keeps %s identical to %s except for one wire-width depletion channel",
+    "keeps %s identical to %s but for one wire-width depletion channel and the body lead that starts on it",
     (id, name, baseId, topY) => {
       const symbol = expandedDeviceSymbols.find(
         (candidate) => candidate.id === id,
@@ -89,7 +89,20 @@ describe("Extended Devices catalog", () => {
       });
       expect(symbol?.viewBox).toEqual(base?.viewBox);
       expect(symbol?.pins).toEqual(base?.pins);
-      expect(symbol?.primitives.slice(0, -1)).toEqual(base?.primitives);
+      const baseLead = base?.primitives.find(
+        (primitive) => primitive.part === "bulk-lead",
+      );
+      const body = symbol?.primitives.slice(0, -1);
+      expect(
+        body?.map((primitive) =>
+          primitive.part === "bulk-lead" ? baseLead : primitive,
+        ),
+      ).toEqual(base?.primitives);
+      // The body belongs to the channel, so on a depletion part the lead
+      // starts on the mark instead of crossing it at mid-height and cutting
+      // in two the bar that says the device is normally on.
+      const lead = body?.find((primitive) => primitive.part === "bulk-lead");
+      expect(lead).toMatchObject({ from: { x: -0.368217, y: 0 } });
       expect(symbol?.variants).toEqual(base?.variants);
       expect(symbol?.primitives.at(-1)).toMatchObject({
         kind: "line",

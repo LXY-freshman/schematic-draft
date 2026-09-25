@@ -137,7 +137,7 @@ export const expandedComponentSymbols: readonly SymbolDefinition[] = [
       },
       {
         kind: "line",
-        from: { x: -3.662791, y: 0 },
+        from: { x: -0.368217, y: 0 },
         to: { x: 20, y: 0 },
         part: "bulk-lead",
         style: { strokeRole: "normal", lineCap: "butt", lineJoin: "miter" },
@@ -266,7 +266,7 @@ export const expandedComponentSymbols: readonly SymbolDefinition[] = [
       },
       {
         kind: "line",
-        from: { x: -3.662791, y: 0 },
+        from: { x: -0.368217, y: 0 },
         to: { x: 20, y: 0 },
         part: "bulk-lead",
         style: { strokeRole: "normal", lineCap: "butt", lineJoin: "miter" },

@@ -66,6 +66,17 @@ hosted features some of them mention are gone.
   convention for anything — it read as a depletion bar with a piece missing.
   D-GaN keeps its continuous bar, correct for a normally-on device, so the two
   symbols now differ by exactly the thing they exist to distinguish.
+- **The depletion MOS body lead no longer cuts the channel it should come
+  out of.** A depletion MOSFET is drawn with a solid bar between drain and
+  source, which is the whole statement the symbol makes: the channel is there
+  before the gate does anything. Switching **DNMOS** or **DPMOS** to the
+  four-terminal drawing ran the body lead from the gate-side channel edge
+  straight out to B — across the middle of that bar, crossing it at right
+  angles and leaving it looking cut in two. The lead now starts on the bar and
+  goes right from there, which is also what it means: the body belongs to the
+  channel. Where the lead ends and where B sits are unchanged, so every wire
+  already landing on a body stays where it is, and the three-terminal drawing,
+  which never showed the lead at all, is untouched.
 
 ## 1.3.1 — Within reach (2026-09-24)
 

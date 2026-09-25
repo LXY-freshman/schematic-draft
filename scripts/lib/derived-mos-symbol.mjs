@@ -48,7 +48,8 @@ export function deriveDmosSymbol(base, id, name) {
 
 /**
  * Keep the reviewed MOS body, pins, variants, and polarity arrow intact while
- * adding the single continuous depletion-channel mark requested by the user.
+ * adding the single continuous depletion-channel mark requested by the user,
+ * and start the body lead on that mark instead of behind it.
  */
 export function deriveDepletionMosSymbol(base, id, name) {
   if (!base) throw new Error(`Missing depletion-MOS base Symbol for ${id}`);
@@ -68,12 +69,27 @@ export function deriveDepletionMosSymbol(base, id, name) {
   // One third of the way back from the NMOS arrow tail (x=1.27907) toward
   // the channel edge (x=-3.662791), matching the approved visual placement.
   const depletionChannelX = -0.368217;
+  // The body lead the enhancement MOS inherits runs from the channel edge all
+  // the way out to B, which on a depletion part means straight through the
+  // middle of the mark that says the device is normally on: the two cross at
+  // right angles and the bar reads as cut in half. The body belongs to the
+  // channel, so the lead starts on the mark and leaves it in one piece. Its
+  // far end, and B itself, do not move.
+  const bulkLead = base.primitives.find(
+    (primitive) => primitive.part === "bulk-lead",
+  );
+  if (bulkLead?.kind !== "line")
+    throw new Error(`Missing body lead for depletion MOS: ${base.id}`);
   return {
     ...base,
     id,
     name,
     primitives: [
-      ...base.primitives,
+      ...base.primitives.map((primitive) =>
+        primitive === bulkLead
+          ? { ...primitive, from: { ...primitive.from, x: depletionChannelX } }
+          : primitive,
+      ),
       {
         kind: "line",
         from: { x: depletionChannelX, y: rounded(upperY - wireHalfWidth) },

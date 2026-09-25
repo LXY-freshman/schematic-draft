@@ -180,7 +180,7 @@ describe("one-file component library", () => {
     }
   });
 
-  it("derives depletion MOS devices by adding only one wire-width channel mark", async () => {
+  it("derives depletion MOS devices by adding one wire-width channel mark and starting the body lead on it", async () => {
     // The mark clears whichever channel lead it reaches. The PMOS source lead
     // is measured from its own screenshot panel and sits 0.145 above the NMOS
     // channel the rest of the body is drawn from, so its mark starts higher.
@@ -194,9 +194,23 @@ describe("one-file component library", () => {
         deriveDepletionMosSymbol(base.symbol, id, derived.symbol.name),
       ).toEqual(derived.symbol);
       expect(derived.electrical.pinOrder).toEqual(base.electrical.pinOrder);
-      expect(derived.symbol.primitives.slice(0, -1)).toEqual(
-        base.symbol.primitives,
+      const baseLead = base.symbol.primitives.find(
+        (primitive) => primitive.part === "bulk-lead",
       );
+      const body = derived.symbol.primitives.slice(0, -1);
+      // The reviewed MOS body survives whole; the body lead is the one piece
+      // of it the derivation is allowed to move.
+      expect(
+        body.map((primitive) =>
+          primitive.part === "bulk-lead" ? baseLead : primitive,
+        ),
+      ).toEqual(base.symbol.primitives);
+      // It starts on the mark rather than crossing it at mid-height, so the
+      // bar that says the device is normally on stays in one piece. Where the
+      // lead ends, and where B is, do not move.
+      const lead = body.find((primitive) => primitive.part === "bulk-lead");
+      expect(lead.from).toEqual({ x: -0.368217, y: 0 });
+      expect(lead.to).toEqual(baseLead.to);
       expect(derived.symbol.primitives.at(-1)).toMatchObject({
         kind: "line",
         from: { x: -0.368217, y: topY },
