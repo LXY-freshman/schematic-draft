@@ -21,6 +21,12 @@ hosted features some of them mention are gone.
   every hop arc. Wires now cap round, which fills the notch at whatever line
   weight the drawing is set to, and keeps filling it after the weight is
   changed inside Visio.
+- **The grid reaches the edge of the window, whatever shape the window is.**
+  Maximised on a wide screen, or taken fullscreen, the dots used to stop in a
+  band either side of the drawing — and the blank paper past them was not
+  merely undotted: a click there placed nothing and started no wire, because
+  the layer the pointer draws on ended with the dots. Both now cover the whole
+  canvas, and keep covering it while the window is resized.
 
 ## 1.3.1 — Within reach (2026-09-24)
 

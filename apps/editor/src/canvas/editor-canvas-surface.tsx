@@ -180,7 +180,14 @@ export function EditorCanvasSurface({
     cameraRuntime.refreshSurface();
   }, [
     cameraRuntime,
+    // Every layer the camera sizes: React writes the camera rect onto each of
+    // them whenever the camera it was given changes, and the runtime has the
+    // panel-shaped rect that has to replace it. Re-applying here, before the
+    // browser paints, is what keeps the two from disagreeing — and it is also
+    // when a layer that has just appeared is first found.
+    viewBox,
     grid.visible,
+    grid.majorDots,
     inputPlanes.componentPlacementActive,
     inputPlanes.copyPlacementActive,
     inputPlanes.tool,
@@ -189,16 +196,25 @@ export function EditorCanvasSurface({
     const svg = svgRef.current;
     if (!svg) return;
     const invalidate = () => cameraRuntime.invalidateSurfaceBounds();
+    // A resized panel is a differently shaped panel, so the layers the camera
+    // sizes have to be laid out again rather than merely re-measured at the
+    // next gesture. Scrolling only moves the panel, and where it sits on the
+    // screen is nothing those layers are drawn from, so it stays what it was:
+    // a cache the pointer maths has to stop trusting.
+    const reshape = () => {
+      cameraRuntime.invalidateSurfaceBounds();
+      cameraRuntime.refreshSurface();
+    };
     const observer =
       typeof ResizeObserver === "undefined"
         ? null
-        : new ResizeObserver(invalidate);
+        : new ResizeObserver(reshape);
     observer?.observe(svg);
-    window.addEventListener("resize", invalidate);
+    window.addEventListener("resize", reshape);
     window.addEventListener("scroll", invalidate, true);
     return () => {
       observer?.disconnect();
-      window.removeEventListener("resize", invalidate);
+      window.removeEventListener("resize", reshape);
       window.removeEventListener("scroll", invalidate, true);
     };
   }, [cameraRuntime]);
@@ -233,6 +249,11 @@ export function EditorCanvasSurface({
         aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown"
         tabIndex={-1}
         viewBox={viewBox}
+        // The default, stated because the canvas depends on it: the camera is
+        // fitted whole and undistorted, so a panel of a different shape shows
+        // more of the drawing than the camera asked for. `visibleCameraRect`
+        // is what turns that into a rectangle the grid can cover.
+        preserveAspectRatio="xMidYMid meet"
         {...eventHandlers}
       >
         <style nonce={styleNonce() || undefined}>
