@@ -54,6 +54,17 @@ export function isBjtSymbol(resolved: ResolvedSymbol): boolean {
 }
 
 /**
+ * An IGBT is drawn as a MOS gate on a bipolar output, and it is neither: its
+ * terminals are a gate with a collector and an emitter. It still wants the
+ * name beside it like every other transistor, so it is named here rather than
+ * stretched into one of the two predicates above.
+ */
+export function isIgbtSymbol(resolved: ResolvedSymbol): boolean {
+  const roles = new Set(resolved.definition.pins.map((pin) => pin.role));
+  return roles.has("gate") && roles.has("collector") && roles.has("emitter");
+}
+
+/**
  * True when the Symbol draws a polarity-marked differential input pair, so a
  * caller can offer "swap + / −" as a named action. The swap itself is the
  * ordinary top/bottom reflection: the marks are artwork, and the terminals
@@ -363,7 +374,11 @@ export function defaultInstanceLabelPlacement(
     );
   }
 
-  if (isMosSymbol(resolved) || isBjtSymbol(resolved)) {
+  if (
+    isMosSymbol(resolved) ||
+    isBjtSymbol(resolved) ||
+    isIgbtSymbol(resolved)
+  ) {
     const localPosition = {
       x: localBounds.x + localBounds.width + compactSideGap,
       y: middleY + profile.typography.instanceFontSize * 0.55,
