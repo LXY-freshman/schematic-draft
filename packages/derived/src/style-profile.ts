@@ -1,6 +1,7 @@
 import type { SymbolStrokeRole } from "@icm/symbols";
 
 import { razaviPeripheralGeometry } from "./razavi-peripheral-geometry.generated.js";
+import { ROUTE_LINE_JUMP_RADIUS } from "./route-line-jump.js";
 import { withSchematicRoundPeriodFont } from "./schematic-font.js";
 
 export interface SchematicStyleProfile {
@@ -19,6 +20,7 @@ export interface SchematicStyleProfile {
   };
   readonly nodes: {
     readonly junctionRadius: number;
+    readonly lineJumpRadius: number;
   };
   readonly annotations: {
     readonly supplyBarWidth: number;
@@ -91,6 +93,7 @@ export const razaviTextbookProfile: SchematicStyleProfile = {
   },
   nodes: {
     junctionRadius: razaviPeripheralGeometry.solidNodeRadius,
+    lineJumpRadius: ROUTE_LINE_JUMP_RADIUS,
   },
   annotations: {
     supplyBarWidth: 20,
@@ -133,6 +136,7 @@ export interface StyleOverridablePresentation {
         readonly symbolStrokeScale?: number | undefined;
         readonly annotationStrokeScale?: number | undefined;
         readonly junctionRadiusScale?: number | undefined;
+        readonly lineJumpRadiusScale?: number | undefined;
       }
     | undefined;
 }
@@ -144,9 +148,10 @@ const overriddenProfiles = new WeakMap<object, SchematicStyleProfile>();
  * persisted `styleOverrides` scales composed on top. Absent overrides return
  * the base profile object itself, so untouched documents render
  * byte-identically. Font scale applies to the whole typography system; wire,
- * symbol-artwork, and drafting/annotation strokes and the junction-dot
- * radius scale independently. Results are cached per persisted overrides
- * object so repeated resolutions stay referentially stable.
+ * symbol-artwork, and drafting/annotation strokes, the junction-dot radius,
+ * and the line-jump arc radius scale independently. Results are cached per
+ * persisted overrides object so repeated resolutions stay referentially
+ * stable.
  */
 export function resolveDocumentStyleProfile(
   presentation: StyleOverridablePresentation,
@@ -161,6 +166,7 @@ export function resolveDocumentStyleProfile(
   const symbol = overrides.symbolStrokeScale ?? 1;
   const annotation = overrides.annotationStrokeScale ?? 1;
   const junction = overrides.junctionRadiusScale ?? 1;
+  const lineJump = overrides.lineJumpRadiusScale ?? 1;
   const profile: SchematicStyleProfile = {
     ...base,
     strokes: {
@@ -177,6 +183,7 @@ export function resolveDocumentStyleProfile(
     nodes: {
       ...base.nodes,
       junctionRadius: base.nodes.junctionRadius * junction,
+      lineJumpRadius: base.nodes.lineJumpRadius * lineJump,
     },
     typography: {
       ...base.typography,

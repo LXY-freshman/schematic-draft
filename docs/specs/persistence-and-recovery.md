@@ -5,7 +5,7 @@ Status: `accepted`
 Primary owner: the desktop file bridge, `packages/project-protocol`, and
 the editor document lifecycle
 
-Project content uses canonical schema-59 JSON. The `.icproj.json` file on disk is
+Project content uses canonical schema-60 JSON. The `.icproj.json` file on disk is
 the formal saved resource; there is no second store.
 The current-only model in `packages/model` validates the normalized shape;
 `packages/project-protocol` owns parsing, compatibility diagnostics,
@@ -16,7 +16,7 @@ supported historical content before current-schema validation; all writers emit
 the current schema. Persistence does not maintain a separate migration policy.
 
 Recovery state is a non-authoritative local safety copy. It may restore a
-complete schema-59 Project or a supported historical record that validates
+complete schema-60 Project or a supported historical record that validates
 after the chained upgrade, associated with a recorded working-copy session.
 Corrupt, incompatible, or partial recovery data is discarded or retained as raw
 data without changing the live Project. User-saved Library examples and their

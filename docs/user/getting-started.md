@@ -175,7 +175,12 @@ is defined.
   the same Net are connected where they meet, so they never hop. The arc is
   drawing and nothing else — it neither makes nor breaks a connection, and a
   junction dot still means exactly what it meant before. It travels into SVG,
-  PNG, PDF, and Visio export along with the rest of the drawing.
+  PNG, PDF, and Visio export along with the rest of the drawing. How big the
+  arc is belongs to the whole document rather than to one wire: **Line jump
+  size** (`appearance.lineJumpRadiusScale`) in the document Style code scales
+  the 4-unit radius between 0.5× and 2×, so every hop in the schematic reads
+  the same. A wider arc needs more straight wire either side of a crossing, so
+  raising it can leave a crossing that sits close to a corner drawn flat.
 - **Hop over crossings** and **Highlight Net** are buttons that stay held down,
   framed in blue, while what they turned on is on. Neither changes its name as
   you use it, so the panel always shows the state you are in rather than the

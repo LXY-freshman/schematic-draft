@@ -8,6 +8,7 @@ import {
   isMosBulkTerminal,
   isVisibleEndpoint,
   resolveCommittedDocumentLogicalNets,
+  resolveDocumentStyleProfile,
   resolveEndpointConnection,
   traceHierarchyNet,
 } from "@icm/derived";
@@ -321,6 +322,10 @@ export function useEditorDerivedModel({
           ? { routingGeometry: documentConnectivity.routingGeometry }
           : {}),
         crossings,
+        // The canvas has to hop exactly as wide as the SVG scene and the Visio
+        // export, so it reads the radius from the same resolved profile.
+        radius: resolveDocumentStyleProfile(document.presentation).nodes
+          .lineJumpRadius,
       }),
     [crossings, document, documentConnectivity, resolver],
   );

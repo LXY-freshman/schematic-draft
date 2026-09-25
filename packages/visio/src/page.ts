@@ -578,6 +578,7 @@ export function buildVisioPage(
   // one Document agreeing about where a wire hops.
   const lineJumps = deriveRouteLineJumps(document, resolver, {
     routingGeometry,
+    radius: profile.nodes.lineJumpRadius,
   });
   // Every Route's chain is planned before a shape ID is handed out: a link
   // glues to the node at its seam, so the nodes have to be numbered first.

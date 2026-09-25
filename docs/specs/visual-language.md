@@ -14,8 +14,9 @@ artwork and style; [export](export.md) owns file-format conversion.
 
 `Document.presentation.styleOverrides` stores optional scale intent, not
 resolved profile tokens. [The schema](../../packages/model/src/schema/presentation.ts)
-owns its fields and bounds: typography, Wire, symbol, annotation strokes and
-Junction radius each scale independently within 0.5–2; absence means 1.
+owns its fields and bounds: typography, Wire, symbol, annotation strokes,
+Junction radius and [line-jump](connectivity-and-routing.md#line-jumps) radius
+each scale independently within 0.5–2; absence means 1.
 `resolveDocumentStyleProfile` composes those values once for derived geometry,
 rendering and export. Object-level overrides apply only within their declared
 scope. Invalid scales are rejected, not clamped; clearing overrides restores

@@ -15,6 +15,7 @@ describe("style knobs", () => {
         symbolStrokeScale: 1,
         annotationStrokeScale: 1,
         junctionRadiusScale: 1,
+        lineJumpRadiusScale: 1,
       }),
     ).toBeNull();
   });
@@ -27,8 +28,13 @@ describe("style knobs", () => {
         symbolStrokeScale: 1,
         annotationStrokeScale: 1,
         junctionRadiusScale: 0.5,
+        lineJumpRadiusScale: 1.75,
       }),
-    ).toEqual({ fontScale: 1.5, junctionRadiusScale: 0.5 });
+    ).toEqual({
+      fontScale: 1.5,
+      junctionRadiusScale: 0.5,
+      lineJumpRadiusScale: 1.75,
+    });
   });
 
   it("normalizes an absent override back to 1", () => {

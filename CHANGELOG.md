@@ -10,6 +10,22 @@ hosted features some of them mention are gone.
 
 ## Unreleased
 
+### Added
+
+- **Line jumps can be drawn bigger or smaller.** The hop a wire makes over a
+  crossing was fixed at one size, which is right for a dense schematic on
+  screen and too small to see in a figure printed at half scale. **Line jump
+  size** joins the five factors in the document Style code and scales every
+  hop in the document between half and twice the size it was, leaving the
+  drawing it was tuned for unchanged at 1×. It is one setting for the whole
+  document rather than one per wire, so hops stay the same size as each other
+  the way a drawing convention should; which wires hop at all is still the
+  per-wire **Hop over crossings** button. The new size travels into SVG, PNG,
+  PDF and Visio export. A wider arc needs more straight wire either side of a
+  crossing, so at the larger sizes a crossing that sits close to a corner is
+  drawn flat instead of distorted — the same rule that has always decided
+  whether a hop fits.
+
 ### Fixed
 
 - **A wire in a Visio export no longer has a hole at every corner.** A Route

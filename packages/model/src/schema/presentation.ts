@@ -60,7 +60,8 @@ const StyleScaleSchema = z.number().min(0.5).max(2);
 /**
  * Optional document-wide style intent composed over the base profile:
  * uniform typography scale, wire stroke, symbol-artwork strokes, drafting
- * and annotation strokes, and the junction-dot radius.
+ * and annotation strokes, the junction-dot radius, and the line-jump arc
+ * radius.
  */
 export const StyleOverridesSchema = z.strictObject({
   fontScale: StyleScaleSchema.optional(),
@@ -68,6 +69,7 @@ export const StyleOverridesSchema = z.strictObject({
   symbolStrokeScale: StyleScaleSchema.optional(),
   annotationStrokeScale: StyleScaleSchema.optional(),
   junctionRadiusScale: StyleScaleSchema.optional(),
+  lineJumpRadiusScale: StyleScaleSchema.optional(),
 });
 
 export const PresentationIntentSchema = z.strictObject({

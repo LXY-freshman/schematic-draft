@@ -407,6 +407,14 @@ always produces the same answer:
   on one segment must not run into each other. A crossing that cannot be drawn
   this way is drawn flat rather than distorted.
 
+The hop's arc radius is 4 Document units, scaled by the document-wide
+`presentation.styleOverrides.lineJumpRadiusScale`. Its 0.5–2 bound keeps every
+resolved radius narrower than a grid step and wider than the Wire stroke, so a
+hop still reads as a hop. A wider hop needs more straight Wire around a
+crossing, so raising the factor can leave a tight crossing drawn flat under the
+rule above; that is the fitting rule applying to a larger arc, not a second
+rule.
+
 The rule is derived once, in `@icm/derived`, because the formal SVG scene, the
 editor's Net highlight and the Visio export all need the same answer and must
 not drift apart. A Document in which no Route asks for jumps derives none and

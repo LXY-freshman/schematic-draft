@@ -827,7 +827,7 @@ Project through one replacement boundary; they are not Edit Engine
 transactions. Replacement cancels pending recovery for the outgoing Project.
 A complete Project covered by the schema
 24→57 upgrade chain may be upgraded at the read boundary and then enters the
-editor only as schema-59; migrated files are marked as needing save.
+editor only as schema-60; migrated files are marked as needing save.
 
 Selection, viewport, active tool, and previews are
 transient and never enter Project JSON. Recovery is scheduled only after a

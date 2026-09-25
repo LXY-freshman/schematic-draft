@@ -1168,6 +1168,7 @@ export function buildSvgScene(
   const lineJumps = deriveRouteLineJumps(document, resolver, {
     routingGeometry,
     ...(options.crossings ? { crossings: options.crossings } : {}),
+    radius: profile.nodes.lineJumpRadius,
   });
 
   const routes = [...document.routes]
