@@ -1,0 +1,136 @@
+{
+  "bundle": "schematic-draft-upstream-handoff",
+  "currentSchemaVersion": 60,
+  "upstreamIssue": "https://github.com/cascode-ai/analog-canvas/issues/1003",
+  "divergenceCodes": {
+    "schema-version-collision": "Both projects number this schema version; the fork's meaning is the per-wire line-jump flag. Upstream's reader accepts the number and migrates it as its own 58, so the file is mis-read with no diagnostic. This is the only silent case.",
+    "version-ahead-of-upstream": "Above upstream's current version, so its reader refuses the file with UNSUPPORTED_SCHEMA_VERSION. Loud, and therefore safe — until upstream passes this number."
+  },
+  "samples": [
+    {
+      "file": "01-rc-divider.v57.schdraft",
+      "schemaVersion": 57,
+      "circuit": "RC low-pass with formal IN/OUT ports and a ground marker",
+      "covers": "pre-fork file with no fork features",
+      "extensionFieldPaths": [],
+      "knownDivergence": []
+    },
+    {
+      "file": "02-crossing-line-jump.v58.schdraft",
+      "schemaVersion": 58,
+      "circuit": "resistively loaded NMOS cross-coupled pair",
+      "covers": "the schema-58 per-wire line-jump flag, and the version collision",
+      "extensionFieldPaths": [
+        "documents[].routes[].styleOverride.lineJump"
+      ],
+      "knownDivergence": [
+        "schema-version-collision"
+      ],
+      "preview": "02-crossing-line-jump.svg"
+    },
+    {
+      "file": "03-stroke-scale.v59.schdraft",
+      "schemaVersion": 59,
+      "circuit": "common-source stage with a heavy supply rail and a heavy device",
+      "covers": "the schema-59 per-object stroke width, on a Route and an Instance",
+      "extensionFieldPaths": [
+        "documents[].routes[].styleOverride.strokeScale",
+        "documents[].instances[].styleOverride.strokeScale"
+      ],
+      "knownDivergence": [
+        "version-ahead-of-upstream"
+      ],
+      "preview": "03-stroke-scale.svg"
+    },
+    {
+      "file": "04-line-jump-radius.v60.schdraft",
+      "schemaVersion": 60,
+      "circuit": "the same cross-coupled pair at a larger line-jump radius",
+      "covers": "the schema-60 per-document line-jump size",
+      "extensionFieldPaths": [
+        "documents[].routes[].styleOverride.lineJump",
+        "documents[].presentation.styleOverrides.lineJumpRadiusScale"
+      ],
+      "knownDivergence": [
+        "version-ahead-of-upstream"
+      ],
+      "preview": "04-line-jump-radius.svg"
+    },
+    {
+      "file": "05-empty.v60.schdraft",
+      "schemaVersion": 60,
+      "circuit": "empty Project with one empty Document",
+      "covers": "empty Project",
+      "extensionFieldPaths": [],
+      "knownDivergence": [
+        "version-ahead-of-upstream"
+      ]
+    },
+    {
+      "file": "06-ota-5t-hierarchy.v60.schdraft",
+      "schemaVersion": 60,
+      "circuit": "5T OTA Cell instantiated twice from a top Document",
+      "covers": "hierarchical circuit with a formal Cell interface",
+      "extensionFieldPaths": [],
+      "knownDivergence": [
+        "version-ahead-of-upstream"
+      ]
+    },
+    {
+      "file": "07-split-grounds.v60.schdraft",
+      "schemaVersion": 60,
+      "circuit": "RC on AGND next to a CMOS inverter on DGND, no shared node 0",
+      "covers": "AGND/DGND as named global rails distinct from SPICE 0",
+      "extensionFieldPaths": [],
+      "knownDivergence": [
+        "version-ahead-of-upstream"
+      ]
+    },
+    {
+      "file": "08-power-devices.v60.schdraft",
+      "schemaVersion": 60,
+      "circuit": "E-GaN half bridge, IGBT leg with freewheeling diode, GaN cascode",
+      "covers": "the new power-device families, their pins and reference prefixes",
+      "extensionFieldPaths": [],
+      "knownDivergence": [
+        "version-ahead-of-upstream"
+      ]
+    },
+    {
+      "file": "09-four-terminal-mos.v60.schdraft",
+      "schemaVersion": 60,
+      "circuit": "CMOS inverter with both bodies drawn and wired explicitly",
+      "covers": "the four-terminal body variant",
+      "extensionFieldPaths": [],
+      "knownDivergence": [
+        "version-ahead-of-upstream"
+      ]
+    },
+    {
+      "file": "10-all-extensions.v60.schdraft",
+      "schemaVersion": 60,
+      "circuit": "cross-coupled pair carrying all three fork fields at once",
+      "covers": "what a current fork save actually looks like",
+      "extensionFieldPaths": [
+        "documents[].routes[].styleOverride.lineJump",
+        "documents[].routes[].styleOverride.strokeScale",
+        "documents[].instances[].styleOverride.strokeScale",
+        "documents[].presentation.styleOverrides.lineJumpRadiusScale"
+      ],
+      "knownDivergence": [
+        "version-ahead-of-upstream"
+      ],
+      "preview": "10-all-extensions.svg"
+    },
+    {
+      "file": "11-origin-indistinguishable.v58.schdraft",
+      "schemaVersion": 58,
+      "circuit": "NMOS current mirror with no fork fields anywhere",
+      "covers": "origin cannot be determined from the bytes: the refusal case",
+      "extensionFieldPaths": [],
+      "knownDivergence": [
+        "schema-version-collision"
+      ]
+    }
+  ]
+}

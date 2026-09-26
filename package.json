@@ -41,6 +41,8 @@
     "visual:golden:check": "pnpm build && node scripts/visual-golden.mjs --check",
     "export:golden": "pnpm build && node scripts/export-golden.mjs",
     "export:golden:check": "pnpm build && node scripts/export-golden.mjs --check",
+    "handoff:drafts": "pnpm build && node scripts/generate-upstream-handoff.mjs --drafts",
+    "handoff:finalize": "pnpm build && node scripts/generate-upstream-handoff.mjs --finalize",
     "components:generate": "node scripts/generate-component-library.mjs && node scripts/generate-razavi-symbol-catalog.mjs",
     "components:check": "node scripts/generate-component-library.mjs --check && node scripts/generate-razavi-symbol-catalog.mjs --check",
     "symbols:razavi": "node scripts/generate-razavi-signal-flow-assets.mjs && node scripts/generate-razavi-magnetic-components.mjs && node scripts/generate-component-library.mjs && node scripts/generate-razavi-symbol-catalog.mjs",
