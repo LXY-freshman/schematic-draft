@@ -86,33 +86,66 @@ version number back reproduces the file byte for byte.
 ([`packages/model/src/schema/project.ts`](../../packages/model/src/schema/project.ts))
 is a `z.strictObject` with **no producer, generator or dialect field**.
 `schemaVersion` is therefore the only thing in a file that could tell the two
-projects' saves apart — and it is a plain integer that both projects increment
-independently from the common ancestor, where both were at 57.
+projects' saves apart. It cannot: both projects increment it independently from
+the common ancestor, where both were at 57.
 
-The loader guard is shared ancestry: `load.ts` refuses any
-`sourceSchemaVersion` outside `[24, CURRENT]` with `UNSUPPORTED_SCHEMA_VERSION`.
-That gives three behaviours today:
+Worse than a shared counter, though, is that the counters now count different
+things. Read at upstream commit
+[`5a7841e0`](https://github.com/cascode-ai/analog-canvas/commit/5a7841e0ec0b9aab26420b971fa302c80b7ee0d6)
+(2026-09-26), upstream keeps **two** numbers where this fork keeps one:
 
-| Sample version | What upstream's reader does                                            |
-| -------------- | ---------------------------------------------------------------------- |
-| 57             | loads it correctly; it predates the divergence                          |
-| **58**         | **accepts it and migrates it as upstream's own 58 — silently mis-read** |
-| 59, 60         | refuses it outright: above upstream's current version                   |
+- `CURRENT_PROJECT_SCHEMA_VERSION` is 58 — the model schema.
+- `CURRENT_PROJECT_FILE_VERSION` is 63 — the on-disk format, and the bound
+  `load.ts` range-checks against.
+- `load.ts` reads `sourceSchemaVersion >= 59 ? decodeProjectFile(parsed)
+  : parsed`, so from 59 up the number denotes an **encoded container** —
+  compacted, with derived connectivity stripped out and stored separately —
+  rather than a model schema at all.
 
-Only 58 is silent. 59 and 60 are loud, and loud is safe.
+This fork never made that split: `schemaVersion` is one number and the file is
+always plain canonical JSON. So `60` in a file from here and `60` in a file from
+upstream are not two dialects of one format; they are two different kinds of
+claim that happen to be spelled the same way.
 
-The window widens, though: every version upstream adds moves one more of our
-numbers from "refused" into "silently accepted". `11-origin-indistinguishable`
-is the file that makes this concrete — it is a perfectly ordinary current mirror
-with no fork field anywhere, so there is nothing in it, at any version number,
-that either side could use to tell where it came from. The handoff test proves
-that claim rather than stating it.
+That produces five behaviours, all read from upstream's source rather than
+executed against it — verify before relying on any row:
 
-A format identifier on fork saves would end this, and
-`02-target-architecture.md` §3 rule 5 already permits one. We have not
-implemented it: this fork's feature set is frozen, and adding a persisted field
-would invalidate the baseline commit the migration plan is pinned to. It is a
-decision for the version-number conversation, not something to ship unilaterally.
+| This bundle's file            | What upstream's reader does                                                                                                                                             |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 57 (`01`)                     | loads correctly; it predates the divergence                                                                                                                             |
+| 58, no fork field (`11`)      | **loads correctly.** Upstream's own 57→58 step is an inlined `(raw) => ({...raw, schemaVersion: 58})`, so the step this file skips is a no-op                            |
+| 58, with a fork field (`02`)  | **refused by name.** `RouteStyleOverrideSchema` is a `z.strictObject` of `{color, lineStyle, arrow}`, so `lineJump` is an unrecognized key                                |
+| 59 (`03`)                     | enters `decodeProjectFile`, which dispatches 59 exactly to the older owned-v59 decoder. Plain JSON is not that encoding, so it fails; we have not characterised the message |
+| 60 with any Route (`04`–`10`) | enters the compact branch and trips its explicit guard on persisted `Route.netId`, surfacing as `INVALID_PROJECT`: `Route netId is derived; edit its endpoints instead`   |
+
+**An earlier version of this file got this wrong in both directions**, and the
+mistake is instructive enough to leave on the record: it claimed 58 was a silent
+mis-read and that 59 and 60 were refused outright for being above upstream's
+current version. Neither holds. Nothing here is silently mis-read, because the
+migration step a 58 file skips is a no-op and a strict object catches the fork
+fields; and nothing is refused for being *ahead*, because upstream's ceiling is
+63, so every number this fork uses is already inside its accepted window.
+
+So the cost today is not corruption. It is **a diagnostic that names the wrong
+cause**: a person handed a file from this fork is told to go edit the endpoints
+of routes that are not the problem, and `INVALID_PROJECT` does not distinguish
+"this file is damaged" from "this file is not ours". A format identifier on fork
+saves would end that, and `02-target-architecture.md` §3 rule 5 already permits
+one. We have not implemented it: this fork's feature set is frozen, and adding a
+persisted field would invalidate the baseline commit the migration plan is
+pinned to. It is a decision for the version-number conversation, not something
+to ship unilaterally.
+
+One scoping consequence worth stating plainly, because it is easy to
+underestimate: since upstream's file layer at 59 and above is an encoded
+container, a fork-to-upstream converter cannot be a field-renaming pass over
+JSON. It has to *produce* that encoding.
+
+`manifest.json` carries all of this per sample, under `knownDivergence` and
+`upstreamReaderAsRead`. The handoff test checks each claim it can check from the
+bytes — that only a 58 sample with a fork field claims the unknown-field
+refusal, and only a sample above 59 that actually contains a Route claims the
+misleading decoder diagnostic.
 
 ## Reading further
 

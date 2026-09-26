@@ -36,10 +36,21 @@ interface HandoffSample {
   readonly preview?: string;
 }
 
+interface UpstreamReader {
+  readonly repository: string;
+  readonly commit: string;
+  readonly observedOn: string;
+  readonly currentProjectSchemaVersion: number;
+  readonly currentProjectFileVersion: number;
+  readonly encodedContainerFromFileVersion: number;
+  readonly note: string;
+}
+
 interface HandoffManifest {
   readonly bundle: string;
   readonly currentSchemaVersion: number;
   readonly upstreamIssue: string;
+  readonly upstreamReaderAsRead: UpstreamReader;
   readonly divergenceCodes: Readonly<Record<string, string>>;
   readonly samples: readonly HandoffSample[];
 }
@@ -185,28 +196,53 @@ describe("upstream handoff samples", () => {
   });
 
   it("states a divergence consistent with the version it was stamped at", () => {
+    const upstream = manifest.upstreamReaderAsRead;
+    expect(upstream.currentProjectFileVersion).toBeGreaterThan(
+      upstream.currentProjectSchemaVersion,
+    );
+
     for (const sample of manifest.samples) {
       for (const code of sample.knownDivergence) {
         expect(Object.keys(manifest.divergenceCodes), sample.file).toContain(
           code,
         );
       }
-      // 58 is the one number both projects use, so a 58 sample is read by
-      // upstream as its own 58 with no diagnostic. 59 and 60 are above
-      // upstream's current version and are refused outright, which is loud
-      // and therefore safe. 57 predates the divergence entirely.
-      const collision = sample.knownDivergence.includes(
-        "schema-version-collision",
+      const declares = (code: string) => sample.knownDivergence.includes(code);
+      const raw = JSON.parse(read(sample.file)) as {
+        documents?: readonly { routes?: readonly unknown[] }[];
+      };
+      const hasRoutes = (raw.documents ?? []).some(
+        (document) => (document.routes ?? []).length > 0,
       );
-      const ahead = sample.knownDivergence.includes(
-        "version-ahead-of-upstream",
-      );
-      expect([collision, ahead], sample.file).toEqual(
-        sample.schemaVersion === 57
+
+      // Upstream's ceiling is its *file* version, not its schema version, so
+      // nothing here is "ahead of upstream" any more. Below 58 predates the
+      // divergence; 58 is the shared number; from 59 up the number denotes an
+      // encoded container over there rather than a model schema.
+      expect(
+        [
+          declares("schema-version-collision"),
+          declares("file-version-space-collision"),
+        ],
+        sample.file,
+      ).toEqual(
+        sample.schemaVersion < upstream.currentProjectSchemaVersion
           ? [false, false]
-          : sample.schemaVersion === 58
+          : sample.schemaVersion < upstream.encodedContainerFromFileVersion
             ? [true, false]
             : [false, true],
+      );
+
+      // Both remaining codes are claims about the bytes, so check the bytes:
+      // a fork field is what upstream's strict style-override schemas refuse,
+      // and a persisted Route netId is what its compact decoder throws on.
+      expect(declares("rejected-unknown-field"), sample.file).toBe(
+        sample.schemaVersion === upstream.currentProjectSchemaVersion &&
+          sample.extensionFieldPaths.length > 0,
+      );
+      expect(declares("misleading-decoder-diagnostic"), sample.file).toBe(
+        sample.schemaVersion > upstream.encodedContainerFromFileVersion &&
+          hasRoutes,
       );
     }
   });

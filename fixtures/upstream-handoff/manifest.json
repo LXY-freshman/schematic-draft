@@ -2,9 +2,20 @@
   "bundle": "schematic-draft-upstream-handoff",
   "currentSchemaVersion": 60,
   "upstreamIssue": "https://github.com/cascode-ai/analog-canvas/issues/1003",
+  "upstreamReaderAsRead": {
+    "repository": "cascode-ai/analog-canvas",
+    "commit": "5a7841e0ec0b9aab26420b971fa302c80b7ee0d6",
+    "observedOn": "2026-09-26",
+    "currentProjectSchemaVersion": 58,
+    "currentProjectFileVersion": 63,
+    "encodedContainerFromFileVersion": 59,
+    "note": "Read from upstream's source at this commit, not executed against it. load.ts range-checks sourceSchemaVersion against CURRENT_PROJECT_FILE_VERSION, then decodes anything at 59 or above through decodeProjectFile."
+  },
   "divergenceCodes": {
-    "schema-version-collision": "Both projects number this schema version; the fork's meaning is the per-wire line-jump flag. Upstream's reader accepts the number and migrates it as its own 58, so the file is mis-read with no diagnostic. This is the only silent case.",
-    "version-ahead-of-upstream": "Above upstream's current version, so its reader refuses the file with UNSUPPORTED_SCHEMA_VERSION. Loud, and therefore safe — until upstream passes this number."
+    "schema-version-collision": "Both projects number this schema version independently from the common ancestor at 57, so the number carries no information about which project wrote the file. Upstream's own 57→58 step is an inlined pure version bump, so a file at 58 that uses no fork field is read correctly — the collision costs nothing here beyond the lost origin.",
+    "rejected-unknown-field": "The fork field lands in one of upstream's z.strictObject style overrides, which declares no such key, so validation refuses the file and names the field. Loud, and the diagnostic is accurate.",
+    "file-version-space-collision": "Upstream separates CURRENT_PROJECT_SCHEMA_VERSION (58) from CURRENT_PROJECT_FILE_VERSION (63) and range-checks against the latter, so this number is inside its accepted window rather than above it. But at 59 and up the number denotes an encoded container, not a model schema, and this file is plain JSON. The two projects' schemaVersion fields no longer denote the same kind of thing.",
+    "misleading-decoder-diagnostic": "Reaching upstream's container decoder, the file trips its explicit guard on persisted Route netId and surfaces as INVALID_PROJECT reading 'Route netId is derived; edit its endpoints instead'. It fails loudly, but the message blames the reader's own routes instead of the file's origin — which is the single strongest argument in this bundle for a format identifier. Claimed only for file versions above 59: 59 exactly is dispatched to an older decoder whose failure mode we have not characterised."
   },
   "samples": [
     {
@@ -24,7 +35,8 @@
         "documents[].routes[].styleOverride.lineJump"
       ],
       "knownDivergence": [
-        "schema-version-collision"
+        "schema-version-collision",
+        "rejected-unknown-field"
       ],
       "preview": "02-crossing-line-jump.svg"
     },
@@ -38,7 +50,7 @@
         "documents[].instances[].styleOverride.strokeScale"
       ],
       "knownDivergence": [
-        "version-ahead-of-upstream"
+        "file-version-space-collision"
       ],
       "preview": "03-stroke-scale.svg"
     },
@@ -52,7 +64,8 @@
         "documents[].presentation.styleOverrides.lineJumpRadiusScale"
       ],
       "knownDivergence": [
-        "version-ahead-of-upstream"
+        "file-version-space-collision",
+        "misleading-decoder-diagnostic"
       ],
       "preview": "04-line-jump-radius.svg"
     },
@@ -63,7 +76,7 @@
       "covers": "empty Project",
       "extensionFieldPaths": [],
       "knownDivergence": [
-        "version-ahead-of-upstream"
+        "file-version-space-collision"
       ]
     },
     {
@@ -73,7 +86,8 @@
       "covers": "hierarchical circuit with a formal Cell interface",
       "extensionFieldPaths": [],
       "knownDivergence": [
-        "version-ahead-of-upstream"
+        "file-version-space-collision",
+        "misleading-decoder-diagnostic"
       ]
     },
     {
@@ -83,7 +97,8 @@
       "covers": "AGND/DGND as named global rails distinct from SPICE 0",
       "extensionFieldPaths": [],
       "knownDivergence": [
-        "version-ahead-of-upstream"
+        "file-version-space-collision",
+        "misleading-decoder-diagnostic"
       ]
     },
     {
@@ -93,7 +108,8 @@
       "covers": "the new power-device families, their pins and reference prefixes",
       "extensionFieldPaths": [],
       "knownDivergence": [
-        "version-ahead-of-upstream"
+        "file-version-space-collision",
+        "misleading-decoder-diagnostic"
       ]
     },
     {
@@ -103,7 +119,8 @@
       "covers": "the four-terminal body variant",
       "extensionFieldPaths": [],
       "knownDivergence": [
-        "version-ahead-of-upstream"
+        "file-version-space-collision",
+        "misleading-decoder-diagnostic"
       ]
     },
     {
@@ -118,7 +135,8 @@
         "documents[].presentation.styleOverrides.lineJumpRadiusScale"
       ],
       "knownDivergence": [
-        "version-ahead-of-upstream"
+        "file-version-space-collision",
+        "misleading-decoder-diagnostic"
       ],
       "preview": "10-all-extensions.svg"
     },
@@ -126,7 +144,7 @@
       "file": "11-origin-indistinguishable.v58.schdraft",
       "schemaVersion": 58,
       "circuit": "NMOS current mirror with no fork fields anywhere",
-      "covers": "origin cannot be determined from the bytes: the refusal case",
+      "covers": "origin cannot be determined from the bytes: a shared version number and no other discriminator",
       "extensionFieldPaths": [],
       "knownDivergence": [
         "schema-version-collision"

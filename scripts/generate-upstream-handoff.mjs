@@ -1289,8 +1289,35 @@ function currentMirror() {
 
 // --- the sample table -----------------------------------------------------
 
-const VERSION_AHEAD = "version-ahead-of-upstream";
+/**
+ * Upstream's reader as it stood when this bundle's divergence analysis was
+ * written. Read from source at the pinned commit and never executed, which is
+ * why the manifest says so: a reader of this bundle should re-derive the
+ * behaviour rather than take it on faith.
+ *
+ * The load of it is that upstream separates the model schema version from the
+ * *file* version and routes anything at file version 59 or above through an
+ * encoded container, so our 59 and 60 are inside its accepted window while
+ * meaning something else entirely there.
+ */
+const UPSTREAM_READER = {
+  repository: "cascode-ai/analog-canvas",
+  commit: "5a7841e0ec0b9aab26420b971fa302c80b7ee0d6",
+  observedOn: "2026-09-26",
+  currentProjectSchemaVersion: 58,
+  currentProjectFileVersion: 63,
+  encodedContainerFromFileVersion: 59,
+  note:
+    "Read from upstream's source at this commit, not executed against it. " +
+    "load.ts range-checks sourceSchemaVersion against " +
+    "CURRENT_PROJECT_FILE_VERSION, then decodes anything at 59 or above " +
+    "through decodeProjectFile.",
+};
+
 const VERSION_COLLISION = "schema-version-collision";
+const REJECTED_UNKNOWN_FIELD = "rejected-unknown-field";
+const FILE_VERSION_COLLISION = "file-version-space-collision";
+const MISLEADING_DIAGNOSTIC = "misleading-decoder-diagnostic";
 
 const SAMPLES = [
   {
@@ -1419,7 +1446,9 @@ const SAMPLES = [
     slug: "11-origin-indistinguishable",
     schemaVersion: 58,
     circuit: "NMOS current mirror with no fork fields anywhere",
-    covers: "origin cannot be determined from the bytes: the refusal case",
+    covers:
+      "origin cannot be determined from the bytes: a shared version number " +
+      "and no other discriminator",
     review: "do NOT enable a line jump or a stroke width here",
     extensionFields: [],
     preview: false,
@@ -1489,10 +1518,36 @@ function stampSchemaVersion(project, schemaVersion) {
   return `${JSON.stringify(canonical, null, 2)}\n`;
 }
 
-function knownDivergence(schemaVersion) {
-  if (schemaVersion === 58) return [VERSION_COLLISION];
-  if (schemaVersion > 58) return [VERSION_AHEAD];
-  return [];
+/**
+ * What upstream's reader does with this file, as codes the manifest defines.
+ *
+ * The earlier reading of this — "58 collides, 59 and 60 are refused for being
+ * ahead" — was wrong on both halves. Upstream's 57→58 step is an inlined pure
+ * version bump, so a 58 file carrying no fork field is read *correctly*; and
+ * upstream's ceiling is its file version (63), not its schema version, so 59
+ * and 60 are accepted by the range check and then handed to a container
+ * decoder that our plain JSON cannot satisfy.
+ */
+function knownDivergence(schemaVersion, { hasExtensionFields, hasRoutes }) {
+  if (schemaVersion < UPSTREAM_READER.currentProjectSchemaVersion) return [];
+  if (schemaVersion < UPSTREAM_READER.encodedContainerFromFileVersion) {
+    // The number is shared, so it carries no origin information either way.
+    // A fork field on top of that is refused by name, because upstream's
+    // style-override schemas are strict objects.
+    return hasExtensionFields
+      ? [VERSION_COLLISION, REJECTED_UNKNOWN_FIELD]
+      : [VERSION_COLLISION];
+  }
+  // Every Route we persist carries `netId`, which upstream's container decoder
+  // rejects by explicit throw — so a file with any Route gets a message about
+  // Routes rather than about where the file came from. Only the compact branch
+  // reaches that guard: file version 59 exactly is dispatched straight to the
+  // older owned-v59 decoder, whose failure mode we have not characterised and
+  // therefore do not claim.
+  return schemaVersion > UPSTREAM_READER.encodedContainerFromFileVersion &&
+    hasRoutes
+    ? [FILE_VERSION_COLLISION, MISLEADING_DIAGNOSTIC]
+    : [FILE_VERSION_COLLISION];
 }
 
 // --- phase 1: drafts ------------------------------------------------------
@@ -1596,7 +1651,12 @@ function runFinalize() {
       extensionFieldPaths: sample.extensionFields.map(
         (field) => EXTENSION_FIELD_PATHS[field],
       ),
-      knownDivergence: knownDivergence(sample.schemaVersion),
+      knownDivergence: knownDivergence(sample.schemaVersion, {
+        hasExtensionFields: sample.extensionFields.length > 0,
+        hasRoutes: result.project.documents.some(
+          (document) => document.routes.length > 0,
+        ),
+      }),
       ...(sample.preview ? { preview: previewFile } : {}),
     });
     process.stdout.write(`finalized ${fileName}\n`);
@@ -1609,16 +1669,36 @@ function runFinalize() {
         currentSchemaVersion: CURRENT_PROJECT_SCHEMA_VERSION,
         upstreamIssue:
           "https://github.com/cascode-ai/analog-canvas/issues/1003",
+        upstreamReaderAsRead: UPSTREAM_READER,
         divergenceCodes: {
           [VERSION_COLLISION]:
-            "Both projects number this schema version; the fork's meaning is " +
-            "the per-wire line-jump flag. Upstream's reader accepts the number " +
-            "and migrates it as its own 58, so the file is mis-read with no " +
-            "diagnostic. This is the only silent case.",
-          [VERSION_AHEAD]:
-            "Above upstream's current version, so its reader refuses the file " +
-            "with UNSUPPORTED_SCHEMA_VERSION. Loud, and therefore safe — until " +
-            "upstream passes this number.",
+            "Both projects number this schema version independently from the " +
+            "common ancestor at 57, so the number carries no information about " +
+            "which project wrote the file. Upstream's own 57→58 step is an " +
+            "inlined pure version bump, so a file at 58 that uses no fork " +
+            "field is read correctly — the collision costs nothing here beyond " +
+            "the lost origin.",
+          [REJECTED_UNKNOWN_FIELD]:
+            "The fork field lands in one of upstream's z.strictObject style " +
+            "overrides, which declares no such key, so validation refuses the " +
+            "file and names the field. Loud, and the diagnostic is accurate.",
+          [FILE_VERSION_COLLISION]:
+            "Upstream separates CURRENT_PROJECT_SCHEMA_VERSION (58) from " +
+            "CURRENT_PROJECT_FILE_VERSION (63) and range-checks against the " +
+            "latter, so this number is inside its accepted window rather than " +
+            "above it. But at 59 and up the number denotes an encoded " +
+            "container, not a model schema, and this file is plain JSON. The " +
+            "two projects' schemaVersion fields no longer denote the same kind " +
+            "of thing.",
+          [MISLEADING_DIAGNOSTIC]:
+            "Reaching upstream's container decoder, the file trips its " +
+            "explicit guard on persisted Route netId and surfaces as " +
+            "INVALID_PROJECT reading 'Route netId is derived; edit its " +
+            "endpoints instead'. It fails loudly, but the message blames the " +
+            "reader's own routes instead of the file's origin — which is the " +
+            "single strongest argument in this bundle for a format identifier. " +
+            "Claimed only for file versions above 59: 59 exactly is dispatched " +
+            "to an older decoder whose failure mode we have not characterised.",
         },
         samples: entries,
       },
