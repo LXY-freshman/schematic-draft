@@ -264,10 +264,10 @@ it, and fix the prose when you find it.
   [docs/README.md](docs/README.md#contributor-reading-order).
 - Test layers and contract ownership:
   [docs/testing/README.md](docs/testing/README.md) and its contract matrix.
-- `pnpm docs:check` validates links in `README.md` and `docs/`, and requires
-  every ADR and spec to be indexed with a `Status:` line (specs also need an
-  owner line). `format:check` skips Markdown, though most docs are
-  Prettier-formatted.
+- `pnpm docs:check` validates links in `README.md`, `docs/` and
+  `fixtures/upstream-handoff/`, and requires every ADR and spec to be indexed
+  with a `Status:` line (specs also need an owner line). `format:check` skips
+  Markdown, though most docs are Prettier-formatted.
 - Some docs are test-pinned:
   `packages/{model,edit-engine}/src/protocol-documentation.test.ts` read spec and
   plan text (for example the current Project schema version), so editing those

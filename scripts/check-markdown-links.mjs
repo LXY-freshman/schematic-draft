@@ -3,7 +3,14 @@ import { basename, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const markdownRoots = [resolve(root, "README.md"), resolve(root, "docs")];
+const markdownFiles = [resolve(root, "README.md")];
+const markdownDirectories = [
+  resolve(root, "docs"),
+  // Handed to upstream, so a path that goes stale here is visible outside the
+  // repository. Optional, because check-markdown-links.test.mjs runs this
+  // script against a temporary root carrying only the docs skeleton.
+  resolve(root, "fixtures", "upstream-handoff"),
+];
 const adrRoot = resolve(root, "docs", "adr");
 const specsRoot = resolve(root, "docs", "specs");
 const markdownLink = /\]\(([^)]+)\)/gu;
@@ -43,7 +50,12 @@ function localTarget(value) {
   return target;
 }
 
-const files = [markdownRoots[0], ...(await collectMarkdown(markdownRoots[1]))];
+const files = [...markdownFiles];
+for (const directory of markdownDirectories) {
+  if (await exists(directory)) {
+    files.push(...(await collectMarkdown(directory)));
+  }
+}
 const failures = [];
 
 for (const file of files) {
