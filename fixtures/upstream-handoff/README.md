@@ -113,3 +113,9 @@ A format identifier on fork saves would end this, and
 implemented it: this fork's feature set is frozen, and adding a persisted field
 would invalidate the baseline commit the migration plan is pinned to. It is a
 decision for the version-number conversation, not something to ship unilaterally.
+
+## Reading further
+
+[`porting-notes.md`](porting-notes.md) is the other half of what we promised:
+for each feature in your integration plan, the defects we hit while building it,
+what caused them, and why it ended up the shape it did.
